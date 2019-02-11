@@ -1,0 +1,26 @@
+decl m = [10, 20, ~30.2392, !E];
+println(30 + 20 - !m * pow(2, 3));
+m(30 + !!20);
+
+m[1] *= 2;
+
+if 3 > 4 {
+    println("It worked!!");
+} else if m[0] == 2 {
+    println("impossible");
+} else {
+    println("no");
+}
+
+decl m = "aaaaa";
+
+proc thingy {
+    println(args[0]);
+}
+
+for decl i = 0; i < 3; i += 1 {
+    println(i);
+    if i > 2 {
+        println("ABOVE");
+    }
+}

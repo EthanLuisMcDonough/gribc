@@ -1,0 +1,515 @@
+[
+  {
+    "Declaration": {
+      "identifier": "m",
+      "value": {
+        "ArrayCreation": [
+          {
+            "Number": 10.0
+          },
+          {
+            "Number": 20.0
+          },
+          {
+            "Unary": {
+              "op": "Negation",
+              "expr": {
+                "Number": 30.2392
+              }
+            }
+          },
+          {
+            "Unary": {
+              "op": "LogicalNegation",
+              "expr": {
+                "Identifier": {
+                  "data": "E",
+                  "start": {
+                    "row": 1,
+                    "column": 29
+                  },
+                  "end": {
+                    "row": 1,
+                    "column": 30
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "Expression": {
+      "FunctionCall": {
+        "function": {
+          "Identifier": {
+            "data": "println",
+            "start": {
+              "row": 2,
+              "column": 0
+            },
+            "end": {
+              "row": 2,
+              "column": 7
+            }
+          }
+        },
+        "args": [
+          {
+            "Binary": {
+              "op": "Minus",
+              "left": {
+                "Binary": {
+                  "op": "Plus",
+                  "left": {
+                    "Number": 30.0
+                  },
+                  "right": {
+                    "Number": 20.0
+                  }
+                }
+              },
+              "right": {
+                "Binary": {
+                  "op": "Mult",
+                  "left": {
+                    "Unary": {
+                      "op": "LogicalNegation",
+                      "expr": {
+                        "Identifier": {
+                          "data": "m",
+                          "start": {
+                            "row": 2,
+                            "column": 19
+                          },
+                          "end": {
+                            "row": 2,
+                            "column": 20
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "right": {
+                    "FunctionCall": {
+                      "function": {
+                        "Identifier": {
+                          "data": "pow",
+                          "start": {
+                            "row": 2,
+                            "column": 23
+                          },
+                          "end": {
+                            "row": 2,
+                            "column": 26
+                          }
+                        }
+                      },
+                      "args": [
+                        {
+                          "Number": 2.0
+                        },
+                        {
+                          "Number": 3.0
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "Expression": {
+      "FunctionCall": {
+        "function": {
+          "Identifier": {
+            "data": "m",
+            "start": {
+              "row": 3,
+              "column": 0
+            },
+            "end": {
+              "row": 3,
+              "column": 1
+            }
+          }
+        },
+        "args": [
+          {
+            "Binary": {
+              "op": "Plus",
+              "left": {
+                "Number": 30.0
+              },
+              "right": {
+                "Unary": {
+                  "op": "LogicalNegation",
+                  "expr": {
+                    "Unary": {
+                      "op": "LogicalNegation",
+                      "expr": {
+                        "Number": 20.0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "Expression": {
+      "Assignment": {
+        "op": "AssignMult",
+        "left": {
+          "IndexAccess": {
+            "item": {
+              "Identifier": {
+                "data": "m",
+                "start": {
+                  "row": 5,
+                  "column": 0
+                },
+                "end": {
+                  "row": 5,
+                  "column": 1
+                }
+              }
+            },
+            "index": {
+              "Number": 1.0
+            }
+          }
+        },
+        "right": {
+          "Number": 2.0
+        }
+      }
+    }
+  },
+  {
+    "LogicChain": {
+      "if_block": {
+        "condition": {
+          "Binary": {
+            "op": "GreaterThan",
+            "left": {
+              "Number": 3.0
+            },
+            "right": {
+              "Number": 4.0
+            }
+          }
+        },
+        "block": [
+          {
+            "Expression": {
+              "FunctionCall": {
+                "function": {
+                  "Identifier": {
+                    "data": "println",
+                    "start": {
+                      "row": 8,
+                      "column": 4
+                    },
+                    "end": {
+                      "row": 8,
+                      "column": 11
+                    }
+                  }
+                },
+                "args": [
+                  {
+                    "String": "It worked!!"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "elseifs": [
+        {
+          "condition": {
+            "Binary": {
+              "op": "Equal",
+              "left": {
+                "IndexAccess": {
+                  "item": {
+                    "Identifier": {
+                      "data": "m",
+                      "start": {
+                        "row": 9,
+                        "column": 10
+                      },
+                      "end": {
+                        "row": 9,
+                        "column": 11
+                      }
+                    }
+                  },
+                  "index": {
+                    "Number": 0.0
+                  }
+                }
+              },
+              "right": {
+                "Number": 2.0
+              }
+            }
+          },
+          "block": [
+            {
+              "Expression": {
+                "FunctionCall": {
+                  "function": {
+                    "Identifier": {
+                      "data": "println",
+                      "start": {
+                        "row": 10,
+                        "column": 4
+                      },
+                      "end": {
+                        "row": 10,
+                        "column": 11
+                      }
+                    }
+                  },
+                  "args": [
+                    {
+                      "String": "impossible"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "else_block": [
+        {
+          "Expression": {
+            "FunctionCall": {
+              "function": {
+                "Identifier": {
+                  "data": "println",
+                  "start": {
+                    "row": 12,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 12,
+                    "column": 11
+                  }
+                }
+              },
+              "args": [
+                {
+                  "String": "no"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "Declaration": {
+      "identifier": "m",
+      "value": {
+        "String": "aaaaa"
+      }
+    }
+  },
+  {
+    "Procedure": {
+      "identifier": "thingy",
+      "param_list": [],
+      "body": [
+        {
+          "Expression": {
+            "FunctionCall": {
+              "function": {
+                "Identifier": {
+                  "data": "println",
+                  "start": {
+                    "row": 18,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 18,
+                    "column": 11
+                  }
+                }
+              },
+              "args": [
+                {
+                  "IndexAccess": {
+                    "item": "Args",
+                    "index": {
+                      "Number": 0.0
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "For": {
+      "declaration": {
+        "identifier": "i",
+        "value": {
+          "Number": 0.0
+        }
+      },
+      "condition": {
+        "Binary": {
+          "op": "LessThan",
+          "left": {
+            "Identifier": {
+              "data": "i",
+              "start": {
+                "row": 21,
+                "column": 16
+              },
+              "end": {
+                "row": 21,
+                "column": 17
+              }
+            }
+          },
+          "right": {
+            "Number": 3.0
+          }
+        }
+      },
+      "increment": {
+        "Assignment": {
+          "op": "AssignPlus",
+          "left": {
+            "Identifier": {
+              "data": "i",
+              "start": {
+                "row": 21,
+                "column": 23
+              },
+              "end": {
+                "row": 21,
+                "column": 24
+              }
+            }
+          },
+          "right": {
+            "Number": 1.0
+          }
+        }
+      },
+      "body": [
+        {
+          "Expression": {
+            "FunctionCall": {
+              "function": {
+                "Identifier": {
+                  "data": "println",
+                  "start": {
+                    "row": 22,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 22,
+                    "column": 11
+                  }
+                }
+              },
+              "args": [
+                {
+                  "Identifier": {
+                    "data": "i",
+                    "start": {
+                      "row": 22,
+                      "column": 12
+                    },
+                    "end": {
+                      "row": 22,
+                      "column": 13
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "LogicChain": {
+            "if_block": {
+              "condition": {
+                "Binary": {
+                  "op": "GreaterThan",
+                  "left": {
+                    "Identifier": {
+                      "data": "i",
+                      "start": {
+                        "row": 23,
+                        "column": 7
+                      },
+                      "end": {
+                        "row": 23,
+                        "column": 8
+                      }
+                    }
+                  },
+                  "right": {
+                    "Number": 2.0
+                  }
+                }
+              },
+              "block": [
+                {
+                  "Expression": {
+                    "FunctionCall": {
+                      "function": {
+                        "Identifier": {
+                          "data": "println",
+                          "start": {
+                            "row": 24,
+                            "column": 8
+                          },
+                          "end": {
+                            "row": 24,
+                            "column": 15
+                          }
+                        }
+                      },
+                      "args": [
+                        {
+                          "String": "ABOVE"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "elseifs": [],
+            "else_block": null
+          }
+        }
+      ]
+    }
+  }
+]
