@@ -335,7 +335,10 @@
   {
     "Procedure": {
       "identifier": "thingy",
-      "param_list": [],
+      "param_list": {
+        "params": [],
+        "vardic": null
+      },
       "body": [
         {
           "Expression": {

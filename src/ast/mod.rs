@@ -35,6 +35,9 @@ pub enum ParseError {
     IllegalContinue(Location),
     IllegalReturn(Location),
     IllegalLeftExpression(Expression),
+    IllegalExpression(Location),
+    DuplicateParam(Located<String>),
+    ParamAfterSpread(Located<String>),
 }
 
 impl ParseError {
@@ -405,22 +408,53 @@ fn parse_decl<T: Iterator<Item = Located<Token>>>(tokens: &mut T) -> ParseResult
     })
 }
 
-fn parse_params<T: Iterator<Item = Located<Token>>>(tokens: &mut T) -> ParseResult<Vec<String>> {
+fn parse_params<T: Iterator<Item = Located<Token>>>(tokens: &mut T) -> ParseResult<Parameters> {
+    let mut params = Parameters::new();
     Ok(next_guard!({ tokens.next() } {
-        Token::OpenGroup(Grouper::Brace) => vec![],
+        Token::OpenGroup(Grouper::Brace) => params,
         Token::BinaryOp(Binary::LogicalOr) => {
             next_guard!({ tokens.next() } { Token::OpenGroup(Grouper::Brace) => {} });
-            vec![]
+            params
         },
         Token::Pipe => {
             let (list, _) = zero_level(tokens, |d| *d == Token::Pipe)?;
+            let mut list = list.into_iter();
+
             next_guard!({ tokens.next() } { Token::OpenGroup(Grouper::Brace) => {} });
-            let mut params = vec![];
-            for token in list {
-                params.push(match token {
-                    Located { data: Token::Identifier(s), .. } => s,
+
+            while let Some(token) = list.next() {
+                match token {
+                    Located { data: Token::Identifier(s), start, end } => {
+                        if params.vardic.is_some() {
+                            return Err(ParseError::ParamAfterSpread(Located {
+                                data: s, start, end
+                            }));
+                        } else if !params.params.insert(s.clone()) {
+                            return Err(ParseError::DuplicateParam(Located {
+                                data: s, start, end
+                            }));
+                        }
+                    },
+                    Located { data: Token::Spread, .. } => match list.next() {
+                        Some(Located {
+                            data: Token::Identifier(s),
+                            start, end
+                        }) => if params.vardic.is_some() {
+                            return Err(ParseError::ParamAfterSpread(Located {
+                                data: s, start, end
+                            }));
+                        } else if params.params.contains(&s) {
+                            return Err(ParseError::DuplicateParam(Located {
+                                data: s, start, end
+                            }));
+                        } else {
+                            params.vardic = s.to_owned().into();
+                        },
+                        Some(token) => return Err(ParseError::UnexpectedToken(token)),
+                        None => return Err(ParseError::UnexpectedEOF),
+                    },
                     _ => return Err(ParseError::UnexpectedToken(token)),
-                })
+                }
             }
             params
         }
@@ -507,9 +541,14 @@ fn ast_level(
                 }
             }
             _ => {
+                let loc = token.start.clone();
                 let (mut tokens, _) = zero_level(&mut tokens, |t| *t == Token::Semicolon)?;
                 tokens.insert(0, token);
-                parse_expr(tokens).map(Node::Expression)?
+                let expr = parse_expr(tokens)?;
+                if !expr.is_statement() {
+                    return Err(ParseError::IllegalExpression(loc));
+                }
+                Node::Expression(expr)
             }
         });
     }

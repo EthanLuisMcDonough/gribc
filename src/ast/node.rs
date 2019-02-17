@@ -1,7 +1,7 @@
 use super::Block;
 use location::Located;
 use operators::{Assignment, Binary, Unary};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct ConditionBodyPair {
@@ -13,6 +13,21 @@ pub struct ConditionBodyPair {
 pub struct Declaration {
     pub identifier: String,
     pub value: Expression,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct Parameters {
+    pub params: HashSet<String>,
+    pub vardic: Option<String>,
+}
+
+impl Parameters {
+    pub fn new() -> Self {
+        Parameters {
+            params: HashSet::new(),
+            vardic: None,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -62,13 +77,22 @@ pub enum Expression {
         property: String,
     },
     Lambda {
-        param_list: Vec<String>,
+        param_list: Parameters,
         body: Block,
     },
     Hash(HashMap<String, Expression>),
     MutableHash(HashMap<String, Expression>),
     Nil,
     Args,
+}
+
+impl Expression {
+    pub fn is_statement(&self) -> bool {
+        match self {
+            Expression::FunctionCall { .. } | Expression::Assignment { .. } => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -89,7 +113,7 @@ pub enum Node {
     },
     Procedure {
         identifier: String,
-        param_list: Vec<String>,
+        param_list: Parameters,
         body: Block,
     },
     Declaration(Declaration),

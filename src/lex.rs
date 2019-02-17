@@ -61,6 +61,7 @@ pub enum Token {
     Break,
     Continue,
     Period,
+    Spread,
     MutableHash,
     Hash,
     Arrow,
@@ -87,6 +88,24 @@ impl Token {
     }
 }
 
+fn next_guard<T: Iterator<Item = char>>(
+    i: &mut T,
+    c: char,
+    loc: &mut Location,
+) -> Result<(), LexError> {
+    match i.next() {
+        Some(ch) => {
+            if ch == c {
+                loc.feed(ch);
+                Ok(())
+            } else {
+                Err(LexErrorData::UnexpectedChar(ch).with_loc(loc.clone()))
+            }
+        }
+        None => Err(LexErrorData::UnexpectedEOF.with_loc(loc.clone())),
+    }
+}
+
 pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
     let mut chars = s.chars().peekable();
     let mut loc = Location::new();
@@ -105,7 +124,14 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
                 '}' => Token::CloseGroup(Grouper::Brace),
                 ',' => Token::Comma,
                 ';' => Token::Semicolon,
-                '.' => Token::Period,
+                '.' => {
+                    if next_if(&mut chars, |&c| c == '.').is_some() {
+                        next_guard(&mut chars, '.', &mut loc)?;
+                        Token::Spread
+                    } else {
+                        Token::Period
+                    }
+                }
                 '$' => Token::MutableHash,
                 '#' => Token::Hash,
                 '0'...'9' => {
@@ -133,21 +159,10 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
                         Token::Pipe
                     }
                 }
-                '&' => match chars.next() {
-                    Some('&') => Token::BinaryOp(Binary::LogicalAnd),
-                    Some(c) => {
-                        return Err(LexError {
-                            data: LexErrorData::UnexpectedChar(c),
-                            loc,
-                        });
-                    }
-                    None => {
-                        return Err(LexError {
-                            data: LexErrorData::UnexpectedEOF,
-                            loc,
-                        });
-                    }
-                },
+                '&' => {
+                    next_guard(&mut chars, '&', &mut loc)?;
+                    Token::BinaryOp(Binary::LogicalAnd)
+                }
                 '+' | '-' | '*' | '/' | '<' | '>' | '%' => {
                     let eq = next_if(&mut chars, |&c| c == '=')
                         .map(|c| loc.feed(c))

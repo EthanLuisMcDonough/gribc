@@ -1,6 +1,5 @@
 use super::Assignable;
 use super::Expression;
-use location::Located;
 use operators::{Assignment, Binary, Unary};
 
 #[derive(Debug)]
