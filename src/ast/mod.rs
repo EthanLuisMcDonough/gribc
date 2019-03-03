@@ -6,25 +6,28 @@ use self::opexpr::{try_into_assignable, OpExpr, OpExprManager};
 use lex::{Grouper, Token};
 use location::{Located, Location};
 use operators::{op_precedence, Assignment, Binary, Precedence};
-use std::collections::HashMap;
 use util::next_if;
 
 type ParseResult<T> = Result<T, ParseError>;
 type Block = Vec<Node>;
 
 macro_rules! next_guard {
-    ({ $next:expr } { $( $( $p:pat )|* => $b:expr ),* }) => {
+    ({ $next:expr } ( $start_bind:ident, $end_bind:ident ) { $( $( $p:pat )|* => $b:expr ),* } ) => {
         match $next {
             $($(
                 Some(Located {
                     data: $p,
-                    ..
+                    start: $start_bind,
+                    end: $end_bind,
                 }) => $b,
             )*)*
             Some(t) => return Err(ParseError::UnexpectedToken(t)),
             None => return Err(ParseError::UnexpectedEOF),
         };
     };
+    ({ $next:expr } { $( $token:tt )* }) => {
+        next_guard!({ $next } (_s, _e) { $( $token )* })
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -105,11 +108,56 @@ fn expression_list(tokens: Vec<Located<Token>>) -> ParseResult<Vec<Expression>> 
     Ok(expressions)
 }
 
-fn parse_hash(
-    tokens: impl IntoIterator<Item = Located<Token>>,
-) -> ParseResult<HashMap<String, Expression>> {
+fn parse_prop(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<AutoProp> {
+    let mut prop = AutoProp::new();
+
+    let mut interior = tokens.into_iter().peekable();
+    while interior.peek().is_some() {
+        let mut tokens = match zero_level_preserve(&mut interior, |t| *t == Token::Comma)? {
+            Ok((tokens, _)) | Err(tokens) => tokens,
+        }
+        .into_iter()
+        .peekable();
+        next_guard!({ tokens.next() } (start, end) {
+            Token::Get => if prop.get.is_none() {
+                if next_if(&mut tokens, |t| t.data == Token::BinaryOp(Binary::LogicalOr)).is_none() {
+                    if next_if(&mut tokens, |t| t.data == Token::Pipe).is_some() {
+                        next_guard!({ tokens.next() } { Token::Pipe => {} });
+                    }
+                }
+                prop.get = next_guard!({ tokens.next() } {
+                    Token::OpenGroup(Grouper::Brace) => take_until(&mut tokens, Grouper::Brace)
+                        .and_then(|(t, e)| lam_body(t).map_err(|err| {
+                            err.neof_or(ParseError::UnexpectedToken(e))
+                        }))?
+                }).into();
+            } else {
+                return Err(ParseError::UnexpectedToken(Located { start, end, data: Token::Get }));
+            },
+            Token::Set => if prop.set.is_none() {
+                next_guard!({ tokens.next() } { Token::Pipe => {} });
+                let param = next_guard!({ tokens.next() } { Token::Identifier(s) => s });
+                next_guard!({ tokens.next() } { Token::Pipe => {} });
+                next_guard!({ tokens.next() } { Token::OpenGroup(Grouper::Brace) => {} });
+                prop.set = Some(SetProp {
+                    param,
+                    block: take_until(&mut tokens, Grouper::Brace)
+                        .and_then(|(t, e)| lam_body(t).map_err(|err| {
+                            err.neof_or(ParseError::UnexpectedToken(e))
+                        }))?
+                })
+            } else {
+                return Err(ParseError::UnexpectedToken(Located { start, end, data: Token::Set }));
+            }
+        });
+    }
+
+    Ok(prop)
+}
+
+fn parse_hash(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<Hash> {
     let mut tokens = tokens.into_iter().peekable();
-    let mut map = HashMap::new();
+    let mut map = Hash::new();
     while tokens.peek().is_some() {
         let key = next_guard!({ tokens.next() } {
             Token::Identifier(s) | Token::String(s) => s,
@@ -117,12 +165,41 @@ fn parse_hash(
         });
         let value = next_guard!({ tokens.next() } {
             Token::Arrow => match zero_level_preserve(&mut tokens, |t| *t == Token::Comma)? {
-                Ok((tokens, _)) | Err(tokens) => parse_expr(tokens)?
+                Ok((tokens, _)) | Err(tokens) => parse_expr(tokens).map(ObjectValue::Expression)
+            },
+            Token::OpenGroup(Grouper::Brace) => {
+                let (interior, last) = take_until(&mut tokens, Grouper::Brace)?;
+                parse_prop(interior).map_err(|e| {
+                    e.neof_or(ParseError::UnexpectedToken(last))
+                }).map(ObjectValue::AutoProp)
             }
-        });
+        })?;
         map.insert(key, value);
     }
     Ok(map)
+}
+
+fn lam_body(body: Vec<Located<Token>>) -> ParseResult<Block> {
+    let mut level = 0;
+    let mut semicolons = 0;
+    for token in &body {
+        match token.data {
+            Token::OpenGroup(_) => level += 1,
+            Token::CloseGroup(_) => level -= 1,
+            Token::Semicolon if level == 0 => semicolons += 1,
+            _ => {}
+        }
+    }
+
+    if semicolons == 0 {
+        Ok(if body.is_empty() {
+            vec![]
+        } else {
+            vec![parse_expr(body).map(Node::Return)?]
+        })
+    } else {
+        ast_level(body, true, false)
+    }
 }
 
 fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<Expression> {
@@ -170,31 +247,9 @@ fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<E
                 let params = parse_params(&mut tokens)?;
                 let (body, _) = take_until(&mut tokens, Grouper::Brace)?;
 
-                let semicolons = {
-                    let mut level = 0;
-                    let mut semicolons = 0;
-                    for token in &body {
-                        match token.data {
-                            Token::OpenGroup(_) => level += 1,
-                            Token::CloseGroup(_) => level -= 1,
-                            Token::Semicolon if level == 0 => semicolons += 1,
-                            _ => {}
-                        }
-                    }
-                    semicolons
-                };
-
                 expr = Expression::Lambda {
                     param_list: params,
-                    body: if semicolons == 0 {
-                        if body.is_empty() {
-                            vec![]
-                        } else {
-                            vec![parse_expr(body).map(Node::Return)?]
-                        }
-                    } else {
-                        ast_level(body, true, false)?
-                    },
+                    body: lam_body(body)?,
                 }
                 .into();
             }

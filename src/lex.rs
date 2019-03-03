@@ -65,6 +65,8 @@ pub enum Token {
     MutableHash,
     Hash,
     Arrow,
+    Get,
+    Set,
 
     // Booleans
     Bool(bool),
@@ -259,6 +261,8 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
                         "continue" => Token::Continue,
                         "lam" => Token::Lam,
                         "typeof" => Token::UnaryOp(Unary::TypeOf),
+                        "set" => Token::Set,
+                        "get" => Token::Get,
                         _ => Token::Identifier(ident),
                     }
                 }

@@ -31,6 +31,35 @@ impl Parameters {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct SetProp {
+    pub param: String,
+    pub block: Block,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct AutoProp {
+    pub get: Option<Block>,
+    pub set: Option<SetProp>,
+}
+
+impl AutoProp {
+    pub fn new() -> Self {
+        AutoProp {
+            get: None,
+            set: None,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub enum ObjectValue {
+    AutoProp(AutoProp),
+    Expression(Expression),
+}
+
+pub type Hash = HashMap<String, ObjectValue>;
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum Assignable {
     Identifier(Located<String>),
     IndexAccess {
@@ -80,8 +109,8 @@ pub enum Expression {
         param_list: Parameters,
         body: Block,
     },
-    Hash(HashMap<String, Expression>),
-    MutableHash(HashMap<String, Expression>),
+    Hash(Hash),
+    MutableHash(Hash),
     Nil,
     Args,
 }
