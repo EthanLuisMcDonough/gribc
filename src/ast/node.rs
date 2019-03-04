@@ -31,6 +31,12 @@ impl Parameters {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub enum LocatedOr<T, E> {
+    Located(Located<T>),
+    Or(E),
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct SetProp {
     pub param: String,
     pub block: Block,
@@ -38,8 +44,8 @@ pub struct SetProp {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct AutoProp {
-    pub get: Option<Block>,
-    pub set: Option<SetProp>,
+    pub get: Option<LocatedOr<String, Block>>,
+    pub set: Option<LocatedOr<String, SetProp>>,
 }
 
 impl AutoProp {

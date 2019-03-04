@@ -120,32 +120,40 @@ fn parse_prop(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<A
         .peekable();
         next_guard!({ tokens.next() } (start, end) {
             Token::Get => if prop.get.is_none() {
-                if next_if(&mut tokens, |t| t.data == Token::BinaryOp(Binary::LogicalOr)).is_none() {
-                    if next_if(&mut tokens, |t| t.data == Token::Pipe).is_some() {
-                        next_guard!({ tokens.next() } { Token::Pipe => {} });
+                if let Some(Located { data: Token::Identifier(s), start, end }) = next_if(&mut tokens, |t| t.data.ident()) {
+                    prop.get = LocatedOr::Located(Located { data: s, start, end }).into();
+                } else {
+                    if next_if(&mut tokens, |t| t.data == Token::BinaryOp(Binary::LogicalOr)).is_none() {
+                        if next_if(&mut tokens, |t| t.data == Token::Pipe).is_some() {
+                            next_guard!({ tokens.next() } { Token::Pipe => {} });
+                        }
                     }
+                    prop.get = LocatedOr::Or(next_guard!({ tokens.next() } {
+                        Token::OpenGroup(Grouper::Brace) => take_until(&mut tokens, Grouper::Brace)
+                            .and_then(|(t, e)| lam_body(t).map_err(|err| {
+                                err.neof_or(ParseError::UnexpectedToken(e))
+                            }))?
+                    })).into();
                 }
-                prop.get = next_guard!({ tokens.next() } {
-                    Token::OpenGroup(Grouper::Brace) => take_until(&mut tokens, Grouper::Brace)
-                        .and_then(|(t, e)| lam_body(t).map_err(|err| {
-                            err.neof_or(ParseError::UnexpectedToken(e))
-                        }))?
-                }).into();
             } else {
                 return Err(ParseError::UnexpectedToken(Located { start, end, data: Token::Get }));
             },
             Token::Set => if prop.set.is_none() {
-                next_guard!({ tokens.next() } { Token::Pipe => {} });
-                let param = next_guard!({ tokens.next() } { Token::Identifier(s) => s });
-                next_guard!({ tokens.next() } { Token::Pipe => {} });
-                next_guard!({ tokens.next() } { Token::OpenGroup(Grouper::Brace) => {} });
-                prop.set = Some(SetProp {
-                    param,
-                    block: take_until(&mut tokens, Grouper::Brace)
-                        .and_then(|(t, e)| lam_body(t).map_err(|err| {
-                            err.neof_or(ParseError::UnexpectedToken(e))
-                        }))?
-                })
+                if let Some(Located { data: Token::Identifier(s), start, end }) = next_if(&mut tokens, |t| t.data.ident()) {
+                    prop.set = LocatedOr::Located(Located { data: s, start, end }).into();
+                } else {
+                    next_guard!({ tokens.next() } { Token::Pipe => {} });
+                    let param = next_guard!({ tokens.next() } { Token::Identifier(s) => s });
+                    next_guard!({ tokens.next() } { Token::Pipe => {} });
+                    next_guard!({ tokens.next() } { Token::OpenGroup(Grouper::Brace) => {} });
+                    prop.set = LocatedOr::Or(SetProp {
+                        param,
+                        block: take_until(&mut tokens, Grouper::Brace)
+                            .and_then(|(t, e)| lam_body(t).map_err(|err| {
+                                err.neof_or(ParseError::UnexpectedToken(e))
+                            }))?
+                    }).into();
+                }
             } else {
                 return Err(ParseError::UnexpectedToken(Located { start, end, data: Token::Set }));
             }

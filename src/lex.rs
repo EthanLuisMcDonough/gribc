@@ -88,6 +88,14 @@ impl Token {
             _ => false,
         }
     }
+
+    pub fn ident(&self) -> bool {
+        if let Token::Identifier(_) = self {
+            true
+        } else {
+            false
+        }
+    }
 }
 
 fn next_guard<T: Iterator<Item = char>>(
