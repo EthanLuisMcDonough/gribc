@@ -13,6 +13,7 @@ pub struct ConditionBodyPair {
 pub struct Declaration {
     pub identifier: String,
     pub value: Expression,
+    pub mutable: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

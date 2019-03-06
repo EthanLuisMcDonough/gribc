@@ -459,7 +459,10 @@ fn parse_if_block<T: Iterator<Item = Located<Token>>>(
     })
 }
 
-fn parse_decl<T: Iterator<Item = Located<Token>>>(tokens: &mut T) -> ParseResult<Declaration> {
+fn parse_decl<T: Iterator<Item = Located<Token>>>(
+    tokens: &mut T,
+    mutable: bool,
+) -> ParseResult<Declaration> {
     Ok(Declaration {
         identifier: next_guard!({ tokens.next() } {
             Token::Identifier(name) => name
@@ -468,6 +471,7 @@ fn parse_decl<T: Iterator<Item = Located<Token>>>(tokens: &mut T) -> ParseResult
             Token::AssignOp(Assignment::Assign) => zero_level(tokens, |d| *d == Token::Semicolon).and_then(|(v, _)| parse_expr(v))?,
             Token::Semicolon => Expression::Nil
         }),
+        mutable,
     })
 }
 
@@ -572,7 +576,8 @@ fn ast_level(
                 let (tokens, _) = zero_level(&mut tokens, |t| *t == Token::Semicolon)?;
                 Node::Return(if tokens.is_empty() { Expression::Nil } else { parse_expr(tokens)? })
             },
-            Token::Decl => parse_decl(&mut tokens).map(Node::Declaration)?,
+            Token::Decl => parse_decl(&mut tokens, true).map(Node::Declaration)?,
+            Token::Im => parse_decl(&mut tokens, false).map(Node::Declaration)?,
             Token::Proc => {
                 let name = next_guard!({ tokens.next() } { Token::Identifier(i) => i });
                 let param_list = parse_params(&mut tokens)?;
@@ -584,7 +589,8 @@ fn ast_level(
             },
             Token::For => {
                 let declaration = next_guard!({ tokens.next() } {
-                    Token::Decl => parse_decl(&mut tokens)?.into(),
+                    Token::Decl => parse_decl(&mut tokens, true)?.into(),
+                    Token::Im => parse_decl(&mut tokens, false)?.into(),
                     Token::Semicolon => None
                 });
 
