@@ -37,7 +37,8 @@
             }
           }
         ]
-      }
+      },
+      "mutable": true
     }
   },
   {
@@ -329,7 +330,8 @@
       "identifier": "m",
       "value": {
         "String": "aaaaa"
-      }
+      },
+      "mutable": true
     }
   },
   {
@@ -378,7 +380,8 @@
         "identifier": "i",
         "value": {
           "Number": 0.0
-        }
+        },
+        "mutable": true
       },
       "condition": {
         "Binary": {
