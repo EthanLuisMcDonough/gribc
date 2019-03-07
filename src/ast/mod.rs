@@ -177,6 +177,7 @@ fn parse_hash(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<H
             },
             Token::OpenGroup(Grouper::Brace) => {
                 let (interior, last) = take_until(&mut tokens, Grouper::Brace)?;
+                next_if(&mut tokens, |Located { data: t, .. }| *t == Token::Comma);
                 parse_prop(interior).map_err(|e| {
                     e.neof_or(ParseError::UnexpectedToken(last))
                 }).map(ObjectValue::AutoProp)

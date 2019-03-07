@@ -1,0 +1,370 @@
+[
+    {
+      "LogicChain": {
+        "if_block": {
+          "condition": {
+            "Binary": {
+              "op": "LogicalOr",
+              "left": {
+                "Number": 3.0
+              },
+              "right": {
+                "Binary": {
+                  "op": "Plus",
+                  "left": {
+                    "Number": 2.0
+                  },
+                  "right": {
+                    "Number": 3.0
+                  }
+                }
+              }
+            }
+          },
+          "block": []
+        },
+        "elseifs": [],
+        "else_block": null
+      }
+    },
+    {
+      "Procedure": {
+        "identifier": "thingy",
+        "param_list": {
+          "params": [
+            "abcd",
+            "a"
+          ],
+          "vardic": "e"
+        },
+        "body": [
+          {
+            "LogicChain": {
+              "if_block": {
+                "condition": {
+                  "Binary": {
+                    "op": "NotEqual",
+                    "left": {
+                      "Identifier": {
+                        "data": "abcd",
+                        "start": {
+                          "row": 3,
+                          "column": 7
+                        },
+                        "end": {
+                          "row": 3,
+                          "column": 11
+                        }
+                      }
+                    },
+                    "right": "Nil"
+                  }
+                },
+                "block": [
+                  {
+                    "Expression": {
+                      "FunctionCall": {
+                        "function": {
+                          "Identifier": {
+                            "data": "println",
+                            "start": {
+                              "row": 4,
+                              "column": 8
+                            },
+                            "end": {
+                              "row": 4,
+                              "column": 15
+                            }
+                          }
+                        },
+                        "args": [
+                          {
+                            "Identifier": {
+                              "data": "a",
+                              "start": {
+                                "row": 4,
+                                "column": 16
+                              },
+                              "end": {
+                                "row": 4,
+                                "column": 17
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "elseifs": [],
+              "else_block": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Declaration": {
+        "declarations": [
+          {
+            "identifier": "zand",
+            "value": {
+              "Number": 20.0
+            }
+          },
+          {
+            "identifier": "thign",
+            "value": "Nil"
+          },
+          {
+            "identifier": "ff",
+            "value": {
+              "String": "eee ss "
+            }
+          }
+        ],
+        "mutable": true
+      }
+    },
+    {
+      "Declaration": {
+        "declarations": [
+          {
+            "identifier": "rr",
+            "value": {
+              "Number": 2.0
+            }
+          },
+          {
+            "identifier": "stingy",
+            "value": {
+              "String": "asmkasd"
+            }
+          }
+        ],
+        "mutable": false
+      }
+    },
+    {
+      "Declaration": {
+        "declarations": [
+          {
+            "identifier": "m",
+            "value": {
+              "Binary": {
+                "op": "LogicalOr",
+                "left": {
+                  "Lambda": {
+                    "param_list": {
+                      "params": [],
+                      "vardic": null
+                    },
+                    "body": [
+                      {
+                        "Return": {
+                          "Number": 20.0
+                        }
+                      }
+                    ]
+                  }
+                },
+                "right": {
+                  "Number": 30.0
+                }
+              }
+            }
+          }
+        ],
+        "mutable": true
+      }
+    },
+    {
+      "Expression": {
+        "FunctionCall": {
+          "function": {
+            "Identifier": {
+              "data": "aaa",
+              "start": {
+                "row": 12,
+                "column": 0
+              },
+              "end": {
+                "row": 12,
+                "column": 3
+              }
+            }
+          },
+          "args": [
+            {
+              "Binary": {
+                "op": "GreaterThan",
+                "left": {
+                  "Bool": false
+                },
+                "right": {
+                  "Bool": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "While": {
+        "condition": {
+          "Bool": true
+        },
+        "block": [
+          {
+            "Expression": {
+              "FunctionCall": {
+                "function": {
+                  "Lambda": {
+                    "param_list": {
+                      "params": [],
+                      "vardic": null
+                    },
+                    "body": []
+                  }
+                },
+                "args": []
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Declaration": {
+        "declarations": [
+          {
+            "identifier": "m",
+            "value": {
+              "Hash": {
+                "e": {
+                  "Expression": {
+                    "Number": 20.0
+                  }
+                },
+                "2": {
+                  "Expression": {
+                    "Lambda": {
+                      "param_list": {
+                        "params": [],
+                        "vardic": null
+                      },
+                      "body": [
+                        {
+                          "Return": {
+                            "MutableHash": {
+                              "55": {
+                                "Expression": {
+                                  "String": "ffff"
+                                }
+                              },
+                              "rr": {
+                                "AutoProp": {
+                                  "get": null,
+                                  "set": {
+                                    "Located": {
+                                      "data": "rr",
+                                      "start": {
+                                        "row": 25,
+                                        "column": 17
+                                      },
+                                      "end": {
+                                        "row": 25,
+                                        "column": 19
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "asd sd #": {
+                  "Expression": {
+                    "Binary": {
+                      "op": "Plus",
+                      "left": {
+                        "String": "eee"
+                      },
+                      "right": {
+                        "Number": 2.0
+                      }
+                    }
+                  }
+                },
+                "thingy": {
+                  "AutoProp": {
+                    "get": {
+                      "Located": {
+                        "data": "zand",
+                        "start": {
+                          "row": 23,
+                          "column": 17
+                        },
+                        "end": {
+                          "row": 23,
+                          "column": 21
+                        }
+                      }
+                    },
+                    "set": {
+                      "Located": {
+                        "data": "zand",
+                        "start": {
+                          "row": 23,
+                          "column": 27
+                        },
+                        "end": {
+                          "row": 23,
+                          "column": 31
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "mutable": true
+      }
+    },
+    {
+      "Expression": {
+        "Assignment": {
+          "op": "AssignDiv",
+          "left": {
+            "PropertyAccess": {
+              "item": {
+                "Identifier": {
+                  "data": "m",
+                  "start": {
+                    "row": 30,
+                    "column": 0
+                  },
+                  "end": {
+                    "row": 30,
+                    "column": 1
+                  }
+                }
+              },
+              "property": "e"
+            }
+          },
+          "right": {
+            "Number": 3.0
+          }
+        }
+      }
+    }
+  ]

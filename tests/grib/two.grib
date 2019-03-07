@@ -1,0 +1,30 @@
+if 3 || 2 + 3 {}
+proc thingy |abcd a ...e| {
+    if abcd != nil {
+        println(a);
+    }
+}
+
+decl zand = 20, thign, ff = "eee ss ";
+im rr = 2, stingy = "asmkasd";
+decl m = lam || { 20 } || 30;
+
+aaa(false > true);
+
+while true {
+    lam || {
+        @break;
+    }();
+}
+
+decl m = # {
+    e -> 20,
+    "asd sd #" -> "eee" + 2,
+    thingy { get zand, set zand }
+    2 -> lam { $ {
+        rr { set rr },
+        55 -> "ffff",
+    } },
+};
+
+m.e /= 3;
