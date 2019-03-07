@@ -10,9 +10,14 @@ pub struct ConditionBodyPair {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct Declaration {
+pub struct Declarator {
     pub identifier: String,
     pub value: Expression,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct Declaration {
+    pub declarations: Vec<Declarator>,
     pub mutable: bool,
 }
 

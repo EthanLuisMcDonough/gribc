@@ -1,43 +1,47 @@
 [
   {
     "Declaration": {
-      "identifier": "m",
-      "value": {
-        "ArrayCreation": [
-          {
-            "Number": 10.0
-          },
-          {
-            "Number": 20.0
-          },
-          {
-            "Unary": {
-              "op": "Negation",
-              "expr": {
-                "Number": 30.2392
-              }
-            }
-          },
-          {
-            "Unary": {
-              "op": "LogicalNegation",
-              "expr": {
-                "Identifier": {
-                  "data": "E",
-                  "start": {
-                    "row": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "row": 1,
-                    "column": 30
+      "declarations": [
+        {
+          "identifier": "m",
+          "value": {
+            "ArrayCreation": [
+              {
+                "Number": 10.0
+              },
+              {
+                "Number": 20.0
+              },
+              {
+                "Unary": {
+                  "op": "Negation",
+                  "expr": {
+                    "Number": 30.2392
+                  }
+                }
+              },
+              {
+                "Unary": {
+                  "op": "LogicalNegation",
+                  "expr": {
+                    "Identifier": {
+                      "data": "E",
+                      "start": {
+                        "row": 1,
+                        "column": 29
+                      },
+                      "end": {
+                        "row": 1,
+                        "column": 30
+                      }
+                    }
                   }
                 }
               }
-            }
+            ]
           }
-        ]
-      },
+        }
+      ],
       "mutable": true
     }
   },
@@ -327,10 +331,14 @@
   },
   {
     "Declaration": {
-      "identifier": "m",
-      "value": {
-        "String": "aaaaa"
-      },
+      "declarations": [
+        {
+          "identifier": "m",
+          "value": {
+            "String": "aaaaa"
+          }
+        }
+      ],
       "mutable": true
     }
   },
@@ -377,10 +385,14 @@
   {
     "For": {
       "declaration": {
-        "identifier": "i",
-        "value": {
-          "Number": 0.0
-        },
+        "declarations": [
+          {
+            "identifier": "i",
+            "value": {
+              "Number": 0.0
+            }
+          }
+        ],
         "mutable": true
       },
       "condition": {

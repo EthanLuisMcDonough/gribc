@@ -463,14 +463,32 @@ fn parse_decl<T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
     mutable: bool,
 ) -> ParseResult<Declaration> {
-    Ok(Declaration {
-        identifier: next_guard!({ tokens.next() } {
+    let mut decls = vec![];
+    let mut cont = true;
+
+    while cont {
+        let identifier = next_guard!({ tokens.next() } {
             Token::Identifier(name) => name
-        }),
-        value: next_guard!({ tokens.next() } {
-            Token::AssignOp(Assignment::Assign) => zero_level(tokens, |d| *d == Token::Semicolon).and_then(|(v, _)| parse_expr(v))?,
-            Token::Semicolon => Expression::Nil
-        }),
+        });
+        decls.push(Declarator {
+            identifier,
+            value: next_guard!({ tokens.next() } {
+                Token::AssignOp(Assignment::Assign) => {
+                    let (v, Located { data: last, .. }) = zero_level(tokens, |d| *d == Token::Semicolon || *d == Token::Comma)?;
+                    cont = last == Token::Comma;
+                    parse_expr(v)?
+                },
+                Token::Semicolon => {
+                    cont = false;
+                    Expression::Nil
+                },
+                Token::Comma => Expression::Nil
+            }),
+        });
+    }
+
+    Ok(Declaration {
+        declarations: decls,
         mutable,
     })
 }
@@ -576,8 +594,8 @@ fn ast_level(
                 let (tokens, _) = zero_level(&mut tokens, |t| *t == Token::Semicolon)?;
                 Node::Return(if tokens.is_empty() { Expression::Nil } else { parse_expr(tokens)? })
             },
-            Token::Decl => parse_decl(&mut tokens, true).map(Node::Declaration)?,
-            Token::Im => parse_decl(&mut tokens, false).map(Node::Declaration)?,
+            Token::Decl => Node::Declaration(parse_decl(&mut tokens, true)?),
+            Token::Im => Node::Declaration(parse_decl(&mut tokens, false)?),
             Token::Proc => {
                 let name = next_guard!({ tokens.next() } { Token::Identifier(i) => i });
                 let param_list = parse_params(&mut tokens)?;
