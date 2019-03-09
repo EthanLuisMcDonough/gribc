@@ -99,6 +99,17 @@ impl Token {
     }
 }
 
+fn nchar_if<T: Iterator<Item = char>>(
+    i: &mut std::iter::Peekable<T>,
+    c: char,
+    loc: &mut Location,
+) -> Option<char> {
+    next_if(i, |ch| *ch == c).map(|c| {
+        loc.feed(c);
+        c
+    })
+}
+
 fn next_guard<T: Iterator<Item = char>>(
     i: &mut T,
     c: char,
@@ -136,7 +147,7 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
                 ',' => Token::Comma,
                 ';' => Token::Semicolon,
                 '.' => {
-                    if next_if(&mut chars, |&c| c == '.').is_some() {
+                    if nchar_if(&mut chars, '.', &mut loc).is_some() {
                         next_guard(&mut chars, '.', &mut loc)?;
                         Token::Spread
                     } else {
@@ -164,7 +175,7 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
                     )
                 }
                 '|' => {
-                    if next_if(&mut chars, |&c| c == '|').is_some() {
+                    if nchar_if(&mut chars, '|', &mut loc).is_some() {
                         Token::BinaryOp(Binary::LogicalOr)
                     } else {
                         Token::Pipe
@@ -175,9 +186,7 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
                     Token::BinaryOp(Binary::LogicalAnd)
                 }
                 '+' | '-' | '*' | '/' | '<' | '>' | '%' => {
-                    let eq = next_if(&mut chars, |&c| c == '=')
-                        .map(|c| loc.feed(c))
-                        .is_some();
+                    let eq = nchar_if(&mut chars, '=', &mut loc).is_some();
 
                     if next_if(&mut chars, |&nc| !eq && c == '-' && nc == '>').is_some() {
                         loc.feed('>');
@@ -206,18 +215,12 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
                         })
                     }
                 }
-                '!' => next_if(&mut chars, |&c| c == '=')
-                    .map(|c| {
-                        loc.feed(c);
-                        Token::BinaryOp(Binary::NotEqual)
-                    })
+                '!' => nchar_if(&mut chars, '=', &mut loc)
+                    .map(|_| Token::BinaryOp(Binary::NotEqual))
                     .unwrap_or(Token::UnaryOp(Unary::LogicalNegation)),
                 '~' => Token::UnaryOp(Unary::Negation),
-                '=' => next_if(&mut chars, |&c| c == '=')
-                    .map(|c| {
-                        loc.feed(c);
-                        Token::BinaryOp(Binary::Equal)
-                    })
+                '=' => nchar_if(&mut chars, '=', &mut loc)
+                    .map(|_| Token::BinaryOp(Binary::Equal))
                     .unwrap_or(Token::AssignOp(Assignment::Assign)),
                 '"' => {
                     let mut string = String::new();
@@ -277,10 +280,10 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
                     }
                 }
                 '@' => {
-                    for c in chars.by_ref().take_while(|&c| c != '\n') {
+                    for _ in chars.by_ref().take_while(|&c| {
                         loc.feed(c);
-                    }
-                    loc.feed('\n');
+                        c != '\n'
+                    }) {}
                     continue;
                 }
                 _ if c.is_whitespace() => continue,

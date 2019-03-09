@@ -30,14 +30,14 @@ macro_rules! next_guard {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum ParseError {
     UnexpectedEOF,
     UnexpectedToken(Located<Token>),
     IllegalBreak(Location),
     IllegalContinue(Location),
     IllegalReturn(Location),
-    IllegalLeftExpression(Expression),
+    IllegalLeftExpression { start: Location },
     IllegalExpression(Location),
     DuplicateParam(Located<String>),
     ParamAfterSpread(Located<String>),
@@ -231,6 +231,7 @@ fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<E
         let mut expr = None;
 
         let data = token.data.clone();
+        let start = token.start.clone();
         match data {
             Token::BinaryOp(binary) => op_expr
                 .push(binary.clone())
@@ -315,7 +316,7 @@ fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<E
             }
 
             op_expr
-                .push(expression)
+                .push((expression, start))
                 .map_err(|_| ParseError::UnexpectedToken(token))?;
         }
     }
@@ -330,7 +331,7 @@ fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<E
         .collect::<Vec<_>>()
     {
         if let OpExpr::Unary(unary) = op_expr.remove(index) {
-            if let Some(OpExpr::Expr(ref mut expr)) = op_expr.get_mut(index) {
+            if let Some(OpExpr::Expr(ref mut expr, _)) = op_expr.get_mut(index) {
                 *expr = Expression::Unary {
                     op: unary,
                     expr: std::mem::replace(expr, Expression::Nil).into(),
@@ -353,10 +354,10 @@ fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<E
             .map(|(i, index)| index - i * 2)
             .collect::<Vec<_>>()
         {
-            if let (OpExpr::Expr(one), OpExpr::Binary(op)) =
+            if let (OpExpr::Expr(one, _), OpExpr::Binary(op)) =
                 (op_expr.remove(i - 1), op_expr.remove(i - 1))
             {
-                if let Some(OpExpr::Expr(ref mut expr)) = op_expr.get_mut(i - 1) {
+                if let Some(OpExpr::Expr(ref mut expr, _)) = op_expr.get_mut(i - 1) {
                     *expr = Expression::Binary {
                         op,
                         left: one.into(),
@@ -377,13 +378,14 @@ fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<E
         .map(|(i, index)| index - i * 2)
         .collect::<Vec<_>>()
     {
-        if let (OpExpr::Expr(one), OpExpr::Assign(op)) =
+        if let (OpExpr::Expr(one, start), OpExpr::Assign(op)) =
             (op_expr.remove(i - 1), op_expr.remove(i - 1))
         {
-            if let Some(OpExpr::Expr(ref mut expr)) = op_expr.get_mut(i - 1) {
+            if let Some(OpExpr::Expr(ref mut expr, _)) = op_expr.get_mut(i - 1) {
                 *expr = Expression::Assignment {
                     op,
-                    left: try_into_assignable(one).map_err(ParseError::IllegalLeftExpression)?,
+                    left: try_into_assignable(one)
+                        .map_err(|_| ParseError::IllegalLeftExpression { start })?,
                     right: std::mem::replace(expr, Expression::Nil).into(),
                 }
             } else {
@@ -396,7 +398,7 @@ fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<E
         .pop()
         .filter(|_| op_expr.is_empty())
         .and_then(|expr| {
-            if let OpExpr::Expr(e) = expr {
+            if let OpExpr::Expr(e, _) = expr {
                 Some(e)
             } else {
                 None

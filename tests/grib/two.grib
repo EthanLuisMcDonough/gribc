@@ -17,7 +17,7 @@ while true {
     }();
 }
 
-decl m = # {
+decl hh = # {
     e -> 20,
     "asd sd #" -> "eee" + 2,
     thingy { get zand, set zand }

@@ -1,5 +1,6 @@
 use super::Assignable;
 use super::Expression;
+use location::Location;
 use operators::{Assignment, Binary, Unary};
 
 #[derive(Debug)]
@@ -7,7 +8,7 @@ pub enum OpExpr {
     Binary(Binary),
     Unary(Unary),
     Assign(Assignment),
-    Expr(Expression),
+    Expr(Expression, Location),
 }
 
 impl OpExpr {
@@ -36,7 +37,7 @@ impl OpExpr {
     }
 
     pub fn is_expr(&self) -> bool {
-        if let OpExpr::Expr(_) = self {
+        if let OpExpr::Expr(_, _) = self {
             true
         } else {
             false
@@ -56,9 +57,9 @@ impl From<Unary> for OpExpr {
     }
 }
 
-impl From<Expression> for OpExpr {
-    fn from(e: Expression) -> Self {
-        OpExpr::Expr(e)
+impl From<(Expression, Location)> for OpExpr {
+    fn from(e: (Expression, Location)) -> Self {
+        OpExpr::Expr(e.0, e.1)
     }
 }
 
