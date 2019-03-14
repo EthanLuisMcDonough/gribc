@@ -1,7 +1,9 @@
+mod analysis;
 mod node;
 mod opexpr;
 
 pub use self::node::*;
+pub use self::analysis::*;
 use self::opexpr::{try_into_assignable, OpExpr, OpExprManager};
 use lex::{Grouper, Token};
 use location::{Located, Location};
@@ -470,8 +472,8 @@ fn parse_decl<T: Iterator<Item = Located<Token>>>(
     let mut cont = true;
 
     while cont {
-        let identifier = next_guard!({ tokens.next() } {
-            Token::Identifier(name) => name
+        let identifier = next_guard!({ tokens.next() } (start, end) {
+            Token::Identifier(name) => Located { data: name, start, end }
         });
         decls.push(Declarator {
             identifier,
@@ -600,7 +602,9 @@ fn ast_level(
             Token::Decl => Node::Declaration(parse_decl(&mut tokens, true)?),
             Token::Im => Node::Declaration(parse_decl(&mut tokens, false)?),
             Token::Proc => {
-                let name = next_guard!({ tokens.next() } { Token::Identifier(i) => i });
+                let name = next_guard!({ tokens.next() } (start, end) {
+                    Token::Identifier(i) => Located { data: i, start, end }
+                });
                 let param_list = parse_params(&mut tokens)?;
                 Node::Procedure {
                     identifier: name,

@@ -11,7 +11,7 @@ pub struct ConditionBodyPair {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Declarator {
-    pub identifier: String,
+    pub identifier: Located<String>,
     pub value: Expression,
 }
 
@@ -33,6 +33,10 @@ impl Parameters {
             params: HashSet::new(),
             vardic: None,
         }
+    }
+
+    pub fn all_params<'a>(&'a self) -> impl Iterator<Item = &'a str> {
+        self.params.iter().chain(self.vardic.iter()).map(|s| &**s)
     }
 }
 
@@ -153,7 +157,7 @@ pub enum Node {
         body: Block,
     },
     Procedure {
-        identifier: String,
+        identifier: Located<String>,
         param_list: Parameters,
         body: Block,
     },
