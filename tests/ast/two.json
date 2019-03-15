@@ -323,11 +323,6 @@
           },
           "value": {
             "Hash": {
-              "e": {
-                "Expression": {
-                  "Number": 20.0
-                }
-              },
               "asd sd #": {
                 "Expression": {
                   "Binary": {
@@ -341,43 +336,9 @@
                   }
                 }
               },
-              "2": {
+              "e": {
                 "Expression": {
-                  "Lambda": {
-                    "param_list": {
-                      "params": [],
-                      "vardic": null
-                    },
-                    "body": {
-                      "ImplicitReturn": {
-                        "MutableHash": {
-                          "55": {
-                            "Expression": {
-                              "String": "ffff"
-                            }
-                          },
-                          "rr": {
-                            "AutoProp": {
-                              "get": null,
-                              "set": {
-                                "Located": {
-                                  "data": "rr",
-                                  "start": {
-                                    "row": 25,
-                                    "column": 17
-                                  },
-                                  "end": {
-                                    "row": 25,
-                                    "column": 19
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
+                  "Number": 20.0
                 }
               },
               "thingy": {
@@ -405,6 +366,45 @@
                       "end": {
                         "row": 23,
                         "column": 31
+                      }
+                    }
+                  }
+                }
+              },
+              "2": {
+                "Expression": {
+                  "Lambda": {
+                    "param_list": {
+                      "params": [],
+                      "vardic": null
+                    },
+                    "body": {
+                      "ImplicitReturn": {
+                        "MutableHash": {
+                          "rr": {
+                            "AutoProp": {
+                              "get": null,
+                              "set": {
+                                "Located": {
+                                  "data": "rr",
+                                  "start": {
+                                    "row": 25,
+                                    "column": 17
+                                  },
+                                  "end": {
+                                    "row": 25,
+                                    "column": 19
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "55": {
+                            "Expression": {
+                              "String": "ffff"
+                            }
+                          }
+                        }
                       }
                     }
                   }

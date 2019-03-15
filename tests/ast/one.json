@@ -399,7 +399,19 @@
               "args": [
                 {
                   "IndexAccess": {
-                    "item": "Args",
+                    "item": {
+                      "Identifier": {
+                        "data": "args",
+                        "start": {
+                          "row": 24,
+                          "column": 12
+                        },
+                        "end": {
+                          "row": 24,
+                          "column": 16
+                        }
+                      }
+                    },
                     "index": {
                       "Number": 0.0
                     }

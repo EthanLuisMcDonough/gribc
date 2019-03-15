@@ -5,7 +5,7 @@ mod opexpr;
 pub use self::analysis::*;
 pub use self::node::*;
 use self::opexpr::{try_into_assignable, OpExpr, OpExprManager};
-use lex::{Grouper, Token};
+use lex::{Grouper, Keyword, Token};
 use location::{Located, Location};
 use operators::{op_precedence, Assignment, Binary, Precedence};
 use util::next_if;
@@ -121,7 +121,7 @@ fn parse_prop(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<A
         .into_iter()
         .peekable();
         next_guard!({ tokens.next() } (start, end) {
-            Token::Get => if prop.get.is_none() {
+            Token::Keyword(Keyword::Get) => if prop.get.is_none() {
                 if let Some(Located { data: Token::Identifier(s), start, end }) = next_if(&mut tokens, |t| t.data.ident()) {
                     prop.get = LocatedOr::Located(Located { data: s, start, end }).into();
                 } else {
@@ -138,9 +138,12 @@ fn parse_prop(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<A
                     })).into();
                 }
             } else {
-                return Err(ParseError::UnexpectedToken(Located { start, end, data: Token::Get }));
+                return Err(ParseError::UnexpectedToken(Located {
+                    start, end,
+                    data: Token::Keyword(Keyword::Get)
+                }));
             },
-            Token::Set => if prop.set.is_none() {
+            Token::Keyword(Keyword::Set) => if prop.set.is_none() {
                 if let Some(Located { data: Token::Identifier(s), start, end }) = next_if(&mut tokens, |t| t.data.ident()) {
                     prop.set = LocatedOr::Located(Located { data: s, start, end }).into();
                 } else {
@@ -157,7 +160,10 @@ fn parse_prop(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<A
                     }).into();
                 }
             } else {
-                return Err(ParseError::UnexpectedToken(Located { start, end, data: Token::Set }));
+                return Err(ParseError::UnexpectedToken(Located {
+                    start, end,
+                    data: Token::Keyword(Keyword::Set)
+                }));
             }
         });
     }
@@ -257,7 +263,7 @@ fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<E
                     .and_then(expr_callback)?
                     .into();
             }
-            Token::Lam => {
+            Token::Keyword(Keyword::Lam) => {
                 let params = parse_params(&mut tokens)?;
                 let (body, _) = take_until(&mut tokens, Grouper::Brace)?;
 
@@ -279,7 +285,7 @@ fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<E
                 } })
                 .into();
             }
-            Token::Nil => expr = Expression::Nil.into(),
+            Token::Keyword(Keyword::Nil) => expr = Expression::Nil.into(),
             Token::Bool(b) => expr = Expression::Bool(b).into(),
             Token::String(s) => expr = Expression::String(s).into(),
             Token::Number(n) => expr = Expression::Number(n).into(),
@@ -291,7 +297,6 @@ fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<E
                 })
                 .into()
             }
-            Token::Args => expr = Expression::Args.into(),
             _ => return Err(ParseError::UnexpectedToken(token)),
         };
 
@@ -310,6 +315,10 @@ fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<E
                             .into(),
                     },
                     Token::Period => next_guard!({ tokens.next() } {
+                        Token::Keyword(k) => Expression::PropertyAccess {
+                            item: expression.into(),
+                            property: k.str().into(),
+                        },
                         Token::Identifier(property) => Expression::PropertyAccess {
                             item: expression.into(),
                             property,
@@ -566,19 +575,19 @@ fn ast_level(
             Token::OpenGroup(Grouper::Bracket) => {
                 Node::Block(take_until(&mut tokens, Grouper::Brace).and_then(|(v, _)| ast_level(v, in_fn, in_loop))?)
             }
-            Token::While => parse_if_block(&mut tokens, in_fn, true).map(Node::While)?,
-            Token::If => {
+            Token::Keyword(Keyword::While) => parse_if_block(&mut tokens, in_fn, true).map(Node::While)?,
+            Token::Keyword(Keyword::If) => {
                 let if_block = parse_if_block(&mut tokens, in_fn, in_loop)?;
                 let mut elseifs = vec![];
                 let mut else_block = None;
 
                 while let Some(_) = next_if(tokens.by_ref(), |Located { data: t, .. }| {
-                    *t == Token::Else && else_block.is_none()
+                    *t == Token::Keyword(Keyword::Else) && else_block.is_none()
                 }) {
                     next_guard!({ tokens.next() } {
                         Token::OpenGroup(Grouper::Brace) => else_block = take_until(&mut tokens, Grouper::Brace)
                             .and_then(|(v, _)| ast_level(v, in_fn, in_loop))?.into(),
-                        Token::If => elseifs.push(parse_if_block(&mut tokens, in_fn, in_loop)?)
+                        Token::Keyword(Keyword::If) => elseifs.push(parse_if_block(&mut tokens, in_fn, in_loop)?)
                     });
                 }
 
@@ -588,22 +597,22 @@ fn ast_level(
                     else_block,
                 }
             }
-            Token::Break if !in_loop => return Err(ParseError::IllegalBreak(token.start)),
-            Token::Continue if !in_loop => return Err(ParseError::IllegalContinue(token.start)),
-            Token::Break => next_guard!({ tokens.next() } {
+            Token::Keyword(Keyword::Break) if !in_loop => return Err(ParseError::IllegalBreak(token.start)),
+            Token::Keyword(Keyword::Continue) if !in_loop => return Err(ParseError::IllegalContinue(token.start)),
+            Token::Keyword(Keyword::Break) => next_guard!({ tokens.next() } {
                 Token::Semicolon => Node::Break
             }),
-            Token::Continue => next_guard!({ tokens.next() } {
+            Token::Keyword(Keyword::Continue) => next_guard!({ tokens.next() } {
                 Token::Semicolon => Node::Continue
             }),
-            Token::Return if !in_fn => return Err(ParseError::IllegalReturn(token.start)),
-            Token::Return => {
+            Token::Keyword(Keyword::Return) if !in_fn => return Err(ParseError::IllegalReturn(token.start)),
+            Token::Keyword(Keyword::Return) => {
                 let (tokens, _) = zero_level(&mut tokens, |t| *t == Token::Semicolon)?;
                 Node::Return(if tokens.is_empty() { Expression::Nil } else { parse_expr(tokens)? })
             },
-            Token::Decl => Node::Declaration(parse_decl(&mut tokens, true)?),
-            Token::Im => Node::Declaration(parse_decl(&mut tokens, false)?),
-            Token::Proc => {
+            Token::Keyword(Keyword::Decl) => Node::Declaration(parse_decl(&mut tokens, true)?),
+            Token::Keyword(Keyword::Im) => Node::Declaration(parse_decl(&mut tokens, false)?),
+            Token::Keyword(Keyword::Proc) => {
                 let name = next_guard!({ tokens.next() } (start, end) {
                     Token::Identifier(i) => Located { data: i, start, end }
                 });
@@ -614,10 +623,10 @@ fn ast_level(
                     body: take_until(&mut tokens, Grouper::Brace).and_then(|(v, _)| ast_level(v, true, false))?,
                 }
             },
-            Token::For => {
+            Token::Keyword(Keyword::For) => {
                 let declaration = next_guard!({ tokens.next() } {
-                    Token::Decl => parse_decl(&mut tokens, true)?.into(),
-                    Token::Im => parse_decl(&mut tokens, false)?.into(),
+                    Token::Keyword(Keyword::Decl) => parse_decl(&mut tokens, true)?.into(),
+                    Token::Keyword(Keyword::Im) => parse_decl(&mut tokens, false)?.into(),
                     Token::Semicolon => None
                 });
 

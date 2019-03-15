@@ -2,6 +2,32 @@ use location::{Located, Location};
 use operators::{Assignment, Binary, Unary};
 use util::next_if;
 
+macro_rules! keyword_map {
+    ($name:ident { $( $field:ident -> $s:expr ),* $(,)* }) => {
+        #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+        pub enum $name {
+            $( $field ),*
+        }
+
+        impl $name {
+            pub fn str(&self) -> &'static str {
+                use self::$name::*;
+                match self {
+                    $( $field => $s ),*
+                }
+            }
+
+            pub fn from_str(s: &str) -> Option<Self> {
+                use self::$name::*;
+                match s {
+                    $( $s => Some($field), )*
+                    _ => None,
+                }
+            }
+        }
+    };
+}
+
 type LexResult<A> = Result<A, LexError>;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -38,6 +64,23 @@ pub enum Grouper {
     Brace,
 }
 
+keyword_map!(Keyword {
+    Proc -> "proc",
+    Lam -> "lam",
+    Return -> "return",
+    Decl -> "decl",
+    Im -> "im",
+    While -> "while",
+    For -> "for",
+    Nil -> "nil",
+    If -> "if",
+    Else -> "else",
+    Break -> "break",
+    Continue -> "continue",
+    Get -> "get",
+    Set -> "set",
+});
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Token {
     String(String),
@@ -46,28 +89,16 @@ pub enum Token {
     BinaryOp(Binary),
     UnaryOp(Unary),
     AssignOp(Assignment),
+    Arrow,
 
-    // Keywords
-    Proc,
-    Lam,
-    Return,
-    Decl,
-    Im,
-    While,
-    For,
-    Nil,
-    If,
-    Else,
-    Args,
-    Break,
-    Continue,
     Period,
     Spread,
+
     MutableHash,
     Hash,
-    Arrow,
-    Get,
-    Set,
+
+    // Keywords
+    Keyword(Keyword),
 
     // Booleans
     Bool(bool),
@@ -257,26 +288,13 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
                     }
 
                     match &ident[..] {
-                        "proc" => Token::Proc,
-                        "return" => Token::Return,
-                        "decl" => Token::Decl,
-                        "im" => Token::Im,
-                        "while" => Token::While,
-                        "for" => Token::For,
-                        "nil" => Token::Nil,
-                        "if" => Token::If,
-                        "else" => Token::Else,
                         "true" | "false" => Token::Bool(ident == "true"),
-                        "args" => Token::Args,
                         "NaN" => Token::Number(std::f64::NAN),
                         "Infinity" => Token::Number(std::f64::INFINITY),
-                        "break" => Token::Break,
-                        "continue" => Token::Continue,
-                        "lam" => Token::Lam,
                         "typeof" => Token::UnaryOp(Unary::TypeOf),
-                        "set" => Token::Set,
-                        "get" => Token::Get,
-                        _ => Token::Identifier(ident),
+                        _ => Keyword::from_str(&*ident)
+                            .map(Token::Keyword)
+                            .unwrap_or(Token::Identifier(ident)),
                     }
                 }
                 '@' => {
