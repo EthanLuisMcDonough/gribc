@@ -3,7 +3,17 @@
     "Declaration": {
       "declarations": [
         {
-          "identifier": "m",
+          "identifier": {
+            "data": "m",
+            "start": {
+              "row": 1,
+              "column": 5
+            },
+            "end": {
+              "row": 1,
+              "column": 6
+            }
+          },
           "value": {
             "ArrayCreation": [
               {
@@ -104,11 +114,11 @@
                           "data": "pow",
                           "start": {
                             "row": 2,
-                            "column": 23
+                            "column": 35
                           },
                           "end": {
                             "row": 2,
-                            "column": 26
+                            "column": 38
                           }
                         }
                       },
@@ -333,7 +343,17 @@
     "Declaration": {
       "declarations": [
         {
-          "identifier": "m",
+          "identifier": {
+            "data": "m",
+            "start": {
+              "row": 21,
+              "column": 5
+            },
+            "end": {
+              "row": 21,
+              "column": 6
+            }
+          },
           "value": {
             "String": "aaaaa"
           }
@@ -344,7 +364,17 @@
   },
   {
     "Procedure": {
-      "identifier": "thingy",
+      "identifier": {
+        "data": "thingy",
+        "start": {
+          "row": 23,
+          "column": 5
+        },
+        "end": {
+          "row": 23,
+          "column": 11
+        }
+      },
       "param_list": {
         "params": [],
         "vardic": null
@@ -357,11 +387,11 @@
                 "Identifier": {
                   "data": "println",
                   "start": {
-                    "row": 18,
+                    "row": 24,
                     "column": 4
                   },
                   "end": {
-                    "row": 18,
+                    "row": 24,
                     "column": 11
                   }
                 }
@@ -387,7 +417,17 @@
       "declaration": {
         "declarations": [
           {
-            "identifier": "i",
+            "identifier": {
+              "data": "i",
+              "start": {
+                "row": 27,
+                "column": 9
+              },
+              "end": {
+                "row": 27,
+                "column": 10
+              }
+            },
             "value": {
               "Number": 0.0
             }
@@ -402,11 +442,11 @@
             "Identifier": {
               "data": "i",
               "start": {
-                "row": 21,
+                "row": 27,
                 "column": 16
               },
               "end": {
-                "row": 21,
+                "row": 27,
                 "column": 17
               }
             }
@@ -423,11 +463,11 @@
             "Identifier": {
               "data": "i",
               "start": {
-                "row": 21,
+                "row": 27,
                 "column": 23
               },
               "end": {
-                "row": 21,
+                "row": 27,
                 "column": 24
               }
             }
@@ -445,11 +485,11 @@
                 "Identifier": {
                   "data": "println",
                   "start": {
-                    "row": 22,
+                    "row": 28,
                     "column": 4
                   },
                   "end": {
-                    "row": 22,
+                    "row": 28,
                     "column": 11
                   }
                 }
@@ -459,11 +499,11 @@
                   "Identifier": {
                     "data": "i",
                     "start": {
-                      "row": 22,
+                      "row": 28,
                       "column": 12
                     },
                     "end": {
-                      "row": 22,
+                      "row": 28,
                       "column": 13
                     }
                   }
@@ -482,11 +522,11 @@
                     "Identifier": {
                       "data": "i",
                       "start": {
-                        "row": 23,
+                        "row": 29,
                         "column": 7
                       },
                       "end": {
-                        "row": 23,
+                        "row": 29,
                         "column": 8
                       }
                     }
@@ -504,11 +544,11 @@
                         "Identifier": {
                           "data": "println",
                           "start": {
-                            "row": 24,
+                            "row": 30,
                             "column": 8
                           },
                           "end": {
-                            "row": 24,
+                            "row": 30,
                             "column": 15
                           }
                         }

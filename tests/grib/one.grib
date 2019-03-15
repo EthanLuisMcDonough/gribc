@@ -1,5 +1,5 @@
 decl m = [10, 20, ~30.2392, !E];
-println(30 + 20 - !m * pow(2, 3));
+println(30 + 20 - !m * @{ aaaaa }@ pow(2, 3));
 m(30 + !!20);
 
 m[1] *= 2;
@@ -11,6 +11,12 @@ if 3 > 4 {
 } else {
     println("no");
 }
+
+ @{
+    aaaaa
+
+    @TODO: {aaaa}
+}@
 
 decl m = "aaaaa";
 

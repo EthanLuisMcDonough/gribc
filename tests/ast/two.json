@@ -29,11 +29,21 @@
   },
   {
     "Procedure": {
-      "identifier": "thingy",
+      "identifier": {
+        "data": "thingy",
+        "start": {
+          "row": 2,
+          "column": 5
+        },
+        "end": {
+          "row": 2,
+          "column": 11
+        }
+      },
       "param_list": {
         "params": [
-          "abcd",
-          "a"
+          "a",
+          "abcd"
         ],
         "vardic": "e"
       },
@@ -108,17 +118,47 @@
     "Declaration": {
       "declarations": [
         {
-          "identifier": "zand",
+          "identifier": {
+            "data": "zand",
+            "start": {
+              "row": 8,
+              "column": 5
+            },
+            "end": {
+              "row": 8,
+              "column": 9
+            }
+          },
           "value": {
             "Number": 20.0
           }
         },
         {
-          "identifier": "thign",
+          "identifier": {
+            "data": "thign",
+            "start": {
+              "row": 8,
+              "column": 16
+            },
+            "end": {
+              "row": 8,
+              "column": 21
+            }
+          },
           "value": "Nil"
         },
         {
-          "identifier": "ff",
+          "identifier": {
+            "data": "ff",
+            "start": {
+              "row": 8,
+              "column": 23
+            },
+            "end": {
+              "row": 8,
+              "column": 25
+            }
+          },
           "value": {
             "String": "eee ss "
           }
@@ -131,13 +171,33 @@
     "Declaration": {
       "declarations": [
         {
-          "identifier": "rr",
+          "identifier": {
+            "data": "rr",
+            "start": {
+              "row": 9,
+              "column": 3
+            },
+            "end": {
+              "row": 9,
+              "column": 5
+            }
+          },
           "value": {
             "Number": 2.0
           }
         },
         {
-          "identifier": "stingy",
+          "identifier": {
+            "data": "stingy",
+            "start": {
+              "row": 9,
+              "column": 11
+            },
+            "end": {
+              "row": 9,
+              "column": 17
+            }
+          },
           "value": {
             "String": "asmkasd"
           }
@@ -150,7 +210,17 @@
     "Declaration": {
       "declarations": [
         {
-          "identifier": "m",
+          "identifier": {
+            "data": "m",
+            "start": {
+              "row": 10,
+              "column": 5
+            },
+            "end": {
+              "row": 10,
+              "column": 6
+            }
+          },
           "value": {
             "Binary": {
               "op": "LogicalOr",
@@ -240,7 +310,17 @@
     "Declaration": {
       "declarations": [
         {
-          "identifier": "hh",
+          "identifier": {
+            "data": "hh",
+            "start": {
+              "row": 20,
+              "column": 5
+            },
+            "end": {
+              "row": 20,
+              "column": 7
+            }
+          },
           "value": {
             "Hash": {
               "2": {

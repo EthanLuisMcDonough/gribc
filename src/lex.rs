@@ -280,10 +280,19 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
                     }
                 }
                 '@' => {
-                    for _ in chars.by_ref().take_while(|&c| {
-                        loc.feed(c);
-                        c != '\n'
-                    }) {}
+                    if nchar_if(&mut chars, '{', &mut loc).is_some() {
+                        while let Some(c) = chars.next() {
+                            loc.feed(c);
+                            if c == '}' && nchar_if(&mut chars, '@', &mut loc).is_some() {
+                                break;
+                            }
+                        }
+                    } else {
+                        for _ in chars.by_ref().take_while(|&c| {
+                            loc.feed(c);
+                            c != '\n'
+                        }) {}
+                    }
                     continue;
                 }
                 _ if c.is_whitespace() => continue,
