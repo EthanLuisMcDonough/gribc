@@ -49,12 +49,12 @@ pub enum LocatedOr<T, E> {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct SetProp {
     pub param: String,
-    pub block: Block,
+    pub block: LambdaBody,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct AutoProp {
-    pub get: Option<LocatedOr<String, Block>>,
+    pub get: Option<LocatedOr<String, LambdaBody>>,
     pub set: Option<LocatedOr<String, SetProp>>,
 }
 
@@ -71,6 +71,12 @@ impl AutoProp {
 pub enum ObjectValue {
     AutoProp(AutoProp),
     Expression(Expression),
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub enum LambdaBody {
+    ImplicitReturn(Box<Expression>),
+    Block(Block),
 }
 
 pub type Hash = HashMap<String, ObjectValue>;
@@ -123,7 +129,7 @@ pub enum Expression {
     },
     Lambda {
         param_list: Parameters,
-        body: Block,
+        body: LambdaBody,
     },
     Hash(Hash),
     MutableHash(Hash),

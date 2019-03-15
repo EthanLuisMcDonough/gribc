@@ -1,5 +1,6 @@
 use super::node::{
-    Assignable, ConditionBodyPair, Declaration, Expression, LocatedOr, Node, ObjectValue,
+    Assignable, ConditionBodyPair, Declaration, Expression, LambdaBody, LocatedOr, Node,
+    ObjectValue,
 };
 use location::Located;
 use std::collections::{HashMap, HashSet};
@@ -131,6 +132,17 @@ fn walk_expression<'a>(
     expression: &Expression,
     scope: &HashMap<&'a str, DefType>,
 ) -> Result<(), WalkError> {
+    fn walk_lambda_block<'a>(
+        block: &LambdaBody,
+        scope: &HashMap<&'a str, DefType>,
+        c_scope: impl Into<Option<HashSet<&'a str>>>,
+    ) -> Result<(), WalkError> {
+        match block {
+            LambdaBody::Block(block) => walk_ast(block.iter(), scope.clone(), c_scope.into()),
+            LambdaBody::ImplicitReturn(expr) => walk_expression(expr, scope),
+        }
+    }
+
     match expression {
         Expression::Unary { expr, .. } => walk_expression(expr, scope)?,
         Expression::Binary { left, right, .. }
@@ -180,9 +192,7 @@ fn walk_expression<'a>(
                     ObjectValue::Expression(expr) => walk_expression(expr, scope)?,
                     ObjectValue::AutoProp(a) => {
                         match a.get.as_ref() {
-                            Some(LocatedOr::Or(block)) => {
-                                walk_ast(block.iter(), scope.clone(), None)?
-                            }
+                            Some(LocatedOr::Or(block)) => walk_lambda_block(block, &scope, None)?,
                             Some(LocatedOr::Located(ident))
                                 if !scope.contains_key(&*ident.data) =>
                             {
@@ -199,7 +209,7 @@ fn walk_expression<'a>(
                                 let mut current_scope = HashSet::new();
                                 scope.insert(&*set.param, DefType::Mutable);
                                 current_scope.insert(&*set.param);
-                                walk_ast(set.block.iter(), scope, current_scope)?;
+                                walk_lambda_block(&set.block, &scope, current_scope)?
                             }
                             Some(LocatedOr::Located(ident))
                                 if scope
@@ -225,7 +235,7 @@ fn walk_expression<'a>(
                 scope.insert(param, DefType::Mutable);
                 current_scope.insert(param);
             }
-            walk_ast(body.iter(), scope, current_scope)?;
+            walk_lambda_block(&body, &scope, current_scope)?
         }
         Expression::Identifier(identifier) if !scope.contains_key(&*identifier.data) => {
             return Err(WalkError {

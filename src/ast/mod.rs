@@ -2,8 +2,8 @@ mod analysis;
 mod node;
 mod opexpr;
 
-pub use self::node::*;
 pub use self::analysis::*;
+pub use self::node::*;
 use self::opexpr::{try_into_assignable, OpExpr, OpExprManager};
 use lex::{Grouper, Token};
 use location::{Located, Location};
@@ -190,7 +190,7 @@ fn parse_hash(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<H
     Ok(map)
 }
 
-fn lam_body(body: Vec<Located<Token>>) -> ParseResult<Block> {
+fn lam_body(body: Vec<Located<Token>>) -> ParseResult<LambdaBody> {
     let mut level = 0;
     let mut semicolons = 0;
     for token in &body {
@@ -203,13 +203,15 @@ fn lam_body(body: Vec<Located<Token>>) -> ParseResult<Block> {
     }
 
     if semicolons == 0 {
-        Ok(if body.is_empty() {
-            vec![]
+        if body.is_empty() {
+            Ok(LambdaBody::Block(vec![]))
         } else {
-            vec![parse_expr(body).map(Node::Return)?]
-        })
+            parse_expr(body)
+                .map(Box::from)
+                .map(LambdaBody::ImplicitReturn)
+        }
     } else {
-        ast_level(body, true, false)
+        ast_level(body, true, false).map(LambdaBody::Block)
     }
 }
 

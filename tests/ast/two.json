@@ -230,13 +230,11 @@
                     "params": [],
                     "vardic": null
                   },
-                  "body": [
-                    {
-                      "Return": {
-                        "Number": 20.0
-                      }
+                  "body": {
+                    "ImplicitReturn": {
+                      "Number": 20.0
                     }
-                  ]
+                  }
                 }
               },
               "right": {
@@ -296,7 +294,9 @@
                     "params": [],
                     "vardic": null
                   },
-                  "body": []
+                  "body": {
+                    "Block": []
+                  }
                 }
               },
               "args": []
@@ -323,6 +323,24 @@
           },
           "value": {
             "Hash": {
+              "e": {
+                "Expression": {
+                  "Number": 20.0
+                }
+              },
+              "asd sd #": {
+                "Expression": {
+                  "Binary": {
+                    "op": "Plus",
+                    "left": {
+                      "String": "eee"
+                    },
+                    "right": {
+                      "Number": 2.0
+                    }
+                  }
+                }
+              },
               "2": {
                 "Expression": {
                   "Lambda": {
@@ -330,37 +348,35 @@
                       "params": [],
                       "vardic": null
                     },
-                    "body": [
-                      {
-                        "Return": {
-                          "MutableHash": {
-                            "rr": {
-                              "AutoProp": {
-                                "get": null,
-                                "set": {
-                                  "Located": {
-                                    "data": "rr",
-                                    "start": {
-                                      "row": 25,
-                                      "column": 17
-                                    },
-                                    "end": {
-                                      "row": 25,
-                                      "column": 19
-                                    }
+                    "body": {
+                      "ImplicitReturn": {
+                        "MutableHash": {
+                          "55": {
+                            "Expression": {
+                              "String": "ffff"
+                            }
+                          },
+                          "rr": {
+                            "AutoProp": {
+                              "get": null,
+                              "set": {
+                                "Located": {
+                                  "data": "rr",
+                                  "start": {
+                                    "row": 25,
+                                    "column": 17
+                                  },
+                                  "end": {
+                                    "row": 25,
+                                    "column": 19
                                   }
                                 }
-                              }
-                            },
-                            "55": {
-                              "Expression": {
-                                "String": "ffff"
                               }
                             }
                           }
                         }
                       }
-                    ]
+                    }
                   }
                 }
               },
@@ -392,24 +408,6 @@
                       }
                     }
                   }
-                }
-              },
-              "asd sd #": {
-                "Expression": {
-                  "Binary": {
-                    "op": "Plus",
-                    "left": {
-                      "String": "eee"
-                    },
-                    "right": {
-                      "Number": 2.0
-                    }
-                  }
-                }
-              },
-              "e": {
-                "Expression": {
-                  "Number": 20.0
                 }
               }
             }
