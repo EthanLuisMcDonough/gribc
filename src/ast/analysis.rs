@@ -67,16 +67,21 @@ fn walk_ast<'a>(
         }
     }
 
+    let proc_scope = scope.clone();
+
     for node in nodes {
         match node {
             Node::Procedure {
                 body, param_list, ..
             } => walk_ast(
                 body.iter(),
-                param_list
-                    .all_params()
-                    .map(|param| (param, DefType::Mutable))
-                    .collect(),
+                {
+                    let mut scope = proc_scope.clone();
+                    for param in param_list.all_params() {
+                        scope.insert(param, DefType::Mutable);
+                    }
+                    scope
+                },
                 param_list.all_params().collect::<HashSet<_>>(),
             )?,
             Node::Expression(expression) | Node::Return(expression) => {
