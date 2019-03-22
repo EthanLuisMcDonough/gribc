@@ -1,0 +1,402 @@
+[
+    {
+        "Procedure": {
+            "identifier": {
+                "data": "thing",
+                "start": {
+                    "row": 1,
+                    "column": 5
+                },
+                "end": {
+                    "row": 1,
+                    "column": 10
+                }
+            },
+            "param_list": {
+                "params": [],
+                "vardic": "a"
+            },
+            "body": [
+                {
+                    "Procedure": {
+                        "identifier": {
+                            "data": "m",
+                            "start": {
+                                "row": 2,
+                                "column": 9
+                            },
+                            "end": {
+                                "row": 2,
+                                "column": 10
+                            }
+                        },
+                        "param_list": {
+                            "params": [
+                                "m",
+                                "c",
+                                "e"
+                            ],
+                            "vardic": null
+                        },
+                        "body": [
+                            {
+                                "Expression": {
+                                    "FunctionCall": {
+                                        "function": {
+                                            "Identifier": {
+                                                "data": "jjj",
+                                                "start": {
+                                                    "row": 3,
+                                                    "column": 8
+                                                },
+                                                "end": {
+                                                    "row": 3,
+                                                    "column": 11
+                                                }
+                                            }
+                                        },
+                                        "args": [
+                                            {
+                                                "Identifier": {
+                                                    "data": "e",
+                                                    "start": {
+                                                        "row": 3,
+                                                        "column": 12
+                                                    },
+                                                    "end": {
+                                                        "row": 3,
+                                                        "column": 13
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "Identifier": {
+                                                    "data": "c",
+                                                    "start": {
+                                                        "row": 3,
+                                                        "column": 15
+                                                    },
+                                                    "end": {
+                                                        "row": 3,
+                                                        "column": 16
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "Identifier": {
+                                                    "data": "m",
+                                                    "start": {
+                                                        "row": 3,
+                                                        "column": 18
+                                                    },
+                                                    "end": {
+                                                        "row": 3,
+                                                        "column": 19
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    },
+    {
+        "Procedure": {
+            "identifier": {
+                "data": "a",
+                "start": {
+                    "row": 7,
+                    "column": 5
+                },
+                "end": {
+                    "row": 7,
+                    "column": 6
+                }
+            },
+            "param_list": {
+                "params": [
+                    "m"
+                ],
+                "vardic": null
+            },
+            "body": []
+        }
+    },
+    {
+        "Procedure": {
+            "identifier": {
+                "data": "e",
+                "start": {
+                    "row": 11,
+                    "column": 5
+                },
+                "end": {
+                    "row": 11,
+                    "column": 6
+                }
+            },
+            "param_list": {
+                "params": [],
+                "vardic": null
+            },
+            "body": [
+                {
+                    "Procedure": {
+                        "identifier": {
+                            "data": "f",
+                            "start": {
+                                "row": 11,
+                                "column": 14
+                            },
+                            "end": {
+                                "row": 11,
+                                "column": 15
+                            }
+                        },
+                        "param_list": {
+                            "params": [],
+                            "vardic": null
+                        },
+                        "body": []
+                    }
+                },
+                {
+                    "Procedure": {
+                        "identifier": {
+                            "data": "m",
+                            "start": {
+                                "row": 11,
+                                "column": 28
+                            },
+                            "end": {
+                                "row": 11,
+                                "column": 29
+                            }
+                        },
+                        "param_list": {
+                            "params": [],
+                            "vardic": null
+                        },
+                        "body": []
+                    }
+                }
+            ]
+        }
+    },
+    {
+        "Procedure": {
+            "identifier": {
+                "data": "jjj",
+                "start": {
+                    "row": 13,
+                    "column": 5
+                },
+                "end": {
+                    "row": 13,
+                    "column": 8
+                }
+            },
+            "param_list": {
+                "params": [
+                    "e",
+                    "m"
+                ],
+                "vardic": "w"
+            },
+            "body": [
+                {
+                    "Expression": {
+                        "FunctionCall": {
+                            "function": {
+                                "Identifier": {
+                                    "data": "thing",
+                                    "start": {
+                                        "row": 15,
+                                        "column": 4
+                                    },
+                                    "end": {
+                                        "row": 15,
+                                        "column": 9
+                                    }
+                                }
+                            },
+                            "args": [
+                                {
+                                    "Identifier": {
+                                        "data": "m",
+                                        "start": {
+                                            "row": 15,
+                                            "column": 10
+                                        },
+                                        "end": {
+                                            "row": 15,
+                                            "column": 11
+                                        }
+                                    }
+                                },
+                                {
+                                    "Identifier": {
+                                        "data": "e",
+                                        "start": {
+                                            "row": 15,
+                                            "column": 13
+                                        },
+                                        "end": {
+                                            "row": 15,
+                                            "column": 14
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "For": {
+                        "declaration": {
+                            "declarations": [
+                                {
+                                    "identifier": {
+                                        "data": "i",
+                                        "start": {
+                                            "row": 16,
+                                            "column": 13
+                                        },
+                                        "end": {
+                                            "row": 16,
+                                            "column": 14
+                                        }
+                                    },
+                                    "value": {
+                                        "Number": 0.0
+                                    }
+                                }
+                            ],
+                            "mutable": true
+                        },
+                        "condition": {
+                            "Binary": {
+                                "op": "LessThan",
+                                "left": {
+                                    "Identifier": {
+                                        "data": "i",
+                                        "start": {
+                                            "row": 16,
+                                            "column": 20
+                                        },
+                                        "end": {
+                                            "row": 16,
+                                            "column": 21
+                                        }
+                                    }
+                                },
+                                "right": {
+                                    "FunctionCall": {
+                                        "function": {
+                                            "PropertyAccess": {
+                                                "item": {
+                                                    "Identifier": {
+                                                        "data": "w",
+                                                        "start": {
+                                                            "row": 16,
+                                                            "column": 24
+                                                        },
+                                                        "end": {
+                                                            "row": 16,
+                                                            "column": 25
+                                                        }
+                                                    }
+                                                },
+                                                "property": "len"
+                                            }
+                                        },
+                                        "args": []
+                                    }
+                                }
+                            }
+                        },
+                        "increment": {
+                            "Assignment": {
+                                "op": "AssignPlus",
+                                "left": {
+                                    "Identifier": {
+                                        "data": "i",
+                                        "start": {
+                                            "row": 16,
+                                            "column": 33
+                                        },
+                                        "end": {
+                                            "row": 16,
+                                            "column": 34
+                                        }
+                                    }
+                                },
+                                "right": {
+                                    "Number": 1.0
+                                }
+                            }
+                        },
+                        "body": [
+                            {
+                                "Expression": {
+                                    "FunctionCall": {
+                                        "function": {
+                                            "Identifier": {
+                                                "data": "a",
+                                                "start": {
+                                                    "row": 17,
+                                                    "column": 8
+                                                },
+                                                "end": {
+                                                    "row": 17,
+                                                    "column": 9
+                                                }
+                                            }
+                                        },
+                                        "args": [
+                                            {
+                                                "IndexAccess": {
+                                                    "item": {
+                                                        "Identifier": {
+                                                            "data": "w",
+                                                            "start": {
+                                                                "row": 17,
+                                                                "column": 10
+                                                            },
+                                                            "end": {
+                                                                "row": 17,
+                                                                "column": 11
+                                                            }
+                                                        }
+                                                    },
+                                                    "index": {
+                                                        "Identifier": {
+                                                            "data": "i",
+                                                            "start": {
+                                                                "row": 17,
+                                                                "column": 12
+                                                            },
+                                                            "end": {
+                                                                "row": 17,
+                                                                "column": 13
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+]

@@ -1,0 +1,197 @@
+[
+  {
+    "Declaration": {
+      "declarations": [
+        {
+          "identifier": {
+            "data": "a",
+            "start": {
+              "row": 1,
+              "column": 3
+            },
+            "end": {
+              "row": 1,
+              "column": 4
+            }
+          },
+          "value": {
+            "Number": 1
+          }
+        },
+        {
+          "identifier": {
+            "data": "b",
+            "start": {
+              "row": 2,
+              "column": 4
+            },
+            "end": {
+              "row": 2,
+              "column": 5
+            }
+          },
+          "value": {
+            "Binary": {
+              "op": "LogicalOr",
+              "left": {
+                "Bool": true
+              },
+              "right": {
+                "Bool": false
+              }
+            }
+          }
+        },
+        {
+          "identifier": {
+            "data": "c",
+            "start": {
+              "row": 3,
+              "column": 4
+            },
+            "end": {
+              "row": 3,
+              "column": 5
+            }
+          },
+          "value": {
+            "Lambda": {
+              "param_list": {
+                "params": [],
+                "vardic": null
+              },
+              "body": {
+                "Block": [
+                  {
+                    "Declaration": {
+                      "declarations": [
+                        {
+                          "identifier": {
+                            "data": "c",
+                            "start": {
+                              "row": 4,
+                              "column": 13
+                            },
+                            "end": {
+                              "row": 4,
+                              "column": 14
+                            }
+                          },
+                          "value": {
+                            "Number": 3
+                          }
+                        }
+                      ],
+                      "mutable": true
+                    }
+                  },
+                  {
+                    "Return": {
+                      "Binary": {
+                        "op": "Mult",
+                        "left": {
+                          "Identifier": {
+                            "data": "c",
+                            "start": {
+                              "row": 5,
+                              "column": 15
+                            },
+                            "end": {
+                              "row": 5,
+                              "column": 16
+                            }
+                          }
+                        },
+                        "right": {
+                          "Identifier": {
+                            "data": "c",
+                            "start": {
+                              "row": 5,
+                              "column": 19
+                            },
+                            "end": {
+                              "row": 5,
+                              "column": 20
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "mutable": false
+    }
+  },
+  {
+    "Declaration": {
+      "declarations": [
+        {
+          "identifier": {
+            "data": "d",
+            "start": {
+              "row": 8,
+              "column": 5
+            },
+            "end": {
+              "row": 8,
+              "column": 6
+            }
+          },
+          "value": {
+            "Number": 20
+          }
+        }
+      ],
+      "mutable": true
+    }
+  },
+  {
+    "Declaration": {
+      "declarations": [
+        {
+          "identifier": {
+            "data": "e",
+            "start": {
+              "row": 9,
+              "column": 5
+            },
+            "end": {
+              "row": 9,
+              "column": 6
+            }
+          },
+          "value": {
+            "Unary": {
+              "op": "Negation",
+              "expr": {
+                "Number": 50.2323
+              }
+            }
+          }
+        },
+        {
+          "identifier": {
+            "data": "f",
+            "start": {
+              "row": 10,
+              "column": 4
+            },
+            "end": {
+              "row": 10,
+              "column": 5
+            }
+          },
+          "value": {
+            "String": "aaaaaa"
+          }
+        }
+      ],
+      "mutable": true
+    }
+  }
+]

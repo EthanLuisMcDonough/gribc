@@ -1,0 +1,13 @@
+{
+    "ParamAfterSpread": {
+        "data": "e",
+        "start": {
+            "row": 1,
+            "column": 13
+        },
+        "end": {
+            "row": 1,
+            "column": 14
+        }
+    }
+}

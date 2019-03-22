@@ -1,0 +1,10 @@
+im a = 1,
+    b = true || false,
+    c = lam {
+        decl c = 3;
+        return c * c;
+    };
+
+decl d = 20;
+decl e = ~50.2323,
+    f = "aaaaaa";

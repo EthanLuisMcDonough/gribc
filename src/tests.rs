@@ -3,6 +3,28 @@ use std::error::Error;
 use std::ffi::OsStr;
 use std::fmt::Debug;
 
+#[derive(Clone, Copy, Debug)]
+struct GenericErr;
+impl std::fmt::Display for GenericErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "{:?}", self)
+    }
+}
+impl std::error::Error for GenericErr {}
+
+trait Reversible<T> {
+    fn invert(self) -> T;
+}
+
+impl<A, B> Reversible<Result<A, B>> for Result<B, A> {
+    fn invert(self) -> Result<A, B> {
+        match self {
+            Ok(a) => Err(a),
+            Err(a) => Ok(a),
+        }
+    }
+}
+
 fn cmp_grib_json<T: DeserializeOwned + PartialEq + Debug>(
     grib: &str,
     json: &str,
@@ -33,11 +55,23 @@ fn cmp_grib_json<T: DeserializeOwned + PartialEq + Debug>(
 }
 
 #[test]
+fn ast_test_fail() -> Result<(), Box<dyn std::error::Error>> {
+    use ast::ast;
+    use lex::lex;
+
+    cmp_grib_json(
+        "./tests/ast_fail_tests/grib",
+        "./tests/ast_fail_tests/ast",
+        |s| ast(lex(s)?).map(|_| GenericErr.into()).invert(),
+    )
+}
+
+#[test]
 fn ast_test() -> Result<(), Box<dyn std::error::Error>> {
     use ast::ast;
     use lex::lex;
 
-    cmp_grib_json("./tests/grib", "./tests/ast", |s| {
+    cmp_grib_json("./tests/ast_tests/grib", "./tests/ast_tests/ast", |s| {
         ast(lex(s)?).map_err(Box::from)
     })
 }

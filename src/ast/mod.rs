@@ -15,7 +15,7 @@ type Block = Vec<Node>;
 
 macro_rules! next_guard {
     ({ $next:expr } ( $start_bind:ident, $end_bind:ident ) { $( $( $p:pat )|* => $b:expr ),* } ) => {
-        match $next {
+        match $next.into() {
             $($(
                 Some(Located {
                     data: $p,
@@ -524,23 +524,18 @@ fn parse_params<T: Iterator<Item = Located<Token>>>(tokens: &mut T) -> ParseResu
             next_guard!({ tokens.next() } { Token::OpenGroup(Grouper::Brace) => {} });
 
             while let Some(token) = list.next() {
-                match token {
-                    Located { data: Token::Identifier(s), start, end } => {
-                        if params.vardic.is_some() {
-                            return Err(ParseError::ParamAfterSpread(Located {
-                                data: s, start, end
-                            }));
-                        } else if !params.params.insert(s.clone()) {
-                            return Err(ParseError::DuplicateParam(Located {
-                                data: s, start, end
-                            }));
-                        }
+                next_guard!({ token } (start, end) {
+                    Token::Identifier(s) => if params.vardic.is_some() {
+                        return Err(ParseError::ParamAfterSpread(Located {
+                            data: s, start, end
+                        }));
+                    } else if !params.params.insert(s.clone()) {
+                        return Err(ParseError::DuplicateParam(Located {
+                            data: s, start, end
+                        }));
                     },
-                    Located { data: Token::Spread, .. } => match list.next() {
-                        Some(Located {
-                            data: Token::Identifier(s),
-                            start, end
-                        }) => if params.vardic.is_some() {
+                    Token::Spread => next_guard!({ list.next() } (start, end) {
+                        Token::Identifier(s) => if params.vardic.is_some() {
                             return Err(ParseError::ParamAfterSpread(Located {
                                 data: s, start, end
                             }));
@@ -550,12 +545,9 @@ fn parse_params<T: Iterator<Item = Located<Token>>>(tokens: &mut T) -> ParseResu
                             }));
                         } else {
                             params.vardic = s.to_owned().into();
-                        },
-                        Some(token) => return Err(ParseError::UnexpectedToken(token)),
-                        None => return Err(ParseError::UnexpectedEOF),
-                    },
-                    _ => return Err(ParseError::UnexpectedToken(token)),
-                }
+                        }
+                    })
+                });
             }
             params
         }
