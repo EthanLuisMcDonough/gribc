@@ -2,6 +2,7 @@ use super::Assignable;
 use super::Expression;
 use location::Location;
 use operators::{Assignment, Binary, Unary};
+use std::convert::TryFrom;
 
 #[derive(Debug)]
 pub enum OpExpr {
@@ -108,13 +109,17 @@ impl From<OpExprManager> for Vec<OpExpr> {
     }
 }
 
-pub fn try_into_assignable(e: Expression) -> Result<Assignable, Expression> {
-    match e {
-        Expression::Identifier(s) => Ok(Assignable::Identifier(s)),
-        Expression::IndexAccess { item, index } => Ok(Assignable::IndexAccess { item, index }),
-        Expression::PropertyAccess { item, property } => {
-            Ok(Assignable::PropertyAccess { item, property })
+impl TryFrom<Expression> for Assignable {
+    type Error = Expression;
+
+    fn try_from(e: Expression) -> Result<Self, Self::Error> {
+        match e {
+            Expression::Identifier(s) => Ok(Assignable::Identifier(s)),
+            Expression::IndexAccess { item, index } => Ok(Assignable::IndexAccess { item, index }),
+            Expression::PropertyAccess { item, property } => {
+                Ok(Assignable::PropertyAccess { item, property })
+            }
+            _ => Err(e),
         }
-        _ => Err(e),
     }
 }

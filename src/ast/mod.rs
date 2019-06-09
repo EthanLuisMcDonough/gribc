@@ -4,10 +4,11 @@ mod opexpr;
 
 pub use self::analysis::*;
 pub use self::node::*;
-use self::opexpr::{try_into_assignable, OpExpr, OpExprManager};
+use self::opexpr::{OpExpr, OpExprManager};
 use lex::{Grouper, Keyword, Token};
 use location::{Located, Location};
 use operators::{op_precedence, Assignment, Binary, Precedence};
+use std::convert::TryInto;
 use util::next_if;
 
 type ParseResult<T> = Result<T, ParseError>;
@@ -397,7 +398,8 @@ fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<E
             if let Some(OpExpr::Expr(ref mut expr, _)) = op_expr.get_mut(i - 1) {
                 *expr = Expression::Assignment {
                     op,
-                    left: try_into_assignable(one)
+                    left: one
+                        .try_into()
                         .map_err(|_| ParseError::IllegalLeftExpression { start })?,
                     right: std::mem::replace(expr, Expression::Nil).into(),
                 }
