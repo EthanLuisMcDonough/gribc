@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-struct GribString new_string(size_t size, const uint32_t* ptr) {
+struct GribString new_string(size_t size, uint32_t* ptr) {
     return (struct GribString) {
         .length = size,
         .ptr = ptr,
