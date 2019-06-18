@@ -2,10 +2,11 @@
 #define string_h
 
 #include <stdint.h>
+#include <stdbool.h>
 
 struct GribString {
     size_t length;
-    uint32_t* ptr;
+    const uint32_t* ptr;
 };
 
 double parse_string_double(struct GribString);

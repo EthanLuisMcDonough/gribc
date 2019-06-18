@@ -4,45 +4,49 @@
 #include <stdlib.h>
 #include <math.h>
 
-struct GribString new_string(size_t size, uint32_t* ptr) {
+struct GribString new_string(size_t size, const uint32_t* ptr) {
     return (struct GribString) {
         .length = size,
-        .ptr = ptr
+        .ptr = ptr,
     };
 }
 
-struct GribString new_string_cap(size_t size) {
-    return new_string(size, (uint32_t*) calloc(size, sizeof(uint32_t)));
-}
-
 struct GribString string_concat(struct GribString one, struct GribString two) {
-    struct GribString n = new_string_cap(one.length + two.length);
+    size_t len = one.length + two.length;
+    uint32_t* chs = (uint32_t*) calloc(len, sizeof(uint32_t));
     
     for (uint32_t i = 0; i < one.length; i++) {
-        n.ptr[i] = one.ptr[i];
+        chs[i] = one.ptr[i];
     }
     for (uint32_t i = 0; i < two.length; i++) {
-        n.ptr[one.length + i] = two.ptr[i];
+        chs[one.length + i] = two.ptr[i];
     }
     
-    return n;
+    return (struct GribString) {
+        .length = len,
+        .ptr = chs,
+    };
 }
 
 struct GribString string_slice(struct GribString str, int32_t one, int32_t two) {
     size_t l = str.length;
     one = one < 0 ? ((int32_t) l) + one : ((int32_t) l);
     two = two < 0 ? ((int32_t) l) + two : ((int32_t) l);
+    size_t new_len = (size_t) MAX_MAC(one - two, 0);
     
-    struct GribString new_str = new_string_cap((size_t) MAX_MAC(one - two, 0));
+    uint32_t* chs = (uint32_t*) calloc(new_len, sizeof(uint32_t));
     
     uint32_t uone = (uint32_t) CMP_MAC(one, 0, l),
     utwo = (uint32_t) CMP_MAC(two, 0, l);
     
     for (uint32_t i = uone, str_ind = 0; i < utwo; i++, str_ind++) {
-        new_str.ptr[str_ind] = str.ptr[i];
+        chs[str_ind] = str.ptr[i];
     }
     
-    return new_str;
+    return (struct GribString) {
+        .length = new_len,
+        .ptr = chs,
+    };
 }
 
 int32_t string_index_of(struct GribString str, struct GribString pattern) {
@@ -63,17 +67,17 @@ int32_t string_index_of(struct GribString str, struct GribString pattern) {
 }
 
 bool is_negation_ch(uint32_t ch) {
-    return ch == 126 || ch == 45;
+    return ch == '~' || ch == '-';
 }
 
 bool is_whitespace_ch(uint32_t ch) {
-    return ch == 32 || ch == 9 || ch == 10 || ch == 0 || ch == 12;
+    return ch == ' ' || ch == '\t' || ch == '\n' || ch == 0 || ch == '\f';
 }
 
 bool try_digit(uint32_t ch, int32_t* out) {
-    bool is_dig = ch > 47 && ch < 58;
+    bool is_dig = ch >= '0' && ch <= '9';
     if (is_dig) {
-        *out = ch - 48;
+        *out = ch - '0';
     }
     return is_dig;
 }
@@ -81,10 +85,10 @@ bool try_digit(uint32_t ch, int32_t* out) {
 bool try_gchar(uint32_t ch, int32_t* out) {
     if (try_digit(ch, out)) {
         // - //
-    } else if (ch > 64 && ch < 91) { // Turn [A-Z] into a base36 digit
-        *out = ch - 55;
-    } else if (ch > 96 && ch < 123) { // Turn [a-z] into a base36 digit
-        *out = ch - 87;
+    } else if (ch >= 'A' && ch <= 'Z') {
+        *out = ch - ('A' - 10);
+    } else if (ch >= 'a' && ch <= 'z') {
+        *out = ch - ('a' - 10);
     } else {
         return false;
     }
@@ -112,7 +116,7 @@ double parse_string_double(struct GribString str) {
         val += (double) digit;
     }
     
-    if (i < l && str.ptr[i] == 46 /* check if current char is '.' */) {
+    if (i < l && str.ptr[i] == '.') {
         i++;
         int32_t digit;
         for (uint32_t place = 10; i < l && try_digit(str.ptr[i], &digit); i++, place *= 10) {
@@ -121,12 +125,11 @@ double parse_string_double(struct GribString str) {
         }
     }
     
-    if (i < l && (str.ptr[i] == 101 || str.ptr[i] == 69 /* check if current char is 'e' or 'E' */)) {
+    if (i < l && (str.ptr[i] == 'e' || str.ptr[i] == 'E')) {
         i++;
         
         bool exp_neg = false;
-        // Check if current char is '+', '~', or '-'
-        if (i < l && (str.ptr[i] == 43 || is_negation_ch(str.ptr[i]))) {
+        if (i < l && (str.ptr[i] == '+' || is_negation_ch(str.ptr[i]))) {
             exp_neg = is_negation_ch(str.ptr[i]);
             i++;
         }
