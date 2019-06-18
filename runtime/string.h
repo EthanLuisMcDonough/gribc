@@ -9,5 +9,6 @@ struct GribString {
 };
 
 double parse_string_double(struct GribString);
+int64_t parse_string_int(struct GribString str, uint8_t radix);
 
 #endif
