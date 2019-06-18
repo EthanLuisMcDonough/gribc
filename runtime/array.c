@@ -88,3 +88,7 @@ struct GribArray concat_array(struct GribArray* one, struct GribArray two) {
     
     return n;
 }
+
+void free_array(struct GribArray arr) {
+    free(arr.ptr);
+}
