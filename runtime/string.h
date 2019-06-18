@@ -6,7 +6,7 @@
 
 struct GribString {
     size_t length;
-    const uint32_t* ptr;
+    uint32_t* ptr;
 };
 
 double parse_string_double(struct GribString);

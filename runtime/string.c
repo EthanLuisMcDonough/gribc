@@ -66,6 +66,10 @@ int32_t string_index_of(struct GribString str, struct GribString pattern) {
     return -1;
 }
 
+void string_free(struct GribString str) {
+    free(str.ptr);
+}
+
 bool is_negation_ch(uint32_t ch) {
     return ch == '~' || ch == '-';
 }
