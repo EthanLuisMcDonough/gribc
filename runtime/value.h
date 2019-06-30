@@ -16,6 +16,7 @@ enum ValueType {
     HASH_OBJ,
     FUNCTION,
     NIL,
+    BOOLEAN,
 };
 
 union ValueUnion {
@@ -23,6 +24,7 @@ union ValueUnion {
     struct GribString string;
     struct GribArray arr;
     struct GribFunction fn;
+    bool boolean;
 };
 
 struct GribValue {
@@ -34,5 +36,6 @@ struct GribValue grib_number(double val);
 struct GribValue grib_string(struct GribString val);
 struct GribValue grib_arr(struct GribArray val);
 struct GribValue grib_fn(struct GribFunction val);
+struct GribValue grib_bool(bool val);
 
 #endif

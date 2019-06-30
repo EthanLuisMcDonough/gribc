@@ -7,11 +7,14 @@
 struct GribString {
     size_t length;
     uint32_t* ptr;
+    bool alloced;
 };
 
-struct GribString new_string(size_t size, uint32_t* ptr);
+struct GribString new_string(size_t size, uint32_t* ptr, bool alloced);
 struct GribString string_concat(struct GribString one, struct GribString two);
 struct GribString string_slice(struct GribString str, int32_t one, int32_t two);
+struct GribString string_from_cstr(const char* str);
+struct GribString num_to_string(double d);
 
 double parse_string_double(struct GribString);
 

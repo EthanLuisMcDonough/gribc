@@ -3,29 +3,52 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <math.h>
+#include <stdio.h>
+#include <tgmath.h>
 
-struct GribString new_string(size_t size, uint32_t* ptr) {
-    return (struct GribString) {
-        .length = size,
-        .ptr = ptr,
-    };
-}
-
-struct GribString string_concat(struct GribString one, struct GribString two) {
-    size_t len = one.length + two.length;
+struct GribString string_from_cstr(const char* str) {
+    size_t len = 0;
+    while (str[len]) { len++; }
+    
     uint32_t* chs = (uint32_t*) calloc(len, sizeof(uint32_t));
     
-    for (uint32_t i = 0; i < one.length; i++) {
-        chs[i] = one.ptr[i];
-    }
-    for (uint32_t i = 0; i < two.length; i++) {
-        chs[one.length + i] = two.ptr[i];
+    for (size_t i = 0; i < len; i++) {
+        chs[i] = str[i];
     }
     
     return (struct GribString) {
         .length = len,
         .ptr = chs,
+        .alloced = true
     };
+}
+
+struct GribString new_string(size_t size, uint32_t* ptr, bool alloced) {
+    return (struct GribString) {
+        .length = size,
+        .ptr = ptr,
+        .alloced = alloced
+    };
+}
+
+struct GribString new_string_cap(size_t len) {
+    uint32_t* chs = (uint32_t*) calloc(len, sizeof(uint32_t));
+    return new_string(len, chs, true);
+}
+
+struct GribString string_concat(struct GribString one, struct GribString two) {
+    size_t len = one.length + two.length;
+    
+    struct GribString str = new_string_cap(len);
+    
+    for (uint32_t i = 0; i < one.length; i++) {
+        str.ptr[i] = one.ptr[i];
+    }
+    for (uint32_t i = 0; i < two.length; i++) {
+        str.ptr[one.length + i] = two.ptr[i];
+    }
+    
+    return str;
 }
 
 struct GribString string_slice(struct GribString str, int32_t one, int32_t two) {
@@ -43,10 +66,7 @@ struct GribString string_slice(struct GribString str, int32_t one, int32_t two) 
         chs[str_ind] = str.ptr[i];
     }
     
-    return (struct GribString) {
-        .length = new_len,
-        .ptr = chs,
-    };
+    return new_string(new_len, chs, true);
 }
 
 int32_t string_index_of(struct GribString str, struct GribString pattern) {
@@ -67,7 +87,7 @@ int32_t string_index_of(struct GribString str, struct GribString pattern) {
 }
 
 void string_free(struct GribString str) {
-    free(str.ptr);
+    if (str.alloced) { free(str.ptr); }
 }
 
 bool is_negation_ch(uint32_t ch) {
@@ -167,4 +187,21 @@ int64_t parse_string_int(struct GribString str, uint8_t radix) {
     }
     
     return (is_neg ? -1 : 1) * integer;
+}
+
+struct GribString num_to_string(double d) {
+    char number[100];
+    
+    snprintf(number, 100, "%g", d);
+    
+    size_t len = 0;
+    for (char* nptr = number; *nptr; nptr++, len++) {}
+    
+    struct GribString str = new_string_cap(len);
+    
+    for (size_t i = 0; i < len; i++) {
+        str.ptr[i] = (uint32_t) number[i];
+    }
+    
+    return str;
 }

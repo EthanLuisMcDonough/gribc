@@ -5,5 +5,6 @@
 #include "value.h"
 
 double gribvalue_to_number(struct GribValue val);
+struct GribString gribvalue_to_string(struct GribValue val);
 
 #endif
