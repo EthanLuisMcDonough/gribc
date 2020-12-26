@@ -1,0 +1,6 @@
+import * from "fmt";
+import package from "./module.grib";
+
+package.example("thingy");
+
+println("import successful");

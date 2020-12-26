@@ -1,7 +1,8 @@
-use super::Block;
-use location::Located;
+use location::{Located, Location};
 use operators::{Assignment, Binary, Unary};
 use std::collections::{HashMap, HashSet};
+
+pub type Block = Vec<Node>;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct ConditionBodyPair {
@@ -95,6 +96,14 @@ pub enum Assignable {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct Procedure {
+    pub identifier: Located<String>,
+    pub param_list: Parameters,
+    pub body: Block,
+    pub public: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum Expression {
     Binary {
         op: Binary,
@@ -146,6 +155,74 @@ impl Expression {
     }
 }
 
+crate::keyword_map!(NativePackage {
+    Fmt -> "fmt",
+    Math -> "math",
+});
+
+impl NativePackage {
+    pub fn get_functions(&self) -> &'static [&'static str] {
+        match self {
+            Self::Fmt => &["println"],
+            Self::Math => &["sqrt", "sin", "cos", "tan", "pow", "ln", 
+                "log", "round", "floor", "ceil", "pi", "e"],
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub enum Module {
+    Custom(CustomModule),
+    Native(NativePackage),
+} 
+
+impl Module {
+    pub fn get_functions<'a>(&'a self) -> HashSet<&'a str> {
+        match self {
+            Module::Custom(c) => c.functions.iter().filter(|f| f.public)
+                .map(|f| f.identifier.data.as_str()).collect(),
+            Module::Native(c) => c.get_functions().iter().map(|f| *f)
+                .collect()
+        }
+    }
+    pub fn has_function(&self, name: &str) -> bool {
+        match self {
+            Module::Custom(c) => c.functions.iter().filter(|f| f.public)
+                .any(|f| f.identifier.data == name),
+            Module::Native(c) => c.get_functions().contains(&name),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub enum ImportKind {
+    All,
+    ModuleObject(Located<String>),
+    List(HashMap<String, (Location, Location)>),
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct CustomModule {
+    pub imports: Vec<Import>,
+    pub functions: Vec<Procedure>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct Import {
+    pub module: Module,
+    pub kind: ImportKind,
+}
+
+/*impl Import {
+    pub fn imported_items<'a>(&'a self) -> impl Iterator<Item = &'a str> {
+        match &self.kind {
+            ImportKind::All => self.module.get_functions().iter(),
+            ImportKind::ModuleObject(Located { data, .. }) => unimplemented!(),
+            ImportKind::List(l) => l.keys().map(|f| f.as_str()),
+        }
+    }
+}*/
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum Node {
     Expression(Expression),
@@ -162,13 +239,10 @@ pub enum Node {
         increment: Option<Expression>,
         body: Block,
     },
-    Procedure {
-        identifier: Located<String>,
-        param_list: Parameters,
-        body: Block,
-    },
+    Procedure(Procedure),
     Declaration(Declaration),
     Return(Expression),
+    Import(Import),
     Break,
     Continue,
 }

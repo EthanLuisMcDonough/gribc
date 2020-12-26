@@ -111,7 +111,8 @@
             "else_block": null
           }
         }
-      ]
+      ],
+      "public": false
     }
   },
   {

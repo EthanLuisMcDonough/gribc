@@ -1,7 +1,11 @@
+pub mod tokens;
+
 use location::{Located, Location};
 use operators::{Assignment, Binary, Unary};
 use util::next_if;
+use self::tokens::*;
 
+#[macro_export]
 macro_rules! keyword_map {
     ($name:ident { $( $field:ident -> $s:expr ),* $(,)* }) => {
         #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -30,7 +34,7 @@ macro_rules! keyword_map {
 
 type LexResult<A> = Result<A, LexError>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum LexErrorData {
     UnexpectedEOF,
     UnexpectedChar(char),
@@ -43,7 +47,7 @@ impl LexErrorData {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LexError {
     pub loc: Location,
     pub data: LexErrorData,
@@ -56,79 +60,6 @@ impl std::fmt::Display for LexError {
 }
 
 impl std::error::Error for LexError {}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum Grouper {
-    Bracket,
-    Parentheses,
-    Brace,
-}
-
-keyword_map!(Keyword {
-    Proc -> "proc",
-    Lam -> "lam",
-    Return -> "return",
-    Decl -> "decl",
-    Im -> "im",
-    While -> "while",
-    For -> "for",
-    Nil -> "nil",
-    If -> "if",
-    Else -> "else",
-    Break -> "break",
-    Continue -> "continue",
-    Get -> "get",
-    Set -> "set",
-});
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum Token {
-    String(String),
-    Number(f64),
-    Identifier(String),
-    BinaryOp(Binary),
-    UnaryOp(Unary),
-    AssignOp(Assignment),
-    Arrow,
-
-    Period,
-    Spread,
-
-    MutableHash,
-    Hash,
-
-    // Keywords
-    Keyword(Keyword),
-
-    // Booleans
-    Bool(bool),
-
-    // Delimiters
-    Comma,
-    Semicolon,
-    Pipe,
-
-    // Grouping tokens
-    OpenGroup(Grouper),
-    CloseGroup(Grouper),
-}
-
-impl Token {
-    pub fn is_op(&self) -> bool {
-        match self {
-            Token::UnaryOp(_) | Token::BinaryOp(_) | Token::AssignOp(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn ident(&self) -> bool {
-        if let Token::Identifier(_) = self {
-            true
-        } else {
-            false
-        }
-    }
-}
 
 fn nchar_if<T: Iterator<Item = char>>(
     i: &mut std::iter::Peekable<T>,
@@ -187,7 +118,7 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
                 }
                 '$' => Token::MutableHash,
                 '#' => Token::Hash,
-                '0'...'9' => {
+                '0'..='9' => {
                     let mut number = c.to_string();
                     let mut period = false;
 
@@ -279,7 +210,7 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
 
                     Token::String(string)
                 }
-                'A'...'Z' | 'a'...'z' | '_' => {
+                'A'..='Z' | 'a'..='z' | '_' => {
                     let mut ident = c.to_string();
 
                     while let Some(c) = next_if(&mut chars, |&c| valid_ident_char(c)) {

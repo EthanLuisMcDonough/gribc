@@ -1,5 +1,6 @@
 use crate::serde::de::DeserializeOwned;
 use std::error::Error;
+use std::path::Path;
 use std::ffi::OsStr;
 use std::fmt::Debug;
 
@@ -28,7 +29,7 @@ impl<A, B> Reversible<Result<A, B>> for Result<B, A> {
 fn cmp_grib_json<T: DeserializeOwned + PartialEq + Debug>(
     grib: &str,
     json: &str,
-    callback: impl Fn(&str) -> Result<T, Box<dyn Error>>,
+    callback: impl Fn(&str, &Path) -> Result<T, Box<dyn Error>>,
 ) -> Result<(), Box<dyn Error>> {
     use std::fs;
 
@@ -47,7 +48,10 @@ fn cmp_grib_json<T: DeserializeOwned + PartialEq + Debug>(
             )?
             .as_slice(),
         )?;
-        let grib = callback(&String::from_utf8(fs::read(file.path())?)?)?;
+
+        let path = file.path();
+
+        let grib = callback(&String::from_utf8(fs::read(&path)?)?, path.as_path())?;
         assert_eq!(json, grib);
     }
 
@@ -62,7 +66,7 @@ fn ast_test_fail() -> Result<(), Box<dyn std::error::Error>> {
     cmp_grib_json(
         "./tests/ast_fail_tests/grib",
         "./tests/ast_fail_tests/ast",
-        |s| ast(lex(s)?).map(|_| GenericErr.into()).invert(),
+        |s, path| ast(lex(s)?, path).map(|_| GenericErr.into()).invert(),
     )
 }
 
@@ -71,7 +75,7 @@ fn ast_test() -> Result<(), Box<dyn std::error::Error>> {
     use ast::ast;
     use lex::lex;
 
-    cmp_grib_json("./tests/ast_tests/grib", "./tests/ast_tests/ast", |s| {
-        ast(lex(s)?).map_err(Box::from)
+    cmp_grib_json("./tests/ast_tests/grib", "./tests/ast_tests/ast", |s, path| {
+        ast(lex(s)?, path).map_err(Box::from)
     })
 }

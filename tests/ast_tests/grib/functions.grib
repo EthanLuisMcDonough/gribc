@@ -1,14 +1,18 @@
 proc thing |...a| {
-    proc m |e c m| {
-        jjj(e, c, m);
-    }
+    e(a[0], a[1]);
+}
+
+proc m |e c m| {
+    jjj(e, c, m);
 }
 
 proc a |m| {
     @@@
 }
 
-proc e { proc f | | {} proc m || {}  }
+proc e {}
+proc d |  | {}
+proc v || {}
 
 proc jjj |m e ...w| {
     @ aaaa

@@ -1,0 +1,9 @@
+import |println| from "fmt";
+
+proc example |name| {
+    println("hello, " + name);
+}
+
+proc greetH {
+    example("H");
+}
