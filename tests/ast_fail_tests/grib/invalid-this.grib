@@ -1,0 +1,12 @@
+import |println| from "fmt";
+
+im fn = lam |h| {
+    println(this.thing);
+};
+
+im obj = #{
+    plusThree { get { this.v + 3 }; },
+    v -> 3,
+};
+
+decl invalid = this.invalid;

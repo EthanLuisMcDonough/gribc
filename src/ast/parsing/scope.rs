@@ -4,6 +4,7 @@ use std::path::Path;
 pub struct Scope<'a> {
     pub in_loop: bool,
     pub in_proc: bool,
+    pub in_lam: bool,
     pub is_top: bool,
     pub path: Option<&'a Path>,
 }
@@ -14,15 +15,27 @@ impl<'a> Scope<'a> {
         Self {
             in_loop: false,
             in_proc: false,
+            in_lam: false,
             is_top: true,
             path,
         }
     }
 
-    pub fn fn_sub() -> Self {
+    pub fn fn_proc() -> Self {
         Self {
             in_loop: false,
             in_proc: true,
+            in_lam: false,
+            is_top: false,
+            path: None,
+        }
+    }
+
+    pub fn fn_lam() -> Self {
+        Self {
+            in_loop: false,
+            in_proc: true,
+            in_lam: true,
             is_top: false,
             path: None,
         }

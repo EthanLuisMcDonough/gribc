@@ -26,6 +26,7 @@ keyword_map!(Keyword {
     Import -> "import",
     Public -> "public",
     From -> "from",
+    This -> "this",
 });
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

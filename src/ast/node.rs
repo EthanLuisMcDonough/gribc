@@ -144,6 +144,7 @@ pub enum Expression {
     MutableHash(Hash),
     Nil,
     Args,
+    This,
 }
 
 impl Expression {
@@ -212,16 +213,6 @@ pub struct Import {
     pub module: Module,
     pub kind: ImportKind,
 }
-
-/*impl Import {
-    pub fn imported_items<'a>(&'a self) -> impl Iterator<Item = &'a str> {
-        match &self.kind {
-            ImportKind::All => self.module.get_functions().iter(),
-            ImportKind::ModuleObject(Located { data, .. }) => unimplemented!(),
-            ImportKind::List(l) => l.keys().map(|f| f.as_str()),
-        }
-    }
-}*/
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum Node {

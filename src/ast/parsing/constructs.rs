@@ -15,15 +15,16 @@ pub fn parse_if_block<'a, T: Iterator<Item = Located<Token>>>(
 ) -> ParseResult<ConditionBodyPair> {
     Ok(ConditionBodyPair {
         condition: zero_level(tokens, |t| *t == Token::OpenGroup(Grouper::Brace))
-            .and_then(|(v, _)| parse_expr(v))?,
+            .and_then(|(v, _)| parse_expr(v, scope.in_lam))?,
         block: take_until(tokens, Grouper::Brace)
             .and_then(|(v, _)| ast_level(v, scope))?,
     })
 }
 
-pub fn parse_decl<T: Iterator<Item = Located<Token>>>(
+pub fn parse_decl<'a, T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
     mutable: bool,
+    scope: Scope<'a>
 ) -> ParseResult<Declaration> {
     let mut decls = vec![];
     let mut cont = true;
@@ -38,7 +39,7 @@ pub fn parse_decl<T: Iterator<Item = Located<Token>>>(
                 Token::AssignOp(Assignment::Assign) => {
                     let (v, Located { data: last, .. }) = zero_level(tokens, |d| *d == Token::Semicolon || *d == Token::Comma)?;
                     cont = last == Token::Comma;
-                    parse_expr(v)?
+                    parse_expr(v, scope.in_lam)?
                 },
                 Token::Semicolon => {
                     cont = false;
@@ -109,7 +110,7 @@ pub fn parse_proc<T: Iterator<Item = Located<Token>>>(tokens: &mut T, public: bo
     Ok(Procedure {
         identifier: name,
         param_list,
-        body: take_until(tokens, Grouper::Brace).and_then(|(v, _)| ast_level(v, Scope::fn_sub()))?,
+        body: take_until(tokens, Grouper::Brace).and_then(|(v, _)| ast_level(v, Scope::fn_proc()))?,
         public
     })
 }
@@ -184,7 +185,6 @@ pub fn parse_import<'a, T: Iterator<Item = Located<Token>>>(tokens: &mut T, scop
     
     let module = next_guard!({ tokens.next() } (start, end) {
         Token::String(s) => {
-            println!("string: {}", s);
             match NativePackage::from_str(&s) {
                 Some(package) => Module::Native(package),
                 None => Module::Custom(parse_module(Located { 

@@ -79,7 +79,7 @@ pub fn parse_hash(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResu
         });
         let value = next_guard!({ tokens.next() } {
             Token::Arrow => match zero_level_preserve(&mut tokens, |t| *t == Token::Comma)? {
-                Ok((tokens, _)) | Err(tokens) => parse_expr(tokens).map(ObjectValue::Expression)
+                Ok((tokens, _)) | Err(tokens) => parse_expr(tokens, false).map(ObjectValue::Expression)
             },
             Token::OpenGroup(Grouper::Brace) => {
                 let (interior, last) = take_until(&mut tokens, Grouper::Brace)?;
@@ -110,11 +110,11 @@ pub fn lam_body(body: Vec<Located<Token>>) -> ParseResult<LambdaBody> {
         if body.is_empty() {
             Ok(LambdaBody::Block(vec![]))
         } else {
-            parse_expr(body)
+            parse_expr(body, true)
                 .map(Box::from)
                 .map(LambdaBody::ImplicitReturn)
         }
     } else {
-        ast_level(body, Scope::fn_sub()).map(LambdaBody::Block)
+        ast_level(body, Scope::fn_lam()).map(LambdaBody::Block)
     }
 }

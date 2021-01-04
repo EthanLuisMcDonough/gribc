@@ -50,6 +50,7 @@ pub enum ParseError {
     FunctionNotAtTopLevel(Location),
     ModuleError(ModuleError),
     MisplacedImport(Location),
+    InvalidThisReference(Location),
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -131,10 +132,10 @@ fn ast_level<'a>(
             Token::Keyword(Keyword::Return) if !scope.in_proc => return Err(ParseError::IllegalReturn(token.start)),
             Token::Keyword(Keyword::Return) => {
                 let (tokens, _) = zero_level(&mut tokens, |t| *t == Token::Semicolon)?;
-                Node::Return(if tokens.is_empty() { Expression::Nil } else { parse_expr(tokens)? })
+                Node::Return(if tokens.is_empty() { Expression::Nil } else { parse_expr(tokens, scope.in_lam)? })
             },
-            Token::Keyword(Keyword::Decl) => Node::Declaration(parse_decl(&mut tokens, true)?),
-            Token::Keyword(Keyword::Im) => Node::Declaration(parse_decl(&mut tokens, false)?),
+            Token::Keyword(Keyword::Decl) => Node::Declaration(parse_decl(&mut tokens, true, scope)?),
+            Token::Keyword(Keyword::Im) => Node::Declaration(parse_decl(&mut tokens, false, scope)?),
             Token::Keyword(Keyword::Public) if scope.is_top => next_guard!({ tokens.next() } {
                 Token::Keyword(Keyword::Proc) => Node::Procedure(parse_proc(&mut tokens, true)?)
             }),
@@ -143,16 +144,16 @@ fn ast_level<'a>(
                 return Err(ParseError::FunctionNotAtTopLevel(token.start.clone())),
             Token::Keyword(Keyword::For) => {
                 let declaration = next_guard!({ tokens.next() } {
-                    Token::Keyword(Keyword::Decl) => parse_decl(&mut tokens, true)?.into(),
-                    Token::Keyword(Keyword::Im) => parse_decl(&mut tokens, false)?.into(),
+                    Token::Keyword(Keyword::Decl) => parse_decl(&mut tokens, true, scope)?.into(),
+                    Token::Keyword(Keyword::Im) => parse_decl(&mut tokens, false, scope)?.into(),
                     Token::Semicolon => None
                 });
 
                 let (t, _) = zero_level(&mut tokens, |d| *d == Token::Semicolon)?;
-                let condition = if t.is_empty() { None } else { parse_expr(t)?.into() };
+                let condition = if t.is_empty() { None } else { parse_expr(t, scope.in_lam)?.into() };
 
                 let (t, _) = zero_level(&mut tokens, |d| *d == Token::OpenGroup(Grouper::Brace))?;
-                let increment = if t.is_empty() { None } else { parse_expr(t)?.into() };
+                let increment = if t.is_empty() { None } else { parse_expr(t, scope.in_lam)?.into() };
 
                 let body = take_until(&mut tokens, Grouper::Brace)
                     .and_then(|(v, _)| ast_level(v, scope.next_level().with_loop(true)))?;
@@ -180,7 +181,7 @@ fn ast_level<'a>(
                 let (mut tokens, semi) = zero_level(&mut tokens, |t| *t == Token::Semicolon)?;
                 tokens.insert(0, token);
 
-                let expr = parse_expr(tokens).map_err(|e| 
+                let expr = parse_expr(tokens, scope.in_lam).map_err(|e| 
                     e.neof_or(ParseError::UnexpectedToken(semi)))?;
 
                 if !expr.is_statement() {
