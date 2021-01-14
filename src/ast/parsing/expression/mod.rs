@@ -244,7 +244,7 @@ pub fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>, in_lam: bool
                     op,
                     left: one
                         .try_into()
-                        .map_err(|_| ParseError::IllegalLeftExpression { start })?,
+                        .map_err(|_| ParseError::IllegalLeftExpression(start))?,
                     right: std::mem::replace(expr, Expression::Nil).into(),
                 }
             } else {

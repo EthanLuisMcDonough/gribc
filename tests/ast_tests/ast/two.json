@@ -1,379 +1,233 @@
-[
-  {
-    "LogicChain": {
-      "if_block": {
-        "condition": {
-          "Binary": {
-            "op": "LogicalOr",
-            "left": {
-              "Number": 3.0
-            },
-            "right": {
-              "Binary": {
-                "op": "Plus",
-                "left": {
-                  "Number": 2.0
-                },
-                "right": {
-                  "Number": 3.0
+{
+  "modules": {},
+  "body": [
+    {
+      "LogicChain": {
+        "if_block": {
+          "condition": {
+            "Binary": {
+              "op": "LogicalOr", 
+              "left": {
+                "Number": 3.0    
+              },
+              "right": {
+                "Binary": {      
+                  "op": "Plus",  
+                  "left": {      
+                    "Number": 2.0
+                  },
+                  "right": {     
+                    "Number": 3.0
+                  }
                 }
               }
             }
+          },
+          "block": []
+        },
+        "elseifs": [],
+        "else_block": null
+      }
+    },
+    {
+      "Procedure": {
+        "identifier": {
+          "data": "thingy",
+          "start": {
+            "row": 2,
+            "column": 5
+          },
+          "end": {
+            "row": 2,
+            "column": 11
           }
         },
-        "block": []
-      },
-      "elseifs": [],
-      "else_block": null
-    }
-  },
-  {
-    "Procedure": {
-      "identifier": {
-        "data": "thingy",
-        "start": {
-          "row": 2,
-          "column": 5
+        "param_list": {
+          "params": [
+            "abcd",
+            "a"
+          ],
+          "vardic": "e"
         },
-        "end": {
-          "row": 2,
-          "column": 11
-        }
-      },
-      "param_list": {
-        "params": [
-          "a",
-          "abcd"
-        ],
-        "vardic": "e"
-      },
-      "body": [
-        {
-          "LogicChain": {
-            "if_block": {
-              "condition": {
-                "Binary": {
-                  "op": "NotEqual",
-                  "left": {
-                    "Identifier": {
-                      "data": "abcd",
-                      "start": {
-                        "row": 3,
-                        "column": 7
-                      },
-                      "end": {
-                        "row": 3,
-                        "column": 11
-                      }
-                    }
-                  },
-                  "right": "Nil"
-                }
-              },
-              "block": [
-                {
-                  "Expression": {
-                    "FunctionCall": {
-                      "function": {
-                        "Identifier": {
-                          "data": "println",
-                          "start": {
-                            "row": 4,
-                            "column": 8
-                          },
-                          "end": {
-                            "row": 4,
-                            "column": 15
-                          }
+        "body": [
+          {
+            "LogicChain": {
+              "if_block": {
+                "condition": {
+                  "Binary": {
+                    "op": "NotEqual",
+                    "left": {
+                      "Identifier": {
+                        "data": "abcd",
+                        "start": {
+                          "row": 3,
+                          "column": 7
+                        },
+                        "end": {
+                          "row": 3,
+                          "column": 11
                         }
-                      },
-                      "args": [
-                        {
+                      }
+                    },
+                    "right": "Nil"
+                  }
+                },
+                "block": [
+                  {
+                    "Expression": {
+                      "FunctionCall": {
+                        "function": {
                           "Identifier": {
-                            "data": "a",
+                            "data": "println",
                             "start": {
                               "row": 4,
-                              "column": 16
+                              "column": 8
                             },
                             "end": {
                               "row": 4,
-                              "column": 17
+                              "column": 15
                             }
                           }
-                        }
-                      ]
+                        },
+                        "args": [
+                          {
+                            "Identifier": {
+                              "data": "a",
+                              "start": {
+                                "row": 4,
+                                "column": 16
+                              },
+                              "end": {
+                                "row": 4,
+                                "column": 17
+                              }
+                            }
+                          }
+                        ]
+                      }
                     }
                   }
-                }
-              ]
-            },
-            "elseifs": [],
-            "else_block": null
-          }
-        }
-      ],
-      "public": false
-    }
-  },
-  {
-    "Declaration": {
-      "declarations": [
-        {
-          "identifier": {
-            "data": "zand",
-            "start": {
-              "row": 8,
-              "column": 5
-            },
-            "end": {
-              "row": 8,
-              "column": 9
-            }
-          },
-          "value": {
-            "Number": 20.0
-          }
-        },
-        {
-          "identifier": {
-            "data": "thign",
-            "start": {
-              "row": 8,
-              "column": 16
-            },
-            "end": {
-              "row": 8,
-              "column": 21
-            }
-          },
-          "value": "Nil"
-        },
-        {
-          "identifier": {
-            "data": "ff",
-            "start": {
-              "row": 8,
-              "column": 23
-            },
-            "end": {
-              "row": 8,
-              "column": 25
-            }
-          },
-          "value": {
-            "String": "eee ss "
-          }
-        }
-      ],
-      "mutable": true
-    }
-  },
-  {
-    "Declaration": {
-      "declarations": [
-        {
-          "identifier": {
-            "data": "rr",
-            "start": {
-              "row": 9,
-              "column": 3
-            },
-            "end": {
-              "row": 9,
-              "column": 5
-            }
-          },
-          "value": {
-            "Number": 2.0
-          }
-        },
-        {
-          "identifier": {
-            "data": "stingy",
-            "start": {
-              "row": 9,
-              "column": 11
-            },
-            "end": {
-              "row": 9,
-              "column": 17
-            }
-          },
-          "value": {
-            "String": "asmkasd"
-          }
-        }
-      ],
-      "mutable": false
-    }
-  },
-  {
-    "Declaration": {
-      "declarations": [
-        {
-          "identifier": {
-            "data": "m",
-            "start": {
-              "row": 10,
-              "column": 5
-            },
-            "end": {
-              "row": 10,
-              "column": 6
-            }
-          },
-          "value": {
-            "Binary": {
-              "op": "LogicalOr",
-              "left": {
-                "Lambda": {
-                  "param_list": {
-                    "params": [],
-                    "vardic": null
-                  },
-                  "body": {
-                    "ImplicitReturn": {
-                      "Number": 20.0
-                    }
-                  }
-                }
+                ]
               },
-              "right": {
-                "Number": 30.0
-              }
+              "elseifs": [],
+              "else_block": null
             }
           }
-        }
-      ],
-      "mutable": true
-    }
-  },
-  {
-    "Expression": {
-      "FunctionCall": {
-        "function": {
-          "Identifier": {
-            "data": "aaa",
-            "start": {
-              "row": 12,
-              "column": 0
-            },
-            "end": {
-              "row": 12,
-              "column": 3
-            }
-          }
-        },
-        "args": [
-          {
-            "Binary": {
-              "op": "GreaterThan",
-              "left": {
-                "Bool": false
-              },
-              "right": {
-                "Bool": true
-              }
-            }
-          }
-        ]
+        ],
+        "public": false
       }
-    }
-  },
-  {
-    "While": {
-      "condition": {
-        "Bool": true
-      },
-      "block": [
-        {
-          "Expression": {
-            "FunctionCall": {
-              "function": {
-                "Lambda": {
-                  "param_list": {
-                    "params": [],
-                    "vardic": null
-                  },
-                  "body": {
-                    "Block": []
-                  }
-                }
+    },
+    {
+      "Declaration": {
+        "declarations": [
+          {
+            "identifier": {
+              "data": "zand",
+              "start": {
+                "row": 8,
+                "column": 5
               },
-              "args": []
-            }
-          }
-        }
-      ]
-    }
-  },
-  {
-    "Declaration": {
-      "declarations": [
-        {
-          "identifier": {
-            "data": "hh",
-            "start": {
-              "row": 20,
-              "column": 5
+              "end": {
+                "row": 8,
+                "column": 9
+              }
             },
-            "end": {
-              "row": 20,
-              "column": 7
+            "value": {
+              "Number": 20.0
             }
           },
-          "value": {
-            "Hash": {
-              "asd sd #": {
-                "Expression": {
-                  "Binary": {
-                    "op": "Plus",
-                    "left": {
-                      "String": "eee"
-                    },
-                    "right": {
-                      "Number": 2.0
-                    }
-                  }
-                }
+          {
+            "identifier": {
+              "data": "thign",
+              "start": {
+                "row": 8,
+                "column": 16
               },
-              "e": {
-                "Expression": {
-                  "Number": 20.0
-                }
+              "end": {
+                "row": 8,
+                "column": 21
+              }
+            },
+            "value": "Nil"
+          },
+          {
+            "identifier": {
+              "data": "ff",
+              "start": {
+                "row": 8,
+                "column": 23
               },
-              "thingy": {
-                "AutoProp": {
-                  "get": {
-                    "Located": {
-                      "data": "zand",
-                      "start": {
-                        "row": 23,
-                        "column": 17
-                      },
-                      "end": {
-                        "row": 23,
-                        "column": 21
-                      }
-                    }
-                  },
-                  "set": {
-                    "Located": {
-                      "data": "zand",
-                      "start": {
-                        "row": 23,
-                        "column": 27
-                      },
-                      "end": {
-                        "row": 23,
-                        "column": 31
-                      }
-                    }
-                  }
-                }
+              "end": {
+                "row": 8,
+                "column": 25
+              }
+            },
+            "value": {
+              "String": "eee ss "
+            }
+          }
+        ],
+        "mutable": true
+      }
+    },
+    {
+      "Declaration": {
+        "declarations": [
+          {
+            "identifier": {
+              "data": "rr",
+              "start": {
+                "row": 9,
+                "column": 3
               },
-              "2": {
-                "Expression": {
+              "end": {
+                "row": 9,
+                "column": 5
+              }
+            },
+            "value": {
+              "Number": 2.0
+            }
+          },
+          {
+            "identifier": {
+              "data": "stingy",
+              "start": {
+                "row": 9,
+                "column": 11
+              },
+              "end": {
+                "row": 9,
+                "column": 17
+              }
+            },
+            "value": {
+              "String": "asmkasd"
+            }
+          }
+        ],
+        "mutable": false
+      }
+    },
+    {
+      "Declaration": {
+        "declarations": [
+          {
+            "identifier": {
+              "data": "m",
+              "start": {
+                "row": 10,
+                "column": 5
+              },
+              "end": {
+                "row": 10,
+                "column": 6
+              }
+            },
+            "value": {
+              "Binary": {
+                "op": "LogicalOr",
+                "left": {
                   "Lambda": {
                     "param_list": {
                       "params": [],
@@ -381,69 +235,218 @@
                     },
                     "body": {
                       "ImplicitReturn": {
-                        "MutableHash": {
-                          "rr": {
-                            "AutoProp": {
-                              "get": null,
-                              "set": {
-                                "Located": {
-                                  "data": "rr",
-                                  "start": {
-                                    "row": 25,
-                                    "column": 17
-                                  },
-                                  "end": {
-                                    "row": 25,
-                                    "column": 19
+                        "Number": 20.0
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "Number": 30.0
+                }
+              }
+            }
+          }
+        ],
+        "mutable": true
+      }
+    },
+    {
+      "Expression": {
+        "FunctionCall": {
+          "function": {
+            "Identifier": {
+              "data": "aaa",
+              "start": {
+                "row": 12,
+                "column": 0
+              },
+              "end": {
+                "row": 12,
+                "column": 3
+              }
+            }
+          },
+          "args": [
+            {
+              "Binary": {
+                "op": "GreaterThan",
+                "left": {
+                  "Bool": false
+                },
+                "right": {
+                  "Bool": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "While": {
+        "condition": {
+          "Bool": true
+        },
+        "block": [
+          {
+            "Expression": {
+              "FunctionCall": {
+                "function": {
+                  "Lambda": {
+                    "param_list": {
+                      "params": [],
+                      "vardic": null
+                    },
+                    "body": {
+                      "Block": []
+                    }
+                  }
+                },
+                "args": []
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Declaration": {
+        "declarations": [
+          {
+            "identifier": {
+              "data": "hh",
+              "start": {
+                "row": 20,
+                "column": 5
+              },
+              "end": {
+                "row": 20,
+                "column": 7
+              }
+            },
+            "value": {
+              "Hash": {
+                "asd sd #": {
+                  "Expression": {
+                    "Binary": {
+                      "op": "Plus",
+                      "left": {
+                        "String": "eee"
+                      },
+                      "right": {
+                        "Number": 2.0
+                      }
+                    }
+                  }
+                },
+                "2": {
+                  "Expression": {
+                    "Lambda": {
+                      "param_list": {
+                        "params": [],
+                        "vardic": null
+                      },
+                      "body": {
+                        "ImplicitReturn": {
+                          "MutableHash": {
+                            "rr": {
+                              "AutoProp": {
+                                "get": null,
+                                "set": {
+                                  "Located": {
+                                    "data": "rr",
+                                    "start": {
+                                      "row": 25,
+                                      "column": 17
+                                    },
+                                    "end": {
+                                      "row": 25,
+                                      "column": 19
+                                    }
                                   }
                                 }
                               }
-                            }
-                          },
-                          "55": {
-                            "Expression": {
-                              "String": "ffff"
+                            },
+                            "55": {
+                              "Expression": {
+                                "String": "ffff"
+                              }
                             }
                           }
                         }
                       }
                     }
                   }
+                },
+                "thingy": {
+                  "AutoProp": {
+                    "get": {
+                      "Located": {
+                        "data": "zand",
+                        "start": {
+                          "row": 23,
+                          "column": 17
+                        },
+                        "end": {
+                          "row": 23,
+                          "column": 21
+                        }
+                      }
+                    },
+                    "set": {
+                      "Located": {
+                        "data": "zand",
+                        "start": {
+                          "row": 23,
+                          "column": 27
+                        },
+                        "end": {
+                          "row": 23,
+                          "column": 31
+                        }
+                      }
+                    }
+                  }
+                },
+                "e": {
+                  "Expression": {
+                    "Number": 20.0
+                  }
                 }
               }
             }
           }
-        }
-      ],
-      "mutable": true
-    }
-  },
-  {
-    "Expression": {
-      "Assignment": {
-        "op": "AssignDiv",
-        "left": {
-          "PropertyAccess": {
-            "item": {
-              "Identifier": {
-                "data": "m",
-                "start": {
-                  "row": 30,
-                  "column": 0
-                },
-                "end": {
-                  "row": 30,
-                  "column": 1
+        ],
+        "mutable": true
+      }
+    },
+    {
+      "Expression": {
+        "Assignment": {
+          "op": "AssignDiv",
+          "left": {
+            "PropertyAccess": {
+              "item": {
+                "Identifier": {
+                  "data": "m",
+                  "start": {
+                    "row": 30,
+                    "column": 0
+                  },
+                  "end": {
+                    "row": 30,
+                    "column": 1
+                  }
                 }
-              }
-            },
-            "property": "e"
+              },
+              "property": "e"
+            }
+          },
+          "right": {
+            "Number": 3.0
           }
-        },
-        "right": {
-          "Number": 3.0
         }
       }
     }
-  }
-]
+  ]
+}

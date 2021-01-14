@@ -1,11 +1,9 @@
 mod scope;
 
-use ast::node::{
-    Assignable, ConditionBodyPair, Declaration, Expression, LambdaBody, LocatedOr, Node,
-    ObjectValue, Import, Procedure, ImportKind, Module
-};
+use ast::node::*;
 use location::Located;
 use self::scope::Scope;
+use std::collections::HashSet;
 
 type WalkResult = Result<(), WalkError>;
 
@@ -23,10 +21,14 @@ pub struct WalkError {
 }
 
 // Inserts import items into scope
-fn module_register<'a>(import: &'a Import, scope: &mut Scope<'a>) {
+fn module_register<'a>(
+    import: &'a Import, 
+    functions: &HashSet<&'a str>,
+    scope: &mut Scope<'a>,
+) -> WalkResult {
     match &import.kind {
         ImportKind::All => {
-            for key in import.module.get_functions() {
+            for key in functions {
                 scope.insert_fn(key);
             }
         },
@@ -34,46 +36,46 @@ fn module_register<'a>(import: &'a Import, scope: &mut Scope<'a>) {
             scope.insert_fn(data.as_str());
         },
         ImportKind::List(l) => {
-            for key in l.keys() {
+            for (key, (start, end)) in l {
+                if !functions.contains(key.as_str()) {
+                    return Err(WalkError {
+                        identifier: Located { 
+                            data: key.clone(), 
+                            start: start.clone(), 
+                            end: end.clone() 
+                        },
+                        kind: WalkErrorType::IdentifierNotFound
+                    });
+                }
+
                 scope.insert_fn(key);
             }
         },
-    }
-}
-
-fn walk_import(import: &Import) -> WalkResult {
-    let module = &import.module;
-    walk_module(module)?;
-
-    if let ImportKind::List(l) = &import.kind {
-        for (ident, (start, end)) in l {
-            if !module.has_function(ident) {
-                return Err(WalkError {
-                    identifier: Located { 
-                        data: ident.clone(), 
-                        start: start.clone(), 
-                        end: end.clone() 
-                    },
-                    kind: WalkErrorType::IdentifierNotFound
-                });
-            }
-        }
     }
 
     Ok(())
 }
 
-fn walk_module(package: &Module) -> WalkResult {
-    let module = match package {
-        Module::Native(_) => return Ok(()),
-        Module::Custom(m) => m,
+fn walk_import<'a>(
+    import: &'a Import, 
+    modules: &'a ModuleStore, 
+    scope: &mut Scope<'a>
+) -> WalkResult {
+    let module = &import.module;
+
+    let functions = match module {
+        Module::Native(n) => n.get_functions(),
+        Module::Custom(p) => modules[p.data.as_path()].get_functions(),
     };
 
+    module_register(import, &functions, scope)
+}
+
+fn walk_module(module: &CustomModule, modules: &ModuleStore) -> WalkResult {
     let mut scope = Scope::new();
 
     for import in &module.imports {
-        walk_import(import)?;
-        module_register(import, &mut scope);
+        walk_import(import, modules, &mut scope)?;
     }
 
     for Procedure { identifier, .. } in &module.functions {
@@ -112,21 +114,6 @@ fn walk_ast<'a>(
     nodes: impl Iterator<Item = &'a Node> + Clone,
     mut scope: Scope<'a>,
 ) -> Result<(), WalkError> {
-    
-    for node in nodes.clone() {
-        if let Node::Procedure(Procedure { identifier, .. }) = node {
-            if !scope.insert_fn(&identifier.data) {
-                return Err(WalkError {
-                    identifier: identifier.clone(),
-                    kind: WalkErrorType::InvalidRedefinition,
-                });
-            }
-        } else if let Node::Import(import) = node {
-            walk_import(import)?;
-            module_register(import, &mut scope);
-        }
-    }
-
     let proc_scope = scope.proc_scope();
 
     for node in nodes {
@@ -190,7 +177,6 @@ fn walk_lambda_block<'a>(
         LambdaBody::ImplicitReturn(expr) => walk_expression(expr, &scope),
     }
 }
-
 
 fn walk_procedure<'a>(
     procedure: &Procedure,
@@ -315,6 +301,27 @@ fn walk_expression<'a>(
     Ok(())
 }
 
-pub fn ref_check(nodes: &Vec<Node>) -> Result<(), WalkError> {
-    walk_ast(nodes.iter(), Scope::new())
+pub fn ref_check(program: &Program) -> Result<(), WalkError> {
+    let body = &program.body;
+    let modules = &program.modules;
+    let mut scope = Scope::new();
+
+    for module in modules.values() {
+        walk_module(module, modules)?;
+    }
+
+    for node in body {
+        if let Node::Procedure(Procedure { identifier, .. }) = node {
+            if !scope.insert_fn(&identifier.data) {
+                return Err(WalkError {
+                    identifier: identifier.clone(),
+                    kind: WalkErrorType::InvalidRedefinition,
+                });
+            }
+        } else if let Node::Import(import) = node {
+            walk_import(import, &program.modules, &mut scope)?;
+        }
+    }
+
+    walk_ast(body.iter(), scope)
 }

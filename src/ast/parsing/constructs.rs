@@ -5,13 +5,13 @@ use operators::{Assignment, Binary};
 use location::{Located};
 use lex::{tokens::*, lex};
 use util::remove_file;
-use std::{fs, collections::HashMap, path::Path};
+use std::{fs, collections::HashMap, path::{PathBuf, Path}};
 use super::parse_expr;
 use crate::next_guard;
 
-pub fn parse_if_block<'a, T: Iterator<Item = Located<Token>>>(
+pub fn parse_if_block<T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
-    scope: Scope<'a>
+    scope: Scope
 ) -> ParseResult<ConditionBodyPair> {
     Ok(ConditionBodyPair {
         condition: zero_level(tokens, |t| *t == Token::OpenGroup(Grouper::Brace))
@@ -21,10 +21,10 @@ pub fn parse_if_block<'a, T: Iterator<Item = Located<Token>>>(
     })
 }
 
-pub fn parse_decl<'a, T: Iterator<Item = Located<Token>>>(
+pub fn parse_decl<T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
     mutable: bool,
-    scope: Scope<'a>
+    scope: Scope
 ) -> ParseResult<Declaration> {
     let mut decls = vec![];
     let mut cont = true;
@@ -115,21 +115,20 @@ pub fn parse_proc<T: Iterator<Item = Located<Token>>>(tokens: &mut T, public: bo
     })
 }
 
-fn module_err(data: ModuleErrorBody, path: Located<String>) -> ParseError {
+fn module_err(data: ModuleErrorBody, path: Located<PathBuf>) -> ParseError {
     ParseError::ModuleError(ModuleError { path, data })
 }
 
-fn parse_module<'a>(path: Located<String>, scope: Scope<'a>) -> ParseResult<CustomModule> {
-    let mut dir = scope.path.map(|p| p.join(&path.data))
-        .unwrap_or(Path::new(&path.data).to_path_buf());
-    
-    let text = fs::read_to_string(dir.as_path())
+pub fn parse_module(path: &Located<PathBuf>) -> ParseResult<CustomModule> {
+    let mut dir = path.data.clone();
+
+    let text = fs::read_to_string(&dir)
         .map_err(|_| module_err(ModuleErrorBody::PathNotFound, path.clone()))?;
     
-    remove_file(&mut dir);
-
     let mut tokens = lex(&text).map_err(ModuleErrorBody::LexError)
         .map_err(|e| module_err(e, path.clone()))?.into_iter();
+    
+    remove_file(&mut dir);
 
     let mut functions = vec![];
     let mut imports = vec![];
@@ -141,7 +140,7 @@ fn parse_module<'a>(path: Located<String>, scope: Scope<'a>) -> ParseResult<Cust
             }),
             Token::Keyword(Keyword::Proc) => functions.push(parse_proc(&mut tokens, true)?),
             Token::Keyword(Keyword::Import) => imports.push(parse_import(&mut tokens, 
-                Scope::new(dir.as_path()))?),
+                dir.as_path())?),
             _ => return Err(ParseError::UnexpectedToken(token)),
         };
     }
@@ -149,7 +148,7 @@ fn parse_module<'a>(path: Located<String>, scope: Scope<'a>) -> ParseResult<Cust
     Ok(CustomModule { functions, imports })
 }
 
-pub fn parse_import<'a, T: Iterator<Item = Located<Token>>>(tokens: &mut T, scope: Scope<'a>) -> ParseResult<Import> {
+pub fn parse_import<T: Iterator<Item = Located<Token>>>(tokens: &mut T, path: &Path) -> ParseResult<Import> {
     let kind = next_guard!({ tokens.next() } (start, end) {
         Token::BinaryOp(Binary::Mult) => ImportKind::All,
         Token::Identifier(name) => ImportKind::ModuleObject(Located {
@@ -161,14 +160,6 @@ pub fn parse_import<'a, T: Iterator<Item = Located<Token>>>(tokens: &mut T, scop
 
             for item in inner {
                 if let Token::Identifier(name) = &item.data {
-                    if imports.contains_key(name) {
-                        return Err(ParseError::DuplicateParam(Located {
-                            data: name.clone(), 
-                            start: item.start.clone(), 
-                            end: item.end.clone()
-                        }));
-                    }
-
                     imports.insert(name.clone(), (start.clone(), end.clone()));
                 } else {
                     return Err(ParseError::UnexpectedToken(item));
@@ -187,9 +178,24 @@ pub fn parse_import<'a, T: Iterator<Item = Located<Token>>>(tokens: &mut T, scop
         Token::String(s) => {
             match NativePackage::from_str(&s) {
                 Some(package) => Module::Native(package),
-                None => Module::Custom(parse_module(Located { 
-                    data: s, start, end 
-                }, scope)?),
+                None => {
+                    let new_buf = path.join(&s);
+                    let new_path = new_buf.as_path()
+                        .canonicalize()
+                        .map_err(|_| module_err(
+                            ModuleErrorBody::CantResolveImport, 
+                            Located {
+                                data: new_buf,
+                                end: end.clone(), 
+                                start: start.clone(),
+                            }))?;
+                    
+                    Module::Custom(Located {
+                        data: new_path,
+                        end: end.clone(), 
+                        start: start.clone(),
+                    })
+                },
             }
         }
     });

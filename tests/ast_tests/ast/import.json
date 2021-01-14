@@ -1,215 +1,230 @@
-[
-    {
-        "Import": {
+{
+    "modules": {
+      "./module.grib": {
+        "imports": [
+          {
             "module": {
-                "Native": "Fmt"
-            },
-            "kind": "All"
-        }
-    },
-    {
-        "Import": {
-            "module": {
-                "Custom": {
-                    "imports": [
-                        {
-                            "module": {
-                                "Native": "Fmt"
-                            },
-                            "kind": {
-                                "List": {
-                                    "println": [
-                                        {
-                                            "row": 1,
-                                            "column": 7
-                                        },
-                                        {
-                                            "row": 1,
-                                            "column": 8
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    ],
-                    "functions": [
-                        {
-                            "identifier": {
-                                "data": "example",
-                                "start": {
-                                    "row": 3,
-                                    "column": 5
-                                },
-                                "end": {
-                                    "row": 3,
-                                    "column": 12
-                                }
-                            },
-                            "param_list": {
-                                "params": [
-                                    "name"
-                                ],
-                                "vardic": null
-                            },
-                            "body": [
-                                {
-                                    "Expression": {
-                                        "FunctionCall": {
-                                            "function": {
-                                                "Identifier": {
-                                                    "data": "println",
-                                                    "start": {
-                                                        "row": 4,
-                                                        "column": 4
-                                                    },
-                                                    "end": {
-                                                        "row": 4,
-                                                        "column": 11
-                                                    }
-                                                }
-                                            },
-                                            "args": [
-                                                {
-                                                    "Binary": {
-                                                        "op": "Plus",
-                                                        "left": {
-                                                            "String": "hello, "
-                                                        },
-                                                        "right": {
-                                                            "Identifier": {
-                                                                "data": "name",
-                                                                "start": {
-                                                                    "row": 4,
-                                                                    "column": 24
-                                                                },
-                                                                "end": {
-                                                                    "row": 4,
-                                                                    "column": 28
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            ]
-                                        }
-                                    }
-                                }
-                            ],
-                            "public": true
-                        },
-                        {
-                            "identifier": {
-                                "data": "greetH",
-                                "start": {
-                                    "row": 7,
-                                    "column": 5
-                                },
-                                "end": {
-                                    "row": 7,
-                                    "column": 11
-                                }
-                            },
-                            "param_list": {
-                                "params": [],
-                                "vardic": null
-                            },
-                            "body": [
-                                {
-                                    "Expression": {
-                                        "FunctionCall": {
-                                            "function": {
-                                                "Identifier": {
-                                                    "data": "example",
-                                                    "start": {
-                                                        "row": 8,
-                                                        "column": 4
-                                                    },
-                                                    "end": {
-                                                        "row": 8,
-                                                        "column": 11
-                                                    }
-                                                }
-                                            },
-                                            "args": [
-                                                {
-                                                    "String": "H"
-                                                }
-                                            ]
-                                        }
-                                    }
-                                }
-                            ],
-                            "public": true
-                        }
-                    ]
-                }
+              "Native": "Fmt"
             },
             "kind": {
-                "ModuleObject": {
-                    "data": "package",
-                    "start": {
-                        "row": 2,
-                        "column": 7
-                    },
-                    "end": {
-                        "row": 2,
-                        "column": 14
-                    }
-                }
-            }
-        }
-    },
-    {
-        "Expression": {
-            "FunctionCall": {
-                "function": {
-                    "PropertyAccess": {
-                        "item": {
-                            "Identifier": {
-                                "data": "package",
-                                "start": {
-                                    "row": 4,
-                                    "column": 0
-                                },
-                                "end": {
-                                    "row": 4,
-                                    "column": 7
-                                }
-                            }
-                        },
-                        "property": "example"
-                    }
-                },
-                "args": [
-                    {
-                        "String": "thingy"
-                    }
+              "List": {
+                "println": [
+                  {
+                    "row": 1,
+                    "column": 7
+                  },
+                  {
+                    "row": 1,
+                    "column": 8
+                  }
                 ]
+              }
             }
-        }
-    },
-    {
-        "Expression": {
-            "FunctionCall": {
-                "function": {
-                    "Identifier": {
+          }
+        ],
+        "functions": [
+          {
+            "identifier": {
+              "data": "example",
+              "start": {
+                "row": 3,
+                "column": 5
+              },
+              "end": {
+                "row": 3,
+                "column": 12
+              }
+            },
+            "param_list": {
+              "params": [
+                "name"
+              ],
+              "vardic": null
+            },
+            "body": [
+              {
+                "Expression": {
+                  "FunctionCall": {
+                    "function": {
+                      "Identifier": {
                         "data": "println",
                         "start": {
-                            "row": 6,
-                            "column": 0
+                          "row": 4,
+                          "column": 4
                         },
                         "end": {
-                            "row": 6,
-                            "column": 7
+                          "row": 4,
+                          "column": 11
                         }
-                    }
-                },
-                "args": [
-                    {
-                        "String": "import successful"
-                    }
-                ]
-            }
+                      }
+                    },
+                    "args": [
+                      {
+                        "Binary": {
+                          "op": "Plus",
+                          "left": {
+                            "String": "hello, "
+                          },
+                          "right": {
+                            "Identifier": {
+                              "data": "name",
+                              "start": {
+                                "row": 4,
+                                "column": 24
+                              },
+                              "end": {
+                                "row": 4,
+                                "column": 28
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "public": true
+          },
+          {
+            "identifier": {
+              "data": "greetH",
+              "start": {
+                "row": 7,
+                "column": 5
+              },
+              "end": {
+                "row": 7,
+                "column": 11
+              }
+            },
+            "param_list": {
+              "params": [],
+              "vardic": null
+            },
+            "body": [
+              {
+                "Expression": {
+                  "FunctionCall": {
+                    "function": {
+                      "Identifier": {
+                        "data": "example",
+                        "start": {
+                          "row": 8,
+                          "column": 4
+                        },
+                        "end": {
+                          "row": 8,
+                          "column": 11
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "String": "H"
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "public": true
+          }
+        ]
+      }
+    },
+    "body": [
+      {
+        "Import": {
+          "module": {
+            "Native": "Fmt"
+          },
+          "kind": "All"
         }
-    }
-]
+      },
+      {
+        "Import": {
+          "module": {
+            "Custom": {
+              "data": "./module.grib",
+              "start": {
+                "row": 2,
+                "column": 20
+              },
+              "end": {
+                "row": 2,
+                "column": 35
+              }
+            }
+          },
+          "kind": {
+            "ModuleObject": {
+              "data": "package",
+              "start": {
+                "row": 2,
+                "column": 7
+              },
+              "end": {
+                "row": 2,
+                "column": 14
+              }
+            }
+          }
+        }
+      },
+      {
+        "Expression": {
+          "FunctionCall": {
+            "function": {
+              "PropertyAccess": {
+                "item": {
+                  "Identifier": {
+                    "data": "package",
+                    "start": {
+                      "row": 4,
+                      "column": 0
+                    },
+                    "end": {
+                      "row": 4,
+                      "column": 7
+                    }
+                  }
+                },
+                "property": "example"
+              }
+            },
+            "args": [
+              {
+                "String": "thingy"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "Expression": {
+          "FunctionCall": {
+            "function": {
+              "Identifier": {
+                "data": "println",
+                "start": {
+                  "row": 6,
+                  "column": 0
+                },
+                "end": {
+                  "row": 6,
+                  "column": 7
+                }
+              }
+            },
+            "args": [
+              {
+                "String": "import successful"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }

@@ -1,135 +1,138 @@
-[
-   {
-     "Import": {
-       "module": {
-         "Native": "Fmt"
-       },
-       "kind": {
-         "List": {
-           "println": [
-             {
-               "row": 1,
-               "column": 7
-             },
-             {
-               "row": 1,
-               "column": 8
-             }
-           ]
-         }
-       }
-     }
-   },
-   {
-     "Procedure": {
-       "identifier": {
-         "data": "example",
-         "start": {
-           "row": 3,
-           "column": 5
-         },
-         "end": {
-           "row": 3,
-           "column": 12
-         }
-       },
-       "param_list": {
-         "params": [
-           "name"
-         ],
-         "vardic": null
-       },
-       "body": [
-         {
-           "Expression": {
-             "FunctionCall": {
-               "function": {
-                 "Identifier": {
-                   "data": "println",
-                   "start": {
-                     "row": 4,
-                     "column": 4
-                   },
-                   "end": {
-                     "row": 4,
-                     "column": 11
-                   }
-                 }
-               },
-               "args": [
-                 {
-                   "Binary": {
-                     "op": "Plus",
-                     "left": {
-                       "String": "hello, "
-                     },
-                     "right": {
-                       "Identifier": {
-                         "data": "name",
-                         "start": {
-                           "row": 4,
-                           "column": 24
-                         },
-                         "end": {
-                           "row": 4,
-                           "column": 28
-                         }
-                       }
-                     }
-                   }
-                 }
-               ]
-             }
-           }
-         }
-       ],
-       "public": false
-     }
-   },
-   {
-     "Procedure": {
-       "identifier": {
-         "data": "greetH",
-         "start": {
-           "row": 7,
-           "column": 5
-         },
-         "end": {
-           "row": 7,
-           "column": 11
-         }
-       },
-       "param_list": {
-         "params": [],
-         "vardic": null
-       },
-       "body": [
-         {
-           "Expression": {
-             "FunctionCall": {
-               "function": {
-                 "Identifier": {
-                   "data": "example",
-                   "start": {
-                     "row": 8,
-                     "column": 4
-                   },
-                   "end": {
-                     "row": 8,
-                     "column": 11
-                   }
-                 }
-               },
-               "args": [
-                 {
-                   "String": "H"
-                 }
-               ]
-             }
-           }
-         }
-       ],
-       "public": false
-     }
-   }
- ]
+{
+  "modules": {},
+  "body": [
+    {
+      "Import": {
+        "module": {
+          "Native": "Fmt"
+        },
+        "kind": {
+          "List": {
+            "println": [
+              {
+                "row": 1,
+                "column": 7
+              },
+              {
+                "row": 1,
+                "column": 8
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "Procedure": {
+        "identifier": {
+          "data": "example",
+          "start": {
+            "row": 3,
+            "column": 5
+          },
+          "end": {
+            "row": 3,
+            "column": 12
+          }
+        },
+        "param_list": {
+          "params": [
+            "name"
+          ],
+          "vardic": null
+        },
+        "body": [
+          {
+            "Expression": {
+              "FunctionCall": {
+                "function": {
+                  "Identifier": {
+                    "data": "println",
+                    "start": {
+                      "row": 4,
+                      "column": 4
+                    },
+                    "end": {
+                      "row": 4,
+                      "column": 11
+                    }
+                  }
+                },
+                "args": [
+                  {
+                    "Binary": {
+                      "op": "Plus",
+                      "left": {
+                        "String": "hello, "
+                      },
+                      "right": {
+                        "Identifier": {
+                          "data": "name",
+                          "start": {
+                            "row": 4,
+                            "column": 24
+                          },
+                          "end": {
+                            "row": 4,
+                            "column": 28
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "public": false
+      }
+    },
+    {
+      "Procedure": {
+        "identifier": {
+          "data": "greetH",
+          "start": {
+            "row": 7,
+            "column": 5
+          },
+          "end": {
+            "row": 7,
+            "column": 11
+          }
+        },
+        "param_list": {
+          "params": [],
+          "vardic": null
+        },
+        "body": [
+          {
+            "Expression": {
+              "FunctionCall": {
+                "function": {
+                  "Identifier": {
+                    "data": "example",
+                    "start": {
+                      "row": 8,
+                      "column": 4
+                    },
+                    "end": {
+                      "row": 8,
+                      "column": 11
+                    }
+                  }
+                },
+                "args": [
+                  {
+                    "String": "H"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "public": false
+      }
+    }
+  ]
+}

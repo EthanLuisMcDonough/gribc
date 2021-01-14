@@ -1,4 +1,4 @@
-use ast::{Assignable, Expression};
+use ast::node::{Assignable, Expression};
 use location::Location;
 use operators::{Assignment, Binary, Unary};
 use std::convert::TryFrom;

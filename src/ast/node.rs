@@ -1,8 +1,10 @@
 use location::{Located, Location};
 use operators::{Assignment, Binary, Unary};
 use std::collections::{HashMap, HashSet};
+use std::path::{PathBuf, Path};
 
 pub type Block = Vec<Node>;
+pub type ModuleStore = HashMap<PathBuf, CustomModule>;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct ConditionBodyPair {
@@ -156,13 +158,18 @@ impl Expression {
     }
 }
 
+pub trait Package {
+    fn has_function(&self, name: &str) -> bool;
+    fn get_functions<'a>(&'a self) -> HashSet<&'a str>;
+}
+
 crate::keyword_map!(NativePackage {
     Fmt -> "fmt",
     Math -> "math",
 });
 
 impl NativePackage {
-    pub fn get_functions(&self) -> &'static [&'static str] {
+    pub fn raw_names(&self) -> &'static [&'static str] {
         match self {
             Self::Fmt => &["println"],
             Self::Math => &["sqrt", "sin", "cos", "tan", "pow", "ln", 
@@ -171,27 +178,58 @@ impl NativePackage {
     }
 }
 
+impl Package for NativePackage {
+    fn get_functions<'a>(&'a self) -> HashSet<&'a str> {
+        self.raw_names().iter().map(|f| *f).collect()
+    }
+
+    fn has_function(&self, name: &str) -> bool {
+        self.get_functions().contains(&name)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum Module {
-    Custom(CustomModule),
+    Custom(Located<PathBuf>),
     Native(NativePackage),
 } 
 
-impl Module {
+/*impl Module {
     pub fn get_functions<'a>(&'a self) -> HashSet<&'a str> {
         match self {
-            Module::Custom(c) => c.functions.iter().filter(|f| f.public)
-                .map(|f| f.identifier.data.as_str()).collect(),
+            Module::Custom(c) => c.get_functions(),
             Module::Native(c) => c.get_functions().iter().map(|f| *f)
                 .collect()
         }
     }
     pub fn has_function(&self, name: &str) -> bool {
         match self {
-            Module::Custom(c) => c.functions.iter().filter(|f| f.public)
-                .any(|f| f.identifier.data == name),
+            Module::Custom(c) => c.has_function(name),
             Module::Native(c) => c.get_functions().contains(&name),
         }
+    }
+}*/
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct Program {
+    pub modules: ModuleStore,
+    pub body: Block,
+}
+
+impl Program {
+    pub fn new() -> Self {
+        Self {
+            modules: HashMap::new(),
+            body: Vec::new(),
+        }
+    }
+
+    pub fn has_module(&self, path: &Path) -> bool {
+        self.modules.contains_key(path)
+    }
+
+    pub fn set_module(&mut self, path: PathBuf, module: CustomModule) {
+        self.modules.insert(path, module);
     }
 }
 
@@ -206,6 +244,18 @@ pub enum ImportKind {
 pub struct CustomModule {
     pub imports: Vec<Import>,
     pub functions: Vec<Procedure>,
+}
+
+impl Package for CustomModule {
+    fn get_functions<'a>(&'a self) -> HashSet<&'a str> {
+        self.functions.iter().filter(|f| f.public)
+            .map(|f| f.identifier.data.as_str()).collect()
+    }
+
+    fn has_function(&self, name: &str) -> bool {
+        self.functions.iter().filter(|f| f.public)
+            .any(|f| f.identifier.data == name)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
