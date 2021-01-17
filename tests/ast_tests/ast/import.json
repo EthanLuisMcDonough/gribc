@@ -4,7 +4,7 @@
         "imports": [
           {
             "module": {
-              "Native": "Fmt"
+              "Native": "Console"
             },
             "kind": {
               "List": {
@@ -138,7 +138,7 @@
       {
         "Import": {
           "module": {
-            "Native": "Fmt"
+            "Native": "Console"
           },
           "kind": "All"
         }

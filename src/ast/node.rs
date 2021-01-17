@@ -166,14 +166,21 @@ pub trait Package {
 crate::keyword_map!(NativePackage {
     Fmt -> "fmt",
     Math -> "math",
+    Console -> "console",
 });
 
 impl NativePackage {
     pub fn raw_names(&self) -> &'static [&'static str] {
         match self {
-            Self::Fmt => &["println"],
-            Self::Math => &["sqrt", "sin", "cos", "tan", "pow", "ln", 
-                "log", "round", "floor", "ceil", "pi", "e"],
+            Self::Console => &["println", "readline"],
+            Self::Fmt => &["atof", "atoi"],
+            Self::Math => &[
+                "sin", "cos", "tan", 
+                "asin", "acos", "atan",
+                "sqrt", "pow", "ln", 
+                "log", "round", "floor", 
+                "ceil", "pi", "e"
+            ],
         }
     }
 }
@@ -192,23 +199,7 @@ impl Package for NativePackage {
 pub enum Module {
     Custom(Located<PathBuf>),
     Native(NativePackage),
-} 
-
-/*impl Module {
-    pub fn get_functions<'a>(&'a self) -> HashSet<&'a str> {
-        match self {
-            Module::Custom(c) => c.get_functions(),
-            Module::Native(c) => c.get_functions().iter().map(|f| *f)
-                .collect()
-        }
-    }
-    pub fn has_function(&self, name: &str) -> bool {
-        match self {
-            Module::Custom(c) => c.has_function(name),
-            Module::Native(c) => c.get_functions().contains(&name),
-        }
-    }
-}*/
+}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Program {

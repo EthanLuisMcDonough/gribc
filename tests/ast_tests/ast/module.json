@@ -4,7 +4,7 @@
     {
       "Import": {
         "module": {
-          "Native": "Fmt"
+          "Native": "Console"
         },
         "kind": {
           "List": {

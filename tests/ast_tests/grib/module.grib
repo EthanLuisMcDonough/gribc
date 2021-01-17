@@ -1,4 +1,4 @@
-import |println| from "fmt";
+import |println| from "console";
 
 proc example |name| {
     println("hello, " + name);

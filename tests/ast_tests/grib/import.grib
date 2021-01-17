@@ -1,4 +1,4 @@
-import * from "fmt";
+import * from "console";
 import package from "./module.grib";
 
 package.example("thingy");
