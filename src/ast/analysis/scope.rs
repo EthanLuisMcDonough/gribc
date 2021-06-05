@@ -5,6 +5,7 @@ enum DefType {
     Mutable,
     Constant,
     Function,
+    Import,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -32,21 +33,15 @@ impl<'a> Scope<'a> {
             level: self.level + 1,
         }
     }
-    pub fn proc_scope(&self) -> Self {
-        Self {
-            scope: self.scope.clone().into_iter()
-                .filter(|(_, DefData { kind, .. })| *kind == DefType::Function)
-                .collect(),
-            level: self.level + 1
-        }
-    }
+
     fn insert(&mut self, name: &'a str, kind: DefType) -> bool {
         self.scope.insert(name, DefData {
             level: self.level, kind,
         })
-        .filter(|d| d.level == self.level)
+        .filter(|d| d.level == self.level && d.kind != DefType::Import)
         .is_none()
     }
+
     pub fn insert_mut(&mut self, name: &'a str) -> bool {
         self.insert(name, DefType::Mutable)
     }
@@ -56,9 +51,13 @@ impl<'a> Scope<'a> {
     pub fn insert_fn(&mut self, name: &'a str) -> bool {
         self.level == 0 && self.insert(name, DefType::Function)
     }
+    pub fn insert_import(&mut self, name: &'a str) -> bool {
+        self.insert(name, DefType::Import)
+    }
     pub fn insert_var(&mut self, name: &'a str, is_mut: bool) -> bool {
         if is_mut { self.insert_mut(name) } else { self.insert_const(name) }
     }
+
     pub fn has(&self, name: &'a str) -> bool {
         self.scope.contains_key(name)
     }

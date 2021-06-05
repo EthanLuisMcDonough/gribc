@@ -14,6 +14,8 @@ macro_rules! keyword_map {
         }
 
         impl $name {
+            const MEMBERS: &'static [&'static str] = &[$( $s ),*];
+
             pub fn str(&self) -> &'static str {
                 use self::$name::*;
                 match self {

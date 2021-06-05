@@ -8,6 +8,7 @@ mod lex;
 mod location;
 mod operators;
 mod util;
+mod runtime;
 
 use std::env;
 use std::fs;

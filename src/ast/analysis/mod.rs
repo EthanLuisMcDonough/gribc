@@ -29,11 +29,11 @@ fn module_register<'a>(
     match &import.kind {
         ImportKind::All => {
             for key in functions {
-                scope.insert_fn(key);
+                scope.insert_import(key);
             }
         },
         ImportKind::ModuleObject(Located { data, .. }) => {
-            scope.insert_fn(data.as_str());
+            scope.insert_import(data.as_str());
         },
         ImportKind::List(l) => {
             for (key, (start, end)) in l {
@@ -48,7 +48,7 @@ fn module_register<'a>(
                     });
                 }
 
-                scope.insert_fn(key);
+                scope.insert_import(key);
             }
         },
     }
@@ -114,11 +114,8 @@ fn walk_ast<'a>(
     nodes: impl Iterator<Item = &'a Node> + Clone,
     mut scope: Scope<'a>,
 ) -> Result<(), WalkError> {
-    let proc_scope = scope.proc_scope();
-
     for node in nodes {
         match node {
-            Node::Procedure(p) => walk_procedure(p, &proc_scope)?,
             Node::Expression(expression) | Node::Return(expression) => {
                 walk_expression(expression, &scope)?
             }
@@ -160,7 +157,6 @@ fn walk_ast<'a>(
                 }
                 walk_ast(body.iter(), new_scope)?;
             }
-            Node::Import(_) => {} // Imports are managed with function definitions
             Node::Break | Node::Continue => {}
         }
     }
@@ -283,7 +279,7 @@ fn walk_expression<'a>(
                 }
             }
         }
-        Expression::Lambda { param_list, body } => {
+        Expression::Lambda(Lambda { param_list, body }) => {
             let mut scope = scope.clone();
             for param in param_list.all_params() {
                 scope.insert_mut(param);
@@ -310,17 +306,21 @@ pub fn ref_check(program: &Program) -> Result<(), WalkError> {
         walk_module(module, modules)?;
     }
 
-    for node in body {
-        if let Node::Procedure(Procedure { identifier, .. }) = node {
-            if !scope.insert_fn(&identifier.data) {
-                return Err(WalkError {
-                    identifier: identifier.clone(),
-                    kind: WalkErrorType::InvalidRedefinition,
-                });
-            }
-        } else if let Node::Import(import) = node {
-            walk_import(import, &program.modules, &mut scope)?;
+    for import in &program.imports {
+        walk_import(import, &program.modules, &mut scope)?;
+    }
+
+    for Procedure { identifier, .. } in &program.functions {
+        if !scope.insert_fn(&identifier.data) {
+            return Err(WalkError {
+                identifier: identifier.clone(),
+                kind: WalkErrorType::InvalidRedefinition,
+            });
         }
+    }
+
+    for function in &program.functions {
+        walk_procedure(function, &scope)?;
     }
 
     walk_ast(body.iter(), scope)

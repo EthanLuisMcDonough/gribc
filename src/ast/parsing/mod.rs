@@ -215,19 +215,20 @@ fn top_level(
                 program.set_module(buffer.data.clone(), module);
             }
         }
-
-        program.body.push(Node::Import(import));
+        
+        program.imports.push(import);
     }
+
+    let mut fns = &mut program.functions;
 
     while let Some(token) = tokens.next() {
         let node = match token.data {
-            Token::Keyword(Keyword::Proc) => Node::Procedure(parse_proc(&mut tokens, false)?),
+            Token::Keyword(Keyword::Proc) => fns.push(parse_proc(&mut tokens, false)?),
             Token::Keyword(Keyword::Public) => next_guard!({ tokens.next() } {
-                Token::Keyword(Keyword::Proc) => Node::Procedure(parse_proc(&mut tokens, true)?)
+                Token::Keyword(Keyword::Proc) => fns.push(parse_proc(&mut tokens, true)?)
             }),
-            _ => next_construct(token.clone(), &mut tokens, Scope::new())?,
+            _ => program.body.push(next_construct(token.clone(), &mut tokens, Scope::new())?),
         };
-        program.body.push(node);
     }
 
     Ok(program)

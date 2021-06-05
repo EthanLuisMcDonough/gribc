@@ -1,6 +1,6 @@
 use crate::serde::de::DeserializeOwned;
 
-use ast::{ast, node::{Program, Node, Module}};
+use ast::{ast, node::{Program, Module}};
 use lex::lex;
 
 use std::error::Error;
@@ -44,9 +44,7 @@ fn canonicalize_ast(program: &mut Program, base: &Path) {
         program.set_module(new_path, module);
     }
     
-    let mut nodes = program.body.iter_mut();
-
-    while let Some(Node::Import(ref mut import)) = nodes.next() {
+    for import in program.imports.iter_mut() {
         if let Module::Custom(ref mut path) = import.module {
             let new_path = base.join(&path.data)
                 .as_path().canonicalize()

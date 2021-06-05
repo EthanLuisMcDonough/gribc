@@ -106,6 +106,12 @@ pub struct Procedure {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct Lambda {
+    pub param_list: Parameters,
+    pub body: LambdaBody,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum Expression {
     Binary {
         op: Binary,
@@ -138,10 +144,7 @@ pub enum Expression {
         item: Box<Expression>,
         property: String,
     },
-    Lambda {
-        param_list: Parameters,
-        body: LambdaBody,
-    },
+    Lambda(Lambda),
     Hash(Hash),
     MutableHash(Hash),
     Nil,
@@ -163,6 +166,33 @@ pub trait Package {
     fn get_functions<'a>(&'a self) -> HashSet<&'a str>;
 }
 
+crate::keyword_map!(NativeConsolePackage {
+    Println -> "println",
+    Readline -> "readline",
+});
+
+crate::keyword_map!(NativeFmtPackage {
+    Atof -> "atof",
+    Atoi -> "atoi",
+});
+
+crate::keyword_map!(NativeMathPackage {
+    Sin -> "sin", 
+    Cos -> "cos", 
+    Tan -> "tan",
+    Asin -> "asin", 
+    Acos -> "acos", 
+    Atan -> "atan",
+    Sqrt -> "sqrt",
+    Pow -> "pow",
+    Ln -> "ln",
+    Log -> "log",
+    Round -> "round",
+    Floor -> "floor",
+    Ceil -> "ceil",
+    MathConst -> "mathConst",
+});
+
 crate::keyword_map!(NativePackage {
     Fmt -> "fmt",
     Math -> "math",
@@ -172,15 +202,9 @@ crate::keyword_map!(NativePackage {
 impl NativePackage {
     pub fn raw_names(&self) -> &'static [&'static str] {
         match self {
-            Self::Console => &["println", "readline"],
-            Self::Fmt => &["atof", "atoi"],
-            Self::Math => &[
-                "sin", "cos", "tan", 
-                "asin", "acos", "atan",
-                "sqrt", "pow", "ln", 
-                "log", "round", "floor", 
-                "ceil", "pi", "e"
-            ],
+            Self::Console => NativeConsolePackage::MEMBERS,
+            Self::Fmt => NativeFmtPackage::MEMBERS,
+            Self::Math => NativeMathPackage::MEMBERS,
         }
     }
 }
@@ -204,6 +228,8 @@ pub enum Module {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Program {
     pub modules: ModuleStore,
+    pub imports: Vec<Import>,
+    pub functions: Vec<Procedure>,
     pub body: Block,
 }
 
@@ -212,6 +238,8 @@ impl Program {
         Self {
             modules: HashMap::new(),
             body: Vec::new(),
+            functions: Vec::new(),
+            imports: Vec::new(),
         }
     }
 
@@ -271,10 +299,8 @@ pub enum Node {
         increment: Option<Expression>,
         body: Block,
     },
-    Procedure(Procedure),
     Declaration(Declaration),
     Return(Expression),
-    Import(Import),
     Break,
     Continue,
 }

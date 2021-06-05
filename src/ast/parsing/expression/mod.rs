@@ -110,10 +110,10 @@ pub fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>, in_lam: bool
                 let params = parse_params(&mut tokens)?;
                 let (body, _) = take_until(&mut tokens, Grouper::Brace)?;
 
-                expr = Expression::Lambda {
+                expr = Expression::Lambda(Lambda {
                     param_list: params,
                     body: lam_body(body)?,
-                }
+                })
                 .into();
             }
             Token::Hash | Token::MutableHash => {
