@@ -1,0 +1,107 @@
+{
+  "modules": {},
+  "body": [
+    {
+      "Declaration": {
+        "declarations": [
+          {
+            "identifier": {
+              "data": "test",
+              "start": {
+                "row": 1,
+                "column": 3
+              },
+              "end": {
+                "row": 1,
+                "column": 7
+              }
+            },
+            "value": {
+              "Binary": {
+                "op": "Minus",
+                "left": {
+                  "Binary": {
+                    "op": "Minus",
+                    "left": {
+                      "Number": 1.0
+                    },
+                    "right": {
+                      "Unary": {
+                        "op": "Negation",
+                        "expr": {
+                          "Unary": {
+                            "op": "LogicalNegation",
+                            "expr": {
+                              "Unary": {
+                                "op": "Negation",
+                                "expr": {
+                                  "Number": 3.0
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "Unary": {
+                    "op": "Negation",
+                    "expr": {
+                      "Number": 4.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "mutable": false
+      }
+    },
+    {
+      "Declaration": {
+        "declarations": [
+          {
+            "identifier": {
+              "data": "bl",
+              "start": {
+                "row": 2,
+                "column": 3
+              },
+              "end": {
+                "row": 2,
+                "column": 5
+              }
+            },
+            "value": {
+              "Unary": {
+                "op": "LogicalNegation",
+                "expr": {
+                  "Unary": {
+                    "op": "LogicalNegation",
+                    "expr": {
+                      "Unary": {
+                        "op": "Negation",
+                        "expr": {
+                          "Unary": {
+                            "op": "LogicalNegation",
+                            "expr": {
+                              "Bool": true
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "mutable": false
+      }
+    }
+  ]
+}

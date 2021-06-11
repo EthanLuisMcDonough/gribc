@@ -6,5 +6,5 @@ im a = 1,
     };
 
 decl d = 20;
-decl e = ~50.2323,
+decl e = -50.2323,
     f = "aaaaaa";

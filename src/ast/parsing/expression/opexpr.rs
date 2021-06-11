@@ -3,7 +3,7 @@ use location::Location;
 use operators::{Assignment, Binary, Unary};
 use std::convert::TryFrom;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum OpExpr {
     Binary(Binary),
     Unary(Unary),
@@ -12,6 +12,14 @@ pub enum OpExpr {
 }
 
 impl OpExpr {
+    fn is_minus(&self) -> bool {
+        *self == OpExpr::Binary(Binary::Minus)
+    }
+
+    fn can_be_unary(&self) -> bool {
+        self.is_unary() || self.is_minus()
+    }
+
     pub fn is_binary(&self) -> bool {
         if let OpExpr::Binary(_) = self {
             true
@@ -41,6 +49,14 @@ impl OpExpr {
             true
         } else {
             false
+        }
+    }
+
+    fn unary_adjust_negation(self) -> Self {
+        if self.is_minus() {
+            OpExpr::Unary(Unary::Negation)
+        } else {
+            self
         }
     }
 }
@@ -81,24 +97,27 @@ impl OpExprManager {
     }
 
     fn can_push_binary(&self) -> bool {
-        self.0.last().filter(|m| m.is_expr()).is_some()
+        !self.can_push_expr()
     }
 
     fn can_push_unary(&self) -> bool {
-        self.0.last().filter(|m| m.is_expr()).is_none()
+        self.can_push_expr()
     }
 
     pub fn push(&mut self, op_expr: impl Into<OpExpr>) -> Result<(), OpExpr> {
         let op_expr = op_expr.into();
-        if (op_expr.is_unary() && self.can_push_unary())
-            || ((op_expr.is_binary() || op_expr.is_assign()) && self.can_push_binary())
+
+        if op_expr.can_be_unary() && self.can_push_unary() {
+            self.0.push(op_expr.unary_adjust_negation())
+        } else if ((op_expr.is_binary() || op_expr.is_assign()) && self.can_push_binary())
             || (op_expr.is_expr() && self.can_push_expr())
         {
             self.0.push(op_expr);
-            Ok(())
         } else {
-            Err(op_expr)
+            return Err(op_expr);
         }
+
+        Ok(())
     }
 }
 
