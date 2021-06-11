@@ -1,5 +1,5 @@
-use std::collections::{HashMap, LinkedList};
 use runtime::values::{GribValue, HeapValue};
+use std::collections::{HashMap, LinkedList};
 
 const STACK_SIZE: usize = 1000;
 
@@ -25,8 +25,7 @@ fn mark<'a>(obj: &mut MarkedSlot<'a>) {
 
 fn get_heap_ref<'a>(value: &StackSlot<'a>) -> Option<usize> {
     match value {
-        StackSlot::Captured(ptr) | StackSlot::Value(
-            GribValue::HeapValue(ptr)) => Some(*ptr),
+        StackSlot::Captured(ptr) | StackSlot::Value(GribValue::HeapValue(ptr)) => Some(*ptr),
         _ => None,
     }
 }
@@ -65,7 +64,7 @@ impl<'a> Gc<'a> {
             if !self.heap[index].marked {
                 self.remove(index);
             }
-            
+
             self.heap[index].marked = false;
         }
     }
@@ -81,7 +80,7 @@ impl<'a> Gc<'a> {
     fn remove(&mut self, index: usize) {
         self.heap[index].value = HeapSlot::Empty;
     }
-    
+
     fn stack_add(&mut self, value: StackSlot<'a>) -> usize {
         let ptr = self.stack.len();
         self.stack.push(value);
@@ -92,10 +91,16 @@ impl<'a> Gc<'a> {
         match self.stack.get_mut(index) {
             Some(StackSlot::Value(ref mut value)) => Some(value),
             Some(StackSlot::Captured(index)) => {
-                if let Some(Markable { value: HeapSlot::Captured(ref mut value), 
-                    .. }) = self.heap.get_mut(*index) { Some(value) } 
-                else { None }
-            },
+                if let Some(Markable {
+                    value: HeapSlot::Captured(ref mut value),
+                    ..
+                }) = self.heap.get_mut(*index)
+                {
+                    Some(value)
+                } else {
+                    None
+                }
+            }
             _ => None,
         }
     }
@@ -108,7 +113,8 @@ impl<'a> Gc<'a> {
 
     fn alloc(&mut self, value: HeapSlot<'a>) -> usize {
         let value = Markable {
-            value, marked: false
+            value,
+            marked: false,
         };
 
         if self.allocations > self.max_allocations {
@@ -152,28 +158,19 @@ impl<'a> Scope<'a> {
         self.local_count += 1;
     }
 
-    pub fn declare_stack(
-        &mut self, gc: &mut Gc<'a>, 
-        label: &'a str, value: GribValue<'a>
-    ) {
+    pub fn declare_stack(&mut self, gc: &mut Gc<'a>, label: &'a str, value: GribValue<'a>) {
         let ptr = gc.stack_add(StackSlot::Value(value));
         self.declare(label, ptr);
     }
 
-    pub fn declare_heap(
-        &mut self, gc: &mut Gc<'a>, 
-        label: &'a str, value: HeapValue<'a>
-    ) {
+    pub fn declare_heap(&mut self, gc: &mut Gc<'a>, label: &'a str, value: HeapValue<'a>) {
         let heap_ptr = gc.alloc_heap(value);
         let val = StackSlot::Value(GribValue::HeapValue(heap_ptr));
         let ptr = gc.stack_add(val);
         self.declare(label, ptr);
     }
 
-    pub fn declare_captured(
-        &mut self, gc: &mut Gc<'a>, 
-        label: &'a str, value: GribValue<'a>
-    ) {
+    pub fn declare_captured(&mut self, gc: &mut Gc<'a>, label: &'a str, value: GribValue<'a>) {
         let heap_ptr = gc.alloc_captured(value);
         let val = StackSlot::Captured(heap_ptr);
         let ptr = gc.stack_add(val);
@@ -185,7 +182,9 @@ impl<'a> Scope<'a> {
     }
 
     fn get_mut<'b>(&self, gc: &'b mut Gc<'a>, label: &'a str) -> Option<&'b mut GribValue<'a>> {
-        self.scope.get(label).cloned()
+        self.scope
+            .get(label)
+            .cloned()
             .and_then(move |index| gc.stack_mut(index))
     }
 

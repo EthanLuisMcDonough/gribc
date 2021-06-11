@@ -1,7 +1,8 @@
 use ast::node::*;
-use std::rc::Rc;
-use std::collections::HashMap;
+use std::borrow::Cow;
 use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
 
 pub trait Callable {
     fn call<'a>(&self, args: Vec<GribValue<'a>>) -> GribValue<'a>;
@@ -15,13 +16,19 @@ pub enum NativeReference {
 }
 
 impl From<NativeFmtPackage> for NativeReference {
-    fn from(f: NativeFmtPackage) -> Self { Self::Fmt(f) }
+    fn from(f: NativeFmtPackage) -> Self {
+        Self::Fmt(f)
+    }
 }
 impl From<NativeMathPackage> for NativeReference {
-    fn from(f: NativeMathPackage) -> Self { Self::Math(f) }
+    fn from(f: NativeMathPackage) -> Self {
+        Self::Math(f)
+    }
 }
 impl From<NativeConsolePackage> for NativeReference {
-    fn from(f: NativeConsolePackage) -> Self { Self::Console(f) }
+    fn from(f: NativeConsolePackage) -> Self {
+        Self::Console(f)
+    }
 }
 
 // Lambdas
@@ -60,7 +67,7 @@ pub enum HashPropertyValue<'a> {
 #[derive(Clone)]
 pub struct HashValue<'a> {
     mutable: bool,
-    values: HashMap<String, HashPropertyValue<'a>>
+    values: HashMap<String, HashPropertyValue<'a>>,
 }
 
 impl<'a> From<AutoPropValue<'a>> for HashPropertyValue<'a> {
@@ -90,8 +97,8 @@ pub enum HeapValue<'a> {
 #[derive(Clone)]
 pub enum ModuleObject<'a> {
     Native(NativePackage),
-    Custom(&'a CustomModule)
-} 
+    Custom(&'a CustomModule),
+}
 
 #[derive(Clone)]
 pub enum GribValue<'a> {
@@ -103,6 +110,28 @@ pub enum GribValue<'a> {
     HeapValue(usize),
 }
 
+impl<'a> GribValue<'a> {
+    pub fn as_str(&'a self) -> Cow<'a, str> {
+        match self {
+            Self::Nil => "nil".into(),
+            Self::Callable(_) => "[callable]".into(),
+            Self::HeapValue(_) => "[object]".into(),
+            Self::String(s) => Cow::Borrowed(s),
+            Self::Number(n) => n.to_string().into(),
+            Self::ModuleObject(_) => "[module]".into(),
+        }
+    }
+
+    pub fn cast_num(&self) -> f64 {
+        match self {
+            Self::Nil => 0.0,
+            Self::Callable(_) | Self::HeapValue(_) | Self::ModuleObject(_) => f64::NAN,
+            Self::Number(n) => *n,
+            Self::String(s) => unimplemented!(),
+        }
+    }
+}
+
 impl<'a> From<f64> for GribValue<'a> {
     fn from(f: f64) -> GribValue<'a> {
         GribValue::Number(f)
@@ -110,11 +139,19 @@ impl<'a> From<f64> for GribValue<'a> {
 }
 
 impl<'a> From<String> for GribValue<'a> {
-    fn from(s: String) -> GribValue<'a> { 
+    fn from(s: String) -> GribValue<'a> {
         GribValue::String(s)
     }
 }
 
 impl<'a> Default for GribValue<'a> {
-    fn default() -> Self { Self::Nil }
+    fn default() -> Self {
+        Self::Nil
+    }
+}
+
+impl<'a> ToString for GribValue<'a> {
+    fn to_string(&self) -> String {
+        self.as_str().into_owned()
+    }
 }

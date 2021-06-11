@@ -1,7 +1,7 @@
 use location::{Located, Location};
 use operators::{Assignment, Binary, Unary};
 use std::collections::{HashMap, HashSet};
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 
 pub type Block = Vec<Node>;
 pub type ModuleStore = HashMap<PathBuf, CustomModule>;
@@ -177,11 +177,11 @@ crate::keyword_map!(NativeFmtPackage {
 });
 
 crate::keyword_map!(NativeMathPackage {
-    Sin -> "sin", 
-    Cos -> "cos", 
+    Sin -> "sin",
+    Cos -> "cos",
     Tan -> "tan",
-    Asin -> "asin", 
-    Acos -> "acos", 
+    Asin -> "asin",
+    Acos -> "acos",
     Atan -> "atan",
     Sqrt -> "sqrt",
     Pow -> "pow",
@@ -267,12 +267,17 @@ pub struct CustomModule {
 
 impl Package for CustomModule {
     fn get_functions<'a>(&'a self) -> HashSet<&'a str> {
-        self.functions.iter().filter(|f| f.public)
-            .map(|f| f.identifier.data.as_str()).collect()
+        self.functions
+            .iter()
+            .filter(|f| f.public)
+            .map(|f| f.identifier.data.as_str())
+            .collect()
     }
 
     fn has_function(&self, name: &str) -> bool {
-        self.functions.iter().filter(|f| f.public)
+        self.functions
+            .iter()
+            .filter(|f| f.public)
             .any(|f| f.identifier.data == name)
     }
 }

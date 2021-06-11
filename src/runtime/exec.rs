@@ -7,11 +7,14 @@ pub fn execute(program: &Program, config: GcConfig) {
 
     for import in &program.imports {
         match import.kind {
-            ImportKind::All => 
+            ImportKind::All => {
+                //program.modules[]
+            }
+            _ => unimplemented!(),
         }
     }
 
     for proc in &program.functions {
-        scope.set_constant(proc.identifier.data, GribValue::)
+        //scope.set_constant(proc.identifier.data, GribValue::)
     }
 }

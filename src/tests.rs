@@ -43,7 +43,7 @@ fn canonicalize_ast(program: &mut Program, base: &Path) {
             .expect("Invalid path in grib tests!");
         program.set_module(new_path, module);
     }
-    
+
     for import in program.imports.iter_mut() {
         if let Module::Custom(ref mut path) = import.module {
             let new_path = base.join(&path.data)
