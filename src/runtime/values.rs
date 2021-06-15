@@ -1,11 +1,12 @@
 use ast::node::*;
+use runtime::memory::Gc;
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 pub trait Callable {
-    fn call<'a>(&self, args: Vec<GribValue<'a>>) -> GribValue<'a>;
+    fn call<'a>(&self, gc: &mut Gc, args: Vec<GribValue<'a>>) -> GribValue<'a>;
 }
 
 // Modules
@@ -127,7 +128,7 @@ impl<'a> GribValue<'a> {
             Self::Nil => 0.0,
             Self::Callable(_) | Self::HeapValue(_) | Self::ModuleObject(_) => f64::NAN,
             Self::Number(n) => *n,
-            Self::String(s) => unimplemented!(),
+            Self::String(s) => s.parse().unwrap_or(f64::NAN),
         }
     }
 }

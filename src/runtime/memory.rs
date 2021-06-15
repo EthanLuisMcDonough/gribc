@@ -39,7 +39,7 @@ pub struct Gc<'a> {
     stack: Vec<StackSlot<'a>>,
     heap: Vec<MarkedSlot<'a>>,
     free_pointers: LinkedList<usize>,
-    allocations: usize,
+    pub allocations: usize,
     max_allocations: usize,
 }
 

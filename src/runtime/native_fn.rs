@@ -1,23 +1,23 @@
+use runtime::memory::Gc;
 use runtime::values::{Callable, GribValue};
 use std::io;
 use std::io::Read;
 
 macro_rules! native_package {
-    ($_:ident [args] $b:block) => { $b };
-
-    ($args:ident [$($param:ident),*] $b:block) => {
+    (@branch $_:ident $gc:ident [args] $b:block) => { $b };
+    (@branch $args:ident $gc:ident [$($param:ident),*] $b:block) => {
         {
-            fn closure<'a>( $( $param : GribValue<'a> ),* ) -> GribValue<'a> $b
+            fn closure<'a>( $gc: &mut Gc, $( $param: GribValue<'a> ),* ) -> GribValue<'a> $b
 
             let mut a = $args.into_iter();
 
             $( let $param = a.next().unwrap_or_default(); )*
 
-            closure( $( $param ),* )
+            closure( $gc, $( $param ),* )
         }
     };
 
-    ($name:ident {
+    ($name:ident [$gc:ident] {
         $(
             $fn_name:ident [$str:expr] ($($param:ident),*) $b:block
         )*
@@ -28,6 +28,8 @@ macro_rules! native_package {
         }
 
         impl $name {
+            const MEMBERS: &'static [&'static str] = &[$( $str ),*];
+
             pub fn fn_name(&self) -> &'static str {
                 use self::$name::*;
                 match self {
@@ -45,10 +47,10 @@ macro_rules! native_package {
         }
 
         impl Callable for $name {
-            fn call<'a>(&self, args: Vec<GribValue<'a>>) -> GribValue<'a> {
+            fn call<'a>(&self, $gc: &mut Gc, mut args: Vec<GribValue<'a>>) -> GribValue<'a> {
                 use self::$name::*;
                 match self {
-                    $( $fn_name => { native_package!(args[$( $param ),*] $b) }, )*
+                    $( $fn_name => { native_package!(@branch args $gc [$( $param ),*] $b) }, )*
                 }
             }
         }
@@ -56,7 +58,7 @@ macro_rules! native_package {
     };
 }
 
-native_package!(NativeConsolePackage {
+native_package!(NativeConsolePackage[gc] {
     Println["println"](str) {
         println!("{}", str.as_str());
         GribValue::Nil
@@ -77,11 +79,46 @@ native_package!(NativeConsolePackage {
     }
 });
 
-native_package!(NativeFmtPackage {
+native_package!(NativeFmtPackage[gc] {
     ToString["toString"](obj) {
         GribValue::String(obj.to_string())
     }
     ToNumber["toNumber"](obj) {
-        unimplemented!()
+        GribValue::Number(obj.cast_num())
     }
+});
+
+native_package!(NativeMathPackage[gc] {
+    Sin["sin"](n) { GribValue::Number(n.cast_num().sin()) }
+    Cos["cos"](n) { GribValue::Number(n.cast_num().cos()) }
+    Tan["tan"](n) { GribValue::Number(n.cast_num().tan()) }
+
+    Asin["asin"](n) { GribValue::Number(n.cast_num().asin()) }
+    Acos["acos"](n) { GribValue::Number(n.cast_num().acos()) }
+    Atan["atan"](n) { GribValue::Number(n.cast_num().atan()) }
+
+    Sqrt["sqrt"](n) { GribValue::Number(n.cast_num().sqrt()) }
+    Ln["ln"](n) { GribValue::Number(n.cast_num().ln()) }
+    Log["log"](n) { GribValue::Number(n.cast_num().log10()) }
+    Pow["pow"](base, exp) {
+        GribValue::Number(base.cast_num().powf(exp.cast_num()))
+    }
+
+    Round["round"](n) { GribValue::Number(n.cast_num().round()) }
+    Floor["floor"](n) { GribValue::Number(n.cast_num().floor()) }
+    Ceil["ceil"](n) { GribValue::Number(n.cast_num().ceil()) }
+    Trunc["trunc"](n) { GribValue::Number(n.cast_num().trunc()) }
+
+    MathConst["mathConst"](s) {
+        use std::f64::consts::*;
+        GribValue::Number(match s.as_str().as_ref() {
+            "pi" | "PI" => PI,
+            "e" | "E" => E,
+            _ => f64::NAN,
+        })
+    }
+});
+
+native_package!(NativeArrayPackage[gc] {
+
 });
