@@ -1,5 +1,5 @@
 use runtime::memory::Gc;
-use runtime::values::{Callable, GribValue};
+use runtime::values::{Callable, GribValue, HeapValue};
 use std::io;
 use std::io::Read;
 
@@ -7,7 +7,7 @@ macro_rules! native_package {
     (@branch $_:ident $gc:ident [args] $b:block) => { $b };
     (@branch $args:ident $gc:ident [$($param:ident),*] $b:block) => {
         {
-            fn closure<'a>( $gc: &mut Gc, $( $param: GribValue<'a> ),* ) -> GribValue<'a> $b
+            fn closure( $gc: &mut Gc, $( $param: GribValue ),* ) -> GribValue $b
 
             let mut a = $args.into_iter();
 
@@ -23,6 +23,7 @@ macro_rules! native_package {
         )*
 
     }) => {
+        #[derive(Clone)]
         pub enum $name {
             $( $fn_name, )*
         }
@@ -47,16 +48,16 @@ macro_rules! native_package {
         }
 
         impl Callable for $name {
-            fn call<'a>(&self, $gc: &mut Gc, mut args: Vec<GribValue<'a>>) -> GribValue<'a> {
+            fn call(&self, $gc: &mut Gc, mut args: Vec<GribValue>) -> GribValue {
                 use self::$name::*;
                 match self {
                     $( $fn_name => { native_package!(@branch args $gc [$( $param ),*] $b) }, )*
                 }
-            }
-        }
+            }        }
 
     };
 }
+
 
 native_package!(NativeConsolePackage[gc] {
     Println["println"](str) {
@@ -118,7 +119,21 @@ native_package!(NativeMathPackage[gc] {
         })
     }
 });
+/*
+fn get_array<'a>(arr_ref: GribValue, gc: &mut Gc, fn_name: &str) -> &'a mut Vec<GribValue> {
+    if let Some(HeapValue::Array(ref mut arr)) = gc.heap_val_mut(arr_ref) {
+        arr
+    } else {
+        eprintln!("Invalid argument supplied to array {} function", fn_name);
+        panic!();
+    }
+}
 
 native_package!(NativeArrayPackage[gc] {
-
+    Push["push"](arr_ref, s) {
+        let arr = get_array(arr_ref, gc, "push");
+        arr.push(s);
+        GribValue::Number(arr.len() as f64)
+    }
 });
+*/

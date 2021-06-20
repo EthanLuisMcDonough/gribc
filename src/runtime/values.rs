@@ -4,12 +4,26 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::path::PathBuf;
 
 pub trait Callable {
-    fn call<'a>(&self, gc: &mut Gc, args: Vec<GribValue<'a>>) -> GribValue<'a>;
+    //fn call(&self, gc: &mut Gc, args: Vec<GribValue>) -> GribValue;
+    fn call(&self, args: Vec<GribValue>) -> GribValue;
+}
+
+pub enum CallableType {
+    Lambda,
+    Native,
+    Procedure,
+}
+pub struct Callable {
+    pub binding: GribValue,
+    pub kind: CallableType,
+    pub 
 }
 
 // Modules
+#[derive(Clone)]
 pub enum NativeReference {
     Fmt(NativeFmtPackage),
     Math(NativeMathPackage),
@@ -36,7 +50,7 @@ impl From<NativeConsolePackage> for NativeReference {
 #[derive(Clone)]
 pub struct LambdaValue<'a> {
     body: &'a Lambda,
-    binding: GribValue<'a>,
+    binding: GribValue,
 }
 
 // Hashes
@@ -44,13 +58,13 @@ pub struct LambdaValue<'a> {
 pub struct SetPropertyValue<'a> {
     body: &'a LambdaBody,
     value_name: &'a str,
-    binding: GribValue<'a>,
+    binding: GribValue,
 }
 
 #[derive(Clone)]
 pub struct GetPropertyValue<'a> {
     body: &'a LambdaBody,
-    binding: GribValue<'a>,
+    binding: GribValue,
 }
 
 #[derive(Clone)]
@@ -62,7 +76,7 @@ pub struct AutoPropValue<'a> {
 #[derive(Clone)]
 pub enum HashPropertyValue<'a> {
     AutoProp(AutoPropValue<'a>),
-    Value(GribValue<'a>),
+    Value(GribValue),
 }
 
 #[derive(Clone)]
@@ -77,8 +91,8 @@ impl<'a> From<AutoPropValue<'a>> for HashPropertyValue<'a> {
     }
 }
 
-impl<'a> From<GribValue<'a>> for HashPropertyValue<'a> {
-    fn from(prop: GribValue<'a>) -> Self {
+impl<'a> From<GribValue> for HashPropertyValue<'a> {
+    fn from(prop: GribValue) -> Self {
         HashPropertyValue::Value(prop)
     }
 }
@@ -91,28 +105,34 @@ impl<'a> HashValue<'a> {
 
 #[derive(Clone)]
 pub enum HeapValue<'a> {
-    Array(Vec<GribValue<'a>>),
+    Array(Vec<GribValue>),
     Hash(HashValue<'a>),
 }
 
 #[derive(Clone)]
-pub enum ModuleObject<'a> {
+pub enum ModuleObject {
     Native(NativePackage),
-    Custom(&'a CustomModule),
+    Custom(PathBuf),
 }
 
 #[derive(Clone)]
-pub enum GribValue<'a> {
+pub enum GribValue {
     Nil,
     Number(f64),
     String(String),
-    Callable(&'a dyn Callable),
-    ModuleObject(ModuleObject<'a>),
+    Callable(Box<dyn Callable>),
+    ModuleObject(ModuleObject),
     HeapValue(usize),
 }
 
-impl<'a> GribValue<'a> {
-    pub fn as_str(&'a self) -> Cow<'a, str> {
+impl GribValue {
+    pub fn ptr(&self) -> Option<usize> {
+        if let &Self::HeapValue(i) = self {
+            Some(i)
+        } else { None }
+    }
+
+    pub fn as_str<'a>(&'a self) -> Cow<'a, str> {
         match self {
             Self::Nil => "nil".into(),
             Self::Callable(_) => "[callable]".into(),
@@ -133,25 +153,25 @@ impl<'a> GribValue<'a> {
     }
 }
 
-impl<'a> From<f64> for GribValue<'a> {
-    fn from(f: f64) -> GribValue<'a> {
+impl From<f64> for GribValue {
+    fn from(f: f64) -> GribValue {
         GribValue::Number(f)
     }
 }
 
-impl<'a> From<String> for GribValue<'a> {
-    fn from(s: String) -> GribValue<'a> {
+impl From<String> for GribValue {
+    fn from(s: String) -> GribValue {
         GribValue::String(s)
     }
 }
 
-impl<'a> Default for GribValue<'a> {
+impl Default for GribValue {
     fn default() -> Self {
         Self::Nil
     }
 }
 
-impl<'a> ToString for GribValue<'a> {
+impl ToString for GribValue {
     fn to_string(&self) -> String {
         self.as_str().into_owned()
     }

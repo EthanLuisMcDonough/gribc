@@ -15,15 +15,15 @@ enum MemSlot<C, V> {
     Empty,
 }
 
-type HeapSlot<'a> = MemSlot<GribValue<'a>, HeapValue<'a>>;
+type HeapSlot<'a> = MemSlot<GribValue, HeapValue<'a>>;
 type MarkedSlot<'a> = Markable<HeapSlot<'a>>;
-type StackSlot<'a> = MemSlot<usize, GribValue<'a>>;
+type StackSlot = MemSlot<usize, GribValue>;
 
 fn mark<'a>(obj: &mut MarkedSlot<'a>) {
     unimplemented!();
 }
 
-fn get_heap_ref<'a>(value: &StackSlot<'a>) -> Option<usize> {
+fn get_heap_ref<'a>(value: &StackSlot) -> Option<usize> {
     match value {
         StackSlot::Captured(ptr) | StackSlot::Value(GribValue::HeapValue(ptr)) => Some(*ptr),
         _ => None,
@@ -36,10 +36,10 @@ pub struct GcConfig {
 }
 
 pub struct Gc<'a> {
-    stack: Vec<StackSlot<'a>>,
+    stack: Vec<StackSlot>,
     heap: Vec<MarkedSlot<'a>>,
     free_pointers: LinkedList<usize>,
-    pub allocations: usize,
+    allocations: usize,
     max_allocations: usize,
 }
 
@@ -69,11 +69,11 @@ impl<'a> Gc<'a> {
         }
     }
 
-    fn alloc_captured(&mut self, value: GribValue<'a>) -> usize {
+    fn alloc_captured(&mut self, value: GribValue) -> usize {
         self.alloc(HeapSlot::Captured(value))
     }
 
-    fn alloc_heap(&mut self, value: HeapValue<'a>) -> usize {
+    pub fn alloc_heap(&mut self, value: HeapValue<'a>) -> usize {
         self.alloc(HeapSlot::Value(value))
     }
 
@@ -81,13 +81,13 @@ impl<'a> Gc<'a> {
         self.heap[index].value = HeapSlot::Empty;
     }
 
-    fn stack_add(&mut self, value: StackSlot<'a>) -> usize {
+    fn stack_add(&mut self, value: StackSlot) -> usize {
         let ptr = self.stack.len();
         self.stack.push(value);
         ptr
     }
 
-    fn stack_mut(&mut self, index: usize) -> Option<&mut GribValue<'a>> {
+    fn stack_mut(&mut self, index: usize) -> Option<&mut GribValue> {
         match self.stack.get_mut(index) {
             Some(StackSlot::Value(ref mut value)) => Some(value),
             Some(StackSlot::Captured(index)) => {
@@ -133,6 +133,30 @@ impl<'a> Gc<'a> {
             index
         }
     }
+
+    pub fn normalize_val(&self, val: GribValue) -> GribValue {
+        val.ptr().and_then(|ind| self.heap.get(ind))
+            .and_then(|m| match &m.value {
+                MemSlot::Captured(v) => Some(v.clone()),
+                _ => None,
+            }).unwrap_or(val)
+    }
+
+    pub fn heap_val_mut(&'a mut self, val: GribValue) -> Option<&'a mut HeapValue<'a>> {
+        val.ptr().and_then(move |ind| self.heap.get_mut(ind))
+            .and_then(|m| match m.value {
+                MemSlot::Value(ref mut val) => Some(val),
+                _ => None,
+            })
+    }
+
+    pub fn heap_val(&'a self, val: GribValue) -> Option<&'a HeapValue<'a>> {
+        val.ptr().and_then(move |ind| self.heap.get(ind))
+            .and_then(|m| match m.value {
+                MemSlot::Value(ref val) => Some(val),
+                _ => None,
+            })
+    }
 }
 
 pub struct VariableData {
@@ -158,7 +182,7 @@ impl<'a> Scope<'a> {
         self.local_count += 1;
     }
 
-    pub fn declare_stack(&mut self, gc: &mut Gc<'a>, label: &'a str, value: GribValue<'a>) {
+    pub fn declare_stack(&mut self, gc: &mut Gc<'a>, label: &'a str, value: GribValue) {
         let ptr = gc.stack_add(StackSlot::Value(value));
         self.declare(label, ptr);
     }
@@ -170,7 +194,7 @@ impl<'a> Scope<'a> {
         self.declare(label, ptr);
     }
 
-    pub fn declare_captured(&mut self, gc: &mut Gc<'a>, label: &'a str, value: GribValue<'a>) {
+    pub fn declare_captured(&mut self, gc: &mut Gc<'a>, label: &'a str, value: GribValue) {
         let heap_ptr = gc.alloc_captured(value);
         let val = StackSlot::Captured(heap_ptr);
         let ptr = gc.stack_add(val);
@@ -181,14 +205,14 @@ impl<'a> Scope<'a> {
         gc.pop_stack(self.local_count);
     }
 
-    fn get_mut<'b>(&self, gc: &'b mut Gc<'a>, label: &'a str) -> Option<&'b mut GribValue<'a>> {
+    fn get_mut<'b>(&self, gc: &'b mut Gc<'a>, label: &'a str) -> Option<&'b mut GribValue> {
         self.scope
             .get(label)
             .cloned()
             .and_then(move |index| gc.stack_mut(index))
     }
 
-    pub fn set(&self, gc: &mut Gc<'a>, label: &'a str, value: GribValue<'a>) {
+    pub fn set(&self, gc: &mut Gc<'a>, label: &'a str, value: GribValue) {
         if let Some(r) = self.get_mut(gc, label) {
             *r = value;
         }
