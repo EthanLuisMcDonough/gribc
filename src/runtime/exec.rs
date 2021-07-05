@@ -1,54 +1,79 @@
 use ast::node::*;
 use runtime::memory::*;
+use runtime::operator::*;
 use runtime::values::*;
+
+fn scope_imports<'a>(scope: &mut Scope<'a>, gc: &mut Gc, program: &'a Program, import: &'a Import) {
+    let imports = import
+        .module
+        .iter(program)
+        .zip(import.module.names(program));
+
+    match &import.kind {
+        ImportKind::All => {
+            for (callable, name) in imports {
+                scope.declare_stack(gc, name, callable);
+            }
+        }
+        ImportKind::List(hash) => {
+            for (callable, name) in imports.filter(|(_, key)| hash.contains_key(*key)) {
+                scope.declare_stack(gc, name, callable);
+            }
+        }
+        ImportKind::ModuleObject(name) => scope.declare_stack(
+            gc,
+            &name.data,
+            GribValue::ModuleObject(import.module.clone()),
+        ),
+    }
+}
 
 pub fn execute(program: &Program, config: GcConfig) {
     let mut gc = Gc::new(config);
     let mut scope = Scope::new();
 
     for import in &program.imports {
-        match import.kind {
-            ImportKind::All => {
-                //program.modules[]
-            }
+        scope_imports(&mut scope, &mut gc, program, import);
+    }
+
+    for (index, fnc) in program.functions.iter().enumerate() {
+        scope.declare_stack(
+            &mut gc,
+            &fnc.identifier.data,
+            Callable::Procedure {
+                module: None,
+                index,
+            },
+        );
+    }
+
+    run_block(&program.body, &mut scope, &mut gc);
+}
+
+enum ControlFlow {
+    Return(GribValue),
+    None,
+    Break,
+    Continue,
+}
+
+fn run_block(block: &Block, scope: &mut Scope, gc: &mut Gc) {
+    for node in block {
+        match node {
+            Node::Block(block) => run_block(block, scope, gc),
+            Node::Break | Node::Continue => return,
+            //Node::Declaration(decl) => decl.
             _ => unimplemented!(),
         }
     }
+}
 
-    for proc in &program.functions {
-        //scope.set_constant(proc.identifier.data, GribValue::)
+fn evaluate_hash() {}
+
+pub fn evaluate_expression(expression: &Expression, scope: &mut Scope, gc: &mut Gc) -> GribValue {
+    match expression {
+        Expression::Bool(b) => GribValue::Bool(*b),
+        Expression::Hash(h) => unimplemented!(),
+        _ => unimplemented!(),
     }
 }
-
-fn try_get_array_copy<'a, 'b>(gc: &'a Gc<'b>, val: GribValue) -> Option<Vec<GribValue>> {
-    if let Some(HeapValue::Array(arr)) = gc.heap_val(val) {
-        Some(arr.clone())
-    } else { None }
-}
-
-fn add_values<'a>(
-    left: GribValue, right: GribValue, 
-    scope: &mut Scope, gc: &'a mut Gc<'a>
-) -> GribValue {
-    let mut array_op = None;
-
-    {
-        array_op = try_get_array_copy(gc, left);
-    }
-    let mut arr = array_op.unwrap();
-    arr.push(right);
-    gc.alloc_heap(HeapValue::Array(arr));
-    /*if let Some(mut arr) = array_op {
-        arr.push(right);
-        GribValue::HeapValue(gc.alloc_heap(HeapValue::Array(arr)))
-    } else {
-        unimplemented!()
-    }*/
-    unimplemented!()
-    /*match left {
-        GribValue::HeapValue(i)
-        GribValue::Number(_) | GribValue::Nil | GribValue::
-    }*/
-}
-
-fn evaluate_expression() {}

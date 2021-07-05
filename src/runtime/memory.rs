@@ -1,4 +1,4 @@
-use runtime::values::{GribValue, HeapValue};
+use runtime::values::{Callable, GribValue, HashPropertyValue, HeapValue};
 use std::collections::{HashMap, LinkedList};
 
 const STACK_SIZE: usize = 1000;
@@ -15,12 +15,83 @@ enum MemSlot<C, V> {
     Empty,
 }
 
-type HeapSlot<'a> = MemSlot<GribValue, HeapValue<'a>>;
-type MarkedSlot<'a> = Markable<HeapSlot<'a>>;
+type HeapSlot = MemSlot<GribValue, HeapValue>;
+type MarkedSlot = Markable<HeapSlot>;
 type StackSlot = MemSlot<usize, GribValue>;
 
-fn mark<'a>(obj: &mut MarkedSlot<'a>) {
-    unimplemented!();
+fn mark(gc: &mut Gc, ind: usize) {
+    let Markable { marked, ref value } = &mut gc.heap[ind];
+
+    if *marked {
+        return;
+    }
+
+    let mut to_mark = true;
+    let mut marked_stack = Vec::new();
+    let mut marked_heap = Vec::new();
+    let mut marked_func = Vec::new();
+
+    match value {
+        HeapSlot::Captured(val) => marked_stack.push(val.clone()), // shouldn't recurse deeper than one level
+        HeapSlot::Value(val) => match val {
+            HeapValue::String(_) => {}
+            HeapValue::Array(arr) => {
+                for i in arr.iter() {
+                    marked_stack.push(i.clone());
+                }
+            }
+            HeapValue::CapturedStack(stack) => {
+                for (_, index) in stack.iter() {
+                    marked_heap.push(*index);
+                }
+            }
+            HeapValue::Hash(hash) => {
+                for (_, value) in &hash.values {
+                    match value {
+                        HashPropertyValue::Value(val) => marked_stack.push(val.clone()),
+                        HashPropertyValue::AutoProp(prop) => {
+                            for f in prop.functions() {
+                                marked_func.push(f.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        _ => to_mark = false,
+    }
+
+    *marked = to_mark;
+
+    for value in marked_stack {
+        mark_stack(gc, value);
+    }
+
+    for value in marked_heap {
+        mark(gc, value);
+    }
+
+    for value in marked_func {
+        mark_function(gc, value);
+    }
+}
+
+fn mark_stack(gc: &mut Gc, obj: GribValue) {
+    match obj {
+        GribValue::HeapValue(heap) => mark(gc, heap),
+        GribValue::Callable(callable) => mark_function(gc, callable),
+        _ => {}
+    }
+}
+
+fn mark_function(gc: &mut Gc, fnc: Callable) {
+    match fnc {
+        Callable::Lambda { binding, stack, .. } => {
+            mark(gc, binding);
+            mark(gc, stack);
+        }
+        _ => {}
+    }
 }
 
 fn get_heap_ref<'a>(value: &StackSlot) -> Option<usize> {
@@ -35,15 +106,15 @@ pub struct GcConfig {
     cleanup_after: usize,
 }
 
-pub struct Gc<'a> {
+pub struct Gc {
     stack: Vec<StackSlot>,
-    heap: Vec<MarkedSlot<'a>>,
+    heap: Vec<MarkedSlot>,
     free_pointers: LinkedList<usize>,
     allocations: usize,
     max_allocations: usize,
 }
 
-impl<'a> Gc<'a> {
+impl Gc {
     pub fn new(config: GcConfig) -> Self {
         Gc {
             stack: Vec::with_capacity(config.stack_size.max(STACK_SIZE)),
@@ -55,8 +126,8 @@ impl<'a> Gc<'a> {
     }
 
     pub fn clean(&mut self) {
-        for pointer in self.stack.iter().flat_map(get_heap_ref) {
-            mark(&mut self.heap[pointer]);
+        for pointer in self.stack.iter().flat_map(get_heap_ref).collect::<Vec<_>>() {
+            mark(self, pointer);
         }
 
         let len = self.heap.len();
@@ -73,7 +144,7 @@ impl<'a> Gc<'a> {
         self.alloc(HeapSlot::Captured(value))
     }
 
-    pub fn alloc_heap(&mut self, value: HeapValue<'a>) -> usize {
+    pub fn alloc_heap(&mut self, value: HeapValue) -> usize {
         self.alloc(HeapSlot::Value(value))
     }
 
@@ -111,7 +182,7 @@ impl<'a> Gc<'a> {
         }
     }
 
-    fn alloc(&mut self, value: HeapSlot<'a>) -> usize {
+    fn alloc(&mut self, value: HeapSlot) -> usize {
         let value = Markable {
             value,
             marked: false,
@@ -134,24 +205,40 @@ impl<'a> Gc<'a> {
         }
     }
 
+    pub fn alloc_str(&mut self, s: String) -> GribValue {
+        GribValue::HeapValue(self.alloc_heap(HeapValue::String(s)))
+    }
+
+    pub fn get_str<'a>(&'a self, i: impl Into<GribValue>) -> Option<&'a String> {
+        self.heap_val(i.into()).and_then(|v| match v {
+            HeapValue::String(s) => Some(s),
+            _ => None,
+        })
+    }
+
     pub fn normalize_val(&self, val: GribValue) -> GribValue {
-        val.ptr().and_then(|ind| self.heap.get(ind))
+        val.ptr()
+            .and_then(|ind| self.heap.get(ind))
             .and_then(|m| match &m.value {
                 MemSlot::Captured(v) => Some(v.clone()),
                 _ => None,
-            }).unwrap_or(val)
+            })
+            .unwrap_or(val)
     }
 
-    pub fn heap_val_mut(&'a mut self, val: GribValue) -> Option<&'a mut HeapValue<'a>> {
-        val.ptr().and_then(move |ind| self.heap.get_mut(ind))
+    pub fn heap_val_mut<'a>(&'a mut self, val: GribValue) -> Option<&'a mut HeapValue> {
+        val.ptr()
+            .and_then(move |ind| self.heap.get_mut(ind))
             .and_then(|m| match m.value {
                 MemSlot::Value(ref mut val) => Some(val),
                 _ => None,
             })
     }
 
-    pub fn heap_val(&'a self, val: GribValue) -> Option<&'a HeapValue<'a>> {
-        val.ptr().and_then(move |ind| self.heap.get(ind))
+    pub fn heap_val<'a>(&'a self, val: impl Into<GribValue>) -> Option<&'a HeapValue> {
+        val.into()
+            .ptr()
+            .and_then(move |ind| self.heap.get(ind))
             .and_then(|m| match m.value {
                 MemSlot::Value(ref val) => Some(val),
                 _ => None,
@@ -182,37 +269,37 @@ impl<'a> Scope<'a> {
         self.local_count += 1;
     }
 
-    pub fn declare_stack(&mut self, gc: &mut Gc<'a>, label: &'a str, value: GribValue) {
-        let ptr = gc.stack_add(StackSlot::Value(value));
+    pub fn declare_stack(&mut self, gc: &mut Gc, label: &'a str, value: impl Into<GribValue>) {
+        let ptr = gc.stack_add(StackSlot::Value(value.into()));
         self.declare(label, ptr);
     }
 
-    pub fn declare_heap(&mut self, gc: &mut Gc<'a>, label: &'a str, value: HeapValue<'a>) {
+    pub fn declare_heap(&mut self, gc: &mut Gc, label: &'a str, value: HeapValue) {
         let heap_ptr = gc.alloc_heap(value);
         let val = StackSlot::Value(GribValue::HeapValue(heap_ptr));
         let ptr = gc.stack_add(val);
         self.declare(label, ptr);
     }
 
-    pub fn declare_captured(&mut self, gc: &mut Gc<'a>, label: &'a str, value: GribValue) {
+    pub fn declare_captured(&mut self, gc: &mut Gc, label: &'a str, value: GribValue) {
         let heap_ptr = gc.alloc_captured(value);
         let val = StackSlot::Captured(heap_ptr);
         let ptr = gc.stack_add(val);
         self.declare(label, ptr);
     }
 
-    pub fn cleanup(self, gc: &mut Gc<'a>) {
+    pub fn cleanup(self, gc: &mut Gc) {
         gc.pop_stack(self.local_count);
     }
 
-    fn get_mut<'b>(&self, gc: &'b mut Gc<'a>, label: &'a str) -> Option<&'b mut GribValue> {
+    fn get_mut<'b>(&self, gc: &'b mut Gc, label: &str) -> Option<&'b mut GribValue> {
         self.scope
             .get(label)
             .cloned()
             .and_then(move |index| gc.stack_mut(index))
     }
 
-    pub fn set(&self, gc: &mut Gc<'a>, label: &'a str, value: GribValue) {
+    pub fn set(&self, gc: &mut Gc, label: &str, value: GribValue) {
         if let Some(r) = self.get_mut(gc, label) {
             *r = value;
         }

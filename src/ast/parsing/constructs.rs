@@ -126,7 +126,7 @@ fn module_err(data: ModuleErrorBody, path: Located<PathBuf>) -> ParseError {
     ParseError::ModuleError(ModuleError { path, data })
 }
 
-pub fn parse_module(path: &Located<PathBuf>) -> ParseResult<CustomModule> {
+pub fn parse_module(path: &Located<PathBuf>, program: &mut Program) -> ParseResult<CustomModule> {
     let mut dir = path.data.clone();
 
     let text = fs::read_to_string(&dir)
@@ -149,18 +149,23 @@ pub fn parse_module(path: &Located<PathBuf>) -> ParseResult<CustomModule> {
             }),
             Token::Keyword(Keyword::Proc) => functions.push(parse_proc(&mut tokens, true)?),
             Token::Keyword(Keyword::Import) => {
-                imports.push(parse_import(&mut tokens, dir.as_path())?)
+                imports.push(parse_import(&mut tokens, dir.as_path(), program)?)
             }
             _ => return Err(ParseError::UnexpectedToken(token)),
         };
     }
 
-    Ok(CustomModule { functions, imports })
+    Ok(CustomModule {
+        functions,
+        imports,
+        path: dir,
+    })
 }
 
 pub fn parse_import<T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
     path: &Path,
+    program: &mut Program,
 ) -> ParseResult<Import> {
     let kind = next_guard!({ tokens.next() } (start, end) {
         Token::BinaryOp(Binary::Mult) => ImportKind::All,
@@ -203,10 +208,16 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
                                 start: start.clone(),
                             }))?;
 
-                    Module::Custom(Located {
-                        data: new_path,
-                        end: end.clone(),
-                        start: start.clone(),
+                    Module::Custom(match program.has_module(&new_path) {
+                        Some(ind) => ind,
+                        None => {
+                            let module = parse_module(&Located {
+                                data: new_path,
+                                end: end.clone(),
+                                start: start.clone(),
+                            }, program)?;
+                            program.set_module(module)
+                        },
                     })
                 },
             }
