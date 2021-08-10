@@ -1,21 +1,25 @@
-mod opexpr;
 mod constructs;
+mod opexpr;
 
+use self::constructs::*;
 use self::opexpr::{OpExpr, OpExprManager};
+use crate::next_guard;
+use ast::node::*;
+use ast::parsing::constructs::parse_params;
+use ast::parsing::util::take_until;
+use ast::{ParseError, ParseResult};
 use lex::tokens::*;
 use location::Located;
-use ast::{ParseError, ParseResult};
-use ast::parsing::util::take_until;
-use ast::node::*;
+use operators::{op_precedence, Precedence};
 use std::convert::TryInto;
 use util::next_if;
-use operators::{op_precedence, Precedence};
-use self::constructs::*;
-use crate::next_guard;
-use ast::parsing::constructs::parse_params;
 
 // Assumes an even groupers
-fn expression_list(tokens: Vec<Located<Token>>, in_lam: bool) -> ParseResult<Vec<Expression>> {
+fn expression_list(
+    tokens: Vec<Located<Token>>,
+    in_lam: bool,
+    program: &mut Program,
+) -> ParseResult<Vec<Expression>> {
     let mut level = 0usize;
     let mut index = 0usize;
     let mut indices = vec![];
@@ -49,7 +53,8 @@ fn expression_list(tokens: Vec<Located<Token>>, in_lam: bool) -> ParseResult<Vec
                     .take_while(|(index, _)| *index != i)
                     .map(|(_, val)| val)
                     .collect::<Vec<_>>(),
-                in_lam
+                in_lam,
+                program,
             )
             .map_err(|e| e.neof_or(ParseError::UnexpectedToken(token)))?,
         );
@@ -58,7 +63,7 @@ fn expression_list(tokens: Vec<Located<Token>>, in_lam: bool) -> ParseResult<Vec
     let remaining = tokens.collect::<Vec<_>>();
 
     if !remaining.is_empty() {
-        expressions.push(parse_expr(remaining, in_lam)?);
+        expressions.push(parse_expr(remaining, in_lam, program)?);
     }
 
     Ok(expressions)
@@ -66,18 +71,36 @@ fn expression_list(tokens: Vec<Located<Token>>, in_lam: bool) -> ParseResult<Vec
 
 type CallbackArg = (Vec<Located<Token>>, Located<Token>);
 
-pub fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>, in_lam: bool) -> ParseResult<Expression> {
+pub fn parse_expr(
+    tokens: impl IntoIterator<Item = Located<Token>>,
+    in_lam: bool,
+    program: &mut Program,
+) -> ParseResult<Expression> {
     let mut tokens = tokens.into_iter().peekable();
     let mut op_expr = OpExprManager::new();
 
-    fn list_callback(in_lam: bool) -> impl Fn(CallbackArg) -> ParseResult<Vec<Expression>> {
-        move |(v, last)| expression_list(v, in_lam)
-            .map_err(|e| e.neof_or(ParseError::UnexpectedToken(last)))
+    fn list_callback(
+        res: ParseResult<CallbackArg>,
+        in_lam: bool,
+        program: &mut Program,
+    ) -> ParseResult<Vec<Expression>> {
+        match res {
+            Ok((v, last)) => expression_list(v, in_lam, program)
+                .map_err(|e| e.neof_or(ParseError::UnexpectedToken(last))),
+            Err(e) => Err(e),
+        }
     }
 
-    fn expr_callback(in_lam: bool) -> impl Fn(CallbackArg) -> ParseResult<Expression> {
-        move |(v, last)| parse_expr(v, in_lam)
-            .map_err(|e| e.neof_or(ParseError::UnexpectedToken(last)))
+    fn expr_callback(
+        res: ParseResult<CallbackArg>,
+        in_lam: bool,
+        program: &mut Program,
+    ) -> ParseResult<Expression> {
+        match res {
+            Ok((v, last)) => parse_expr(v, in_lam, program)
+                .map_err(|e| e.neof_or(ParseError::UnexpectedToken(last))),
+            Err(e) => Err(e),
+        }
     }
 
     while let Some(token) = tokens.next() {
@@ -96,30 +119,36 @@ pub fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>, in_lam: bool
                 .push(assign.clone())
                 .map_err(|_| ParseError::UnexpectedToken(token.clone()))?,
             Token::OpenGroup(Grouper::Bracket) => {
-                expr = Expression::ArrayCreation(
-                    take_until(&mut tokens, Grouper::Bracket).and_then(list_callback(in_lam))?,
-                )
+                expr = Expression::ArrayCreation(list_callback(
+                    take_until(&mut tokens, Grouper::Bracket),
+                    in_lam,
+                    program,
+                )?)
                 .into();
             }
             Token::OpenGroup(Grouper::Parentheses) => {
-                expr = take_until(&mut tokens, Grouper::Parentheses)
-                    .and_then(expr_callback(in_lam))?
-                    .into();
+                expr = expr_callback(
+                    take_until(&mut tokens, Grouper::Parentheses),
+                    in_lam,
+                    program,
+                )?
+                .into();
             }
             Token::Keyword(Keyword::Lam) => {
                 let params = parse_params(&mut tokens)?;
                 let (body, _) = take_until(&mut tokens, Grouper::Brace)?;
 
-                expr = Expression::Lambda(Lambda {
-                    param_list: params,
-                    body: lam_body(body)?,
-                })
-                .into();
+                let index = program.lambdas.len();
+
+                let lambda = Lambda::new(lam_body(body, program)?, params);
+                program.lambdas.push(lambda);
+
+                expr = Expression::Lambda(index).into();
             }
             Token::Hash | Token::MutableHash => {
                 expr = next_guard!({ tokens.next() } { Token::OpenGroup(Grouper::Brace) => {
                     let (body, _) = take_until(&mut tokens, Grouper::Brace)?;
-                    let hash = parse_hash(body)?;
+                    let hash = parse_hash(body, program)?;
                     if data == Token::Hash {
                         Expression::Hash(hash)
                     } else {
@@ -141,7 +170,9 @@ pub fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>, in_lam: bool
                 })
                 .into()
             }
-            Token::Keyword(Keyword::This) => return Err(ParseError::InvalidThisReference(token.start.clone())),
+            Token::Keyword(Keyword::This) => {
+                return Err(ParseError::InvalidThisReference(token.start.clone()))
+            }
             _ => return Err(ParseError::UnexpectedToken(token)),
         };
 
@@ -150,14 +181,20 @@ pub fn parse_expr(tokens: impl IntoIterator<Item = Located<Token>>, in_lam: bool
                 expression = match token.data {
                     Token::OpenGroup(Grouper::Parentheses) => Expression::FunctionCall {
                         function: expression.into(),
-                        args: take_until(&mut tokens, Grouper::Parentheses)
-                            .and_then(list_callback(in_lam))?,
+                        args: list_callback(
+                            take_until(&mut tokens, Grouper::Parentheses),
+                            in_lam,
+                            program,
+                        )?,
                     },
                     Token::OpenGroup(Grouper::Bracket) => Expression::IndexAccess {
                         item: expression.into(),
-                        index: take_until(&mut tokens, Grouper::Bracket)
-                            .and_then(expr_callback(in_lam))?
-                            .into(),
+                        index: expr_callback(
+                            take_until(&mut tokens, Grouper::Bracket),
+                            in_lam,
+                            program,
+                        )?
+                        .into(),
                     },
                     Token::Period => next_guard!({ tokens.next() } {
                         Token::Keyword(k) => Expression::PropertyAccess {

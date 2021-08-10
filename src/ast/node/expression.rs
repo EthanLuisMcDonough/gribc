@@ -48,7 +48,7 @@ pub enum Expression {
         item: Box<Expression>,
         property: String,
     },
-    Lambda(Lambda),
+    Lambda(usize),
     Hash(Hash),
     MutableHash(Hash),
     Nil,

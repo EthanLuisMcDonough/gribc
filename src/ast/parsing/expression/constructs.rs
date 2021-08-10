@@ -1,14 +1,17 @@
+use super::parse_expr;
+use crate::next_guard;
 use ast::node::*;
-use ast::{ParseResult, ParseError};
-use ast::parsing::{util::*, scope::Scope, ast_level};
+use ast::parsing::{ast_level, scope::Scope, util::*};
+use ast::{ParseError, ParseResult};
 use lex::tokens::*;
 use location::Located;
-use util::next_if;
 use operators::Binary;
-use crate::next_guard;
-use super::parse_expr;
+use util::next_if;
 
-pub fn parse_prop(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<AutoProp> {
+pub fn parse_prop(
+    tokens: impl IntoIterator<Item = Located<Token>>,
+    program: &mut Program,
+) -> ParseResult<AutoProp> {
     let mut prop = AutoProp::new();
 
     let mut interior = tokens.into_iter().peekable();
@@ -30,7 +33,7 @@ pub fn parse_prop(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResu
                     }
                     prop.get = LocatedOr::Or(next_guard!({ tokens.next() } {
                         Token::OpenGroup(Grouper::Brace) => take_until(&mut tokens, Grouper::Brace)
-                            .and_then(|(t, e)| lam_body(t).map_err(|err| {
+                            .and_then(|(t, e)| lam_body(t, program).map_err(|err| {
                                 err.neof_or(ParseError::UnexpectedToken(e))
                             }))?
                     })).into();
@@ -52,7 +55,7 @@ pub fn parse_prop(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResu
                     prop.set = LocatedOr::Or(SetProp {
                         param,
                         block: take_until(&mut tokens, Grouper::Brace)
-                            .and_then(|(t, e)| lam_body(t).map_err(|err| {
+                            .and_then(|(t, e)| lam_body(t, program).map_err(|err| {
                                 err.neof_or(ParseError::UnexpectedToken(e))
                             }))?
                     }).into();
@@ -69,7 +72,10 @@ pub fn parse_prop(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResu
     Ok(prop)
 }
 
-pub fn parse_hash(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResult<Hash> {
+pub fn parse_hash(
+    tokens: impl IntoIterator<Item = Located<Token>>,
+    program: &mut Program,
+) -> ParseResult<Hash> {
     let mut tokens = tokens.into_iter().peekable();
     let mut map = Hash::new();
     while tokens.peek().is_some() {
@@ -79,14 +85,17 @@ pub fn parse_hash(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResu
         });
         let value = next_guard!({ tokens.next() } {
             Token::Arrow => match zero_level_preserve(&mut tokens, |t| *t == Token::Comma)? {
-                Ok((tokens, _)) | Err(tokens) => parse_expr(tokens, false).map(ObjectValue::Expression)
+                Ok((tokens, _)) | Err(tokens) => parse_expr(tokens, false, program).map(ObjectValue::Expression)
             },
             Token::OpenGroup(Grouper::Brace) => {
                 let (interior, last) = take_until(&mut tokens, Grouper::Brace)?;
                 next_if(&mut tokens, |Located { data: t, .. }| *t == Token::Comma);
-                parse_prop(interior).map_err(|e| {
+                let prop = parse_prop(interior, program).map_err(|e| {
                     e.neof_or(ParseError::UnexpectedToken(last))
-                }).map(ObjectValue::AutoProp)
+                })?;
+                let ind = program.autoprops.len();
+                program.autoprops.push(prop);
+                Ok(ObjectValue::AutoProp(ind))
             }
         })?;
         map.insert(key, value);
@@ -94,7 +103,7 @@ pub fn parse_hash(tokens: impl IntoIterator<Item = Located<Token>>) -> ParseResu
     Ok(map)
 }
 
-pub fn lam_body(body: Vec<Located<Token>>) -> ParseResult<LambdaBody> {
+pub fn lam_body(body: Vec<Located<Token>>, program: &mut Program) -> ParseResult<LambdaBody> {
     let mut level = 0;
     let mut semicolons = 0;
     for token in &body {
@@ -110,11 +119,11 @@ pub fn lam_body(body: Vec<Located<Token>>) -> ParseResult<LambdaBody> {
         if body.is_empty() {
             Ok(LambdaBody::Block(vec![]))
         } else {
-            parse_expr(body, true)
+            parse_expr(body, true, program)
                 .map(Box::from)
                 .map(LambdaBody::ImplicitReturn)
         }
     } else {
-        ast_level(body, Scope::fn_lam()).map(LambdaBody::Block)
+        ast_level(body, Scope::fn_lam(), program).map(LambdaBody::Block)
     }
 }

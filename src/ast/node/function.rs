@@ -2,6 +2,8 @@ use super::{Block, Expression};
 use location::Located;
 use std::collections::HashSet;
 
+pub type CaptureData = HashSet<String>;
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Parameters {
     pub params: HashSet<String>,
@@ -39,5 +41,25 @@ pub struct Procedure {
 pub struct Lambda {
     pub param_list: Parameters,
     pub body: LambdaBody,
-    //pub captured: HashSet<String>,
+    pub captured: HashSet<String>,
+}
+
+impl Lambda {
+    pub fn new(body: LambdaBody, param_list: Parameters) -> Self {
+        Self {
+            body,
+            param_list,
+            captured: HashSet::new(),
+        }
+    }
+}
+
+impl Default for Lambda {
+    fn default() -> Self {
+        Lambda {
+            param_list: Parameters::new(),
+            body: LambdaBody::Block(vec![]),
+            captured: HashSet::new(),
+        }
+    }
 }

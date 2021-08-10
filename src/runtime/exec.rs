@@ -2,6 +2,7 @@ use ast::node::*;
 use runtime::memory::*;
 use runtime::operator::*;
 use runtime::values::*;
+use std::collections::HashMap;
 
 fn scope_imports<'a>(scope: &mut Scope<'a>, gc: &mut Gc, program: &'a Program, import: &'a Import) {
     let imports = import
@@ -68,7 +69,50 @@ fn run_block(block: &Block, scope: &mut Scope, gc: &mut Gc) {
     }
 }
 
-fn evaluate_hash() {}
+//fn hash_create_prop(hash: &mut Hash, )
+
+fn capture_stack() {}
+
+fn bind_value(val: &mut GribValue, bind_target: usize) {
+    if let GribValue::Callable(Callable::Lambda { binding, .. }) = val {
+        *binding = bind_target;
+    }
+}
+
+fn evaluate_hash(
+    hash: &Hash,
+    mutable: bool,
+    scope: &mut Scope,
+    gc: &mut Gc,
+    program: &Program,
+) -> GribValue {
+    let mut values = HashMap::new();
+
+    for (label, val) in hash.iter() {
+        values.insert(
+            label.to_string(),
+            match val {
+                ObjectValue::Expression(e) => evaluate_expression(e, scope, gc).into(),
+                ObjectValue::AutoProp(ind) => {
+                    let prop = &program.autoprops[*ind];
+                    let captured = gc.capture_stack(scope, &prop.capture);
+
+                    GribValue::Callable(Callable::Lambda {
+                        binding: 0,
+                        index: *ind,
+                        stack: captured,
+                        is_prop: true,
+                    })
+                    .into()
+                }
+            },
+        );
+    }
+
+    gc.alloc_heap(HeapValue::Hash(HashValue { mutable, values }));
+
+    unimplemented!()
+}
 
 pub fn evaluate_expression(expression: &Expression, scope: &mut Scope, gc: &mut Gc) -> GribValue {
     match expression {

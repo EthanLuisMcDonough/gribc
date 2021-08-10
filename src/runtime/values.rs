@@ -17,6 +17,13 @@ pub enum CallableType {
 }*/
 
 #[derive(Clone)]
+pub struct LambdaRef {
+    pub binding: usize,
+    index: usize,
+    pub stack: usize,
+}
+
+#[derive(Clone)]
 pub enum Callable {
     Native(NativeFunction),
     Procedure {
@@ -27,6 +34,7 @@ pub enum Callable {
         binding: usize,
         index: usize,
         stack: usize,
+        is_prop: bool,
     },
 }
 
@@ -49,6 +57,8 @@ impl Callable {
         }
     }
 }
+
+pub struct CapturedStack {}
 
 /*// Modules
 #[derive(Clone)]
@@ -81,13 +91,19 @@ impl From<NativeConsolePackage> for NativeReference {
 }*/
 
 #[derive(Clone)]
+pub enum AccessFunc {
+    Callable(Callable),
+    Captured(usize),
+}
+
+#[derive(Clone)]
 pub struct AutoPropValue {
-    get: Option<Callable>,
-    set: Option<Callable>,
+    get: Option<AccessFunc>,
+    set: Option<AccessFunc>,
 }
 
 impl AutoPropValue {
-    pub fn functions<'a>(&'a self) -> impl Iterator<Item = &'a Callable> {
+    pub fn functions<'a>(&'a self) -> impl Iterator<Item = &'a AccessFunc> {
         self.get.iter().chain(self.set.iter())
     }
 }
@@ -100,7 +116,7 @@ pub enum HashPropertyValue {
 
 #[derive(Clone)]
 pub struct HashValue {
-    mutable: bool,
+    pub mutable: bool,
     pub values: HashMap<String, HashPropertyValue>,
 }
 
@@ -237,6 +253,12 @@ impl GribValue {
     }
 }
 
+impl Default for GribValue {
+    fn default() -> Self {
+        Self::Nil
+    }
+}
+
 impl From<f64> for GribValue {
     fn from(f: f64) -> Self {
         GribValue::Number(f)
@@ -252,11 +274,5 @@ impl From<usize> for GribValue {
 impl From<Callable> for GribValue {
     fn from(f: Callable) -> Self {
         GribValue::Callable(f)
-    }
-}
-
-impl Default for GribValue {
-    fn default() -> Self {
-        Self::Nil
     }
 }

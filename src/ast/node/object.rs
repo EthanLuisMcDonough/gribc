@@ -1,6 +1,6 @@
 use super::{Expression, LambdaBody};
 use location::Located;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum LocatedOr<T, E> {
@@ -18,6 +18,13 @@ pub struct SetProp {
 pub struct AutoProp {
     pub get: Option<LocatedOr<String, LambdaBody>>,
     pub set: Option<LocatedOr<String, SetProp>>,
+    pub capture: HashSet<String>,
+}
+
+impl Default for AutoProp {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AutoProp {
@@ -25,13 +32,14 @@ impl AutoProp {
         AutoProp {
             get: None,
             set: None,
+            capture: HashSet::new(),
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum ObjectValue {
-    AutoProp(AutoProp),
+    AutoProp(usize),
     Expression(Expression),
 }
 

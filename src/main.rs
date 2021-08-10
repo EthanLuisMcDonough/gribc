@@ -38,11 +38,11 @@ fn main() {
         _e => panic!("Error: could not load file {}", path));
     
     let tokens = err_guard!(lex::lex(source.as_str()));
-    let tree = err_guard!(ast::ast(tokens.into_iter(), &path));
+    let mut tree = err_guard!(ast::ast(tokens.into_iter(), &path));
 
     println!("{}", serde_json::to_string_pretty(&tree).unwrap_or_default());
 
-    err_guard!(ast::ref_check(&tree));
+    err_guard!(ast::ref_check(&mut tree));
 }
 
 #[cfg(test)]

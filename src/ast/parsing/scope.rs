@@ -29,7 +29,6 @@ impl Scope {
             in_lam: true,
         }
     }
-    
     pub fn with_loop(mut self, in_loop: bool) -> Self {
         self.in_loop = in_loop;
         self

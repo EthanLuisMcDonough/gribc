@@ -1,5 +1,6 @@
-use runtime::values::{Callable, GribValue, HashPropertyValue, HeapValue};
-use std::collections::{HashMap, LinkedList};
+use runtime::values::{AccessFunc, Callable, GribValue, HashPropertyValue, HeapValue};
+use std::collections::{HashMap, HashSet, LinkedList};
+use std::mem;
 
 const STACK_SIZE: usize = 1000;
 
@@ -13,6 +14,21 @@ enum MemSlot<C, V> {
     Captured(C),
     Value(V),
     Empty,
+}
+
+impl<C, V> Default for MemSlot<C, V> {
+    fn default() -> Self {
+        Self::Empty
+    }
+}
+
+impl<C, V> MemSlot<C, V> {
+    fn is_value(&self) -> bool {
+        match self {
+            MemSlot::Value(_) => true,
+            _ => false,
+        }
+    }
 }
 
 type HeapSlot = MemSlot<GribValue, HeapValue>;
@@ -72,7 +88,10 @@ fn mark(gc: &mut Gc, ind: usize) {
     }
 
     for value in marked_func {
-        mark_function(gc, value);
+        match value {
+            AccessFunc::Callable(c) => mark_function(gc, c),
+            AccessFunc::Captured(ind) => mark(gc, ind),
+        }
     }
 }
 
@@ -146,6 +165,18 @@ impl Gc {
 
     pub fn alloc_heap(&mut self, value: HeapValue) -> usize {
         self.alloc(HeapSlot::Value(value))
+    }
+
+    pub fn capture_stack(&mut self, scope: &mut Scope, to_capture: &HashSet<String>) -> usize {
+        let mut stack = HashMap::new();
+
+        for name in to_capture {
+            if let Some(ind) = scope.capture_var(self, name) {
+                stack.insert(name.clone(), ind);
+            }
+        }
+
+        self.alloc_heap(HeapValue::CapturedStack(stack))
     }
 
     fn remove(&mut self, index: usize) {
@@ -297,6 +328,24 @@ impl<'a> Scope<'a> {
             .get(label)
             .cloned()
             .and_then(move |index| gc.stack_mut(index))
+    }
+
+    fn capture_var(&mut self, gc: &mut Gc, label: &str) -> Option<usize> {
+        let mut heap_ind = None;
+
+        if let Some(&ind) = self.scope.get(label) {
+            let mut slot = mem::take(&mut gc.stack[ind]);
+
+            if let MemSlot::Value(val) = slot {
+                let heap_ind = gc.alloc_captured(val);
+                slot = MemSlot::Captured(heap_ind);
+            }
+
+            heap_ind = ind.into();
+            gc.stack[ind] = slot;
+        }
+
+        heap_ind
     }
 
     pub fn set(&self, gc: &mut Gc, label: &str, value: GribValue) {

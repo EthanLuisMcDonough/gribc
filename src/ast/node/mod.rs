@@ -18,7 +18,6 @@ pub use runtime::native_fn::{NativeFunction, NativePackage};
 
 pub type Block = Vec<Node>;
 pub type ModuleStore = Vec<CustomModule>;
-
 /*pub trait Package {
     fn has_function(&self, name: &str) -> bool;
     fn get_functions<'a>(&'a self) -> HashSet<&'a str>;
@@ -83,7 +82,8 @@ pub struct Program {
     pub modules: ModuleStore,
     pub imports: Vec<Import>,
     pub functions: Vec<Procedure>,
-    pub lambda_bodies: Vec<Lambda>,
+    pub lambdas: Vec<Lambda>,
+    pub autoprops: Vec<AutoProp>,
     pub body: Block,
 }
 
@@ -94,7 +94,8 @@ impl Program {
             body: Vec::new(),
             functions: Vec::new(),
             imports: Vec::new(),
-            lambda_bodies: Vec::new(),
+            lambdas: Vec::new(),
+            autoprops: Vec::new(),
         }
     }
 

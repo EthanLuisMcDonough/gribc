@@ -16,11 +16,13 @@ use util::remove_file;
 pub fn parse_if_block<T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
     scope: Scope,
+    program: &mut Program,
 ) -> ParseResult<ConditionBodyPair> {
     Ok(ConditionBodyPair {
         condition: zero_level(tokens, |t| *t == Token::OpenGroup(Grouper::Brace))
-            .and_then(|(v, _)| parse_expr(v, scope.in_lam))?,
-        block: take_until(tokens, Grouper::Brace).and_then(|(v, _)| ast_level(v, scope))?,
+            .and_then(|(v, _)| parse_expr(v, scope.in_lam, program))?,
+        block: take_until(tokens, Grouper::Brace)
+            .and_then(|(v, _)| ast_level(v, scope, program))?,
     })
 }
 
@@ -28,6 +30,7 @@ pub fn parse_decl<T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
     mutable: bool,
     scope: Scope,
+    program: &mut Program,
 ) -> ParseResult<Declaration> {
     let mut decls = vec![];
     let mut cont = true;
@@ -42,7 +45,7 @@ pub fn parse_decl<T: Iterator<Item = Located<Token>>>(
                 Token::AssignOp(Assignment::Assign) => {
                     let (v, Located { data: last, .. }) = zero_level(tokens, |d| *d == Token::Semicolon || *d == Token::Comma)?;
                     cont = last == Token::Comma;
-                    parse_expr(v, scope.in_lam)?
+                    parse_expr(v, scope.in_lam, program)?
                 },
                 Token::Semicolon => {
                     cont = false;
@@ -107,6 +110,7 @@ pub fn parse_params<T: Iterator<Item = Located<Token>>>(tokens: &mut T) -> Parse
 pub fn parse_proc<T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
     public: bool,
+    program: &mut Program,
 ) -> ParseResult<Procedure> {
     let name = next_guard!({ tokens.next() } (start, end) {
         Token::Identifier(i) => Located { data: i, start, end }
@@ -117,7 +121,7 @@ pub fn parse_proc<T: Iterator<Item = Located<Token>>>(
         identifier: name,
         param_list,
         body: take_until(tokens, Grouper::Brace)
-            .and_then(|(v, _)| ast_level(v, Scope::fn_proc()))?,
+            .and_then(|(v, _)| ast_level(v, Scope::fn_proc(), program))?,
         public,
     })
 }
@@ -145,9 +149,11 @@ pub fn parse_module(path: &Located<PathBuf>, program: &mut Program) -> ParseResu
     while let Some(token) = tokens.next() {
         match token.data {
             Token::Keyword(Keyword::Public) => next_guard!({ tokens.next() } {
-                Token::Keyword(Keyword::Proc) => functions.push(parse_proc(&mut tokens, true)?)
+                Token::Keyword(Keyword::Proc) => functions.push(parse_proc(&mut tokens, true, program)?)
             }),
-            Token::Keyword(Keyword::Proc) => functions.push(parse_proc(&mut tokens, true)?),
+            Token::Keyword(Keyword::Proc) => {
+                functions.push(parse_proc(&mut tokens, true, program)?)
+            }
             Token::Keyword(Keyword::Import) => {
                 imports.push(parse_import(&mut tokens, dir.as_path(), program)?)
             }
