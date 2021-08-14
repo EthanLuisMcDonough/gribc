@@ -189,6 +189,24 @@ impl Gc {
         ptr
     }
 
+    fn stack_ref(&self, index: usize) -> Option<&GribValue> {
+        match self.stack.get(index) {
+            Some(StackSlot::Value(value)) => Some(value),
+            Some(StackSlot::Captured(index)) => {
+                if let Some(Markable {
+                    value: HeapSlot::Captured(value),
+                    ..
+                }) = self.heap.get(*index)
+                {
+                    Some(value)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
     fn stack_mut(&mut self, index: usize) -> Option<&mut GribValue> {
         match self.stack.get_mut(index) {
             Some(StackSlot::Value(ref mut value)) => Some(value),
@@ -211,6 +229,13 @@ impl Gc {
         for _ in 0..count {
             self.stack.pop();
         }
+    }
+
+    pub fn next_ptr(&self) -> usize {
+        self.free_pointers
+            .back()
+            .cloned()
+            .unwrap_or(self.heap.len())
     }
 
     fn alloc(&mut self, value: HeapSlot) -> usize {
@@ -321,6 +346,13 @@ impl<'a> Scope<'a> {
 
     pub fn cleanup(self, gc: &mut Gc) {
         gc.pop_stack(self.local_count);
+    }
+
+    pub fn get<'b>(&self, gc: &'b Gc, label: &str) -> Option<&'b GribValue> {
+        self.scope
+            .get(label)
+            .cloned()
+            .and_then(|index| gc.stack_ref(index))
     }
 
     fn get_mut<'b>(&self, gc: &'b mut Gc, label: &str) -> Option<&'b mut GribValue> {

@@ -37,7 +37,7 @@ fn add_values(left: &GribValue, right: &GribValue, gc: &mut Gc) -> GribValue {
 }
 
 fn sub_values(left: &GribValue, right: &GribValue, gc: &Gc) -> GribValue {
-    GribValue::Number(left.cast_num(gc) * right.cast_num(gc))
+    GribValue::Number(left.cast_num(gc) - right.cast_num(gc))
 }
 
 fn mult_values(left: &GribValue, right: &GribValue, gc: &mut Gc) -> GribValue {
@@ -83,4 +83,12 @@ pub fn binary_expr(op: &Binary, left: &GribValue, right: &Expression, gc: &mut G
     }
 }
 
-//pub fn truthy(value: GribValue, gc: )
+pub fn truthy(value: &GribValue, gc: &Gc) -> bool {
+    match value {
+        GribValue::Callable(_) | GribValue::ModuleObject(_) => true,
+        GribValue::Number(n) => *n != 0.0,
+        GribValue::Nil => false,
+        GribValue::HeapValue(heap) => gc.get_str(*heap).map(|s| s != "").unwrap_or(true),
+        GribValue::Bool(b) => *b,
+    }
+}

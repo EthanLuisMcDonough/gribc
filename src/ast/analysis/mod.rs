@@ -337,13 +337,20 @@ fn walk_expression<'a>(
     Ok(())
 }
 
-pub fn ref_check(program: &Program) -> Result<(), WalkError> {
+pub fn ref_check(program: &mut Program) -> Result<(), WalkError> {
     let body = &program.body;
     let modules = &program.modules;
+
     let mut scope = Scope::new();
+    let mut stack = CaptureStack::new();
+
+    let mut lambdas = Lams {
+        lambdas: &mut program.lambdas,
+        properties: &mut program.autoprops,
+    };
 
     for module in modules {
-        //walk_module(module, modules)?;
+        walk_module(module, modules, &mut lambdas, &mut stack)?;
     }
 
     for import in &program.imports {
@@ -360,9 +367,8 @@ pub fn ref_check(program: &Program) -> Result<(), WalkError> {
     }
 
     for function in &program.functions {
-        //walk_procedure(function, &scope)?;
+        walk_procedure(function, &scope, &mut lambdas, &mut stack)?;
     }
 
-    //walk_ast(body.iter(), scope)
-    Ok(())
+    walk_ast(body.iter(), scope, &mut lambdas, &mut stack)
 }

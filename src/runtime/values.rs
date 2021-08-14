@@ -34,7 +34,6 @@ pub enum Callable {
         binding: usize,
         index: usize,
         stack: usize,
-        is_prop: bool,
     },
 }
 

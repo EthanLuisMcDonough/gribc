@@ -11,6 +11,10 @@ pub struct CaptureStack {
 }
 
 impl CaptureStack {
+    pub fn new() -> Self {
+        Self { stack: vec![] }
+    }
+
     pub fn add(&mut self, level: usize) {
         self.stack.push(Capture {
             identifiers: HashSet::new(),
