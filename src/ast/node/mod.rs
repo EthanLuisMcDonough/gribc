@@ -16,7 +16,6 @@ pub use self::statement::*;
 
 pub use runtime::native_fn::{NativeFunction, NativePackage};
 
-pub type Block = Vec<Node>;
 pub type ModuleStore = Vec<CustomModule>;
 /*pub trait Package {
     fn has_function(&self, name: &str) -> bool;
@@ -78,12 +77,39 @@ impl Package for NativePackage {
 */
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct Block {
+    pub nodes: Vec<Node>,
+    pub alloced: usize,
+}
+
+impl Block {
+    pub fn new(nodes: Vec<Node>) -> Self {
+        Self { nodes, alloced: 0 }
+    }
+
+    pub fn push(&mut self, node: Node) {
+        self.nodes.push(node);
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, Node> {
+        self.nodes.iter()
+    }
+}
+
+impl Default for Block {
+    fn default() -> Self {
+        Self::new(vec![])
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Program {
     pub modules: ModuleStore,
     pub imports: Vec<Import>,
     pub functions: Vec<Procedure>,
     pub lambdas: Vec<Lambda>,
-    pub autoprops: Vec<AutoProp>,
+    pub getters: Vec<GetProp>,
+    pub setters: Vec<SetProp>,
     pub body: Block,
 }
 
@@ -91,11 +117,12 @@ impl Program {
     pub fn new() -> Self {
         Self {
             modules: Vec::new(),
-            body: Vec::new(),
+            body: Block::default(),
             functions: Vec::new(),
             imports: Vec::new(),
             lambdas: Vec::new(),
-            autoprops: Vec::new(),
+            getters: Vec::new(),
+            setters: Vec::new(),
         }
     }
 

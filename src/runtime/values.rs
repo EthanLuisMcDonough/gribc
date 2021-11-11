@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::cmp::Ordering;
 
 /*pub trait Callable {
     //fn call(&self, gc: &mut Gc, args: Vec<GribValue>) -> GribValue;
@@ -91,25 +92,22 @@ impl From<NativeConsolePackage> for NativeReference {
 
 #[derive(Clone)]
 pub enum AccessFunc {
-    Callable(Callable),
+    Callable { index: usize, stack: usize, binding: usize },
     Captured(usize),
 }
 
-#[derive(Clone)]
-pub struct AutoPropValue {
-    get: Option<AccessFunc>,
-    set: Option<AccessFunc>,
-}
-
-impl AutoPropValue {
+/*impl AutoPropValue {
     pub fn functions<'a>(&'a self) -> impl Iterator<Item = &'a AccessFunc> {
         self.get.iter().chain(self.set.iter())
     }
-}
+}*/
 
 #[derive(Clone)]
 pub enum HashPropertyValue {
-    AutoProp(AutoPropValue),
+    AutoProp {
+        get: Option<AccessFunc>,
+        set: Option<AccessFunc>,
+    },
     Value(GribValue),
 }
 
@@ -117,12 +115,6 @@ pub enum HashPropertyValue {
 pub struct HashValue {
     pub mutable: bool,
     pub values: HashMap<String, HashPropertyValue>,
-}
-
-impl From<AutoPropValue> for HashPropertyValue {
-    fn from(prop: AutoPropValue) -> Self {
-        HashPropertyValue::AutoProp(prop)
-    }
 }
 
 impl From<GribValue> for HashPropertyValue {
@@ -170,6 +162,18 @@ impl GribValue {
         }
     }
 
+    pub fn partial_cmp(&self, val: &GribValue, gc: &Gc) -> Option<Ordering> {
+        match self {
+            //GribValue::Number(n) => *n.partial_cmp(&val.cast_num(gc)),
+            /*GribValue::HeapValue(ptr) => {
+
+                gc
+            }*/
+            //GribValue::Bool()
+            _ => unimplemented!(),
+        }
+    }
+
     pub fn as_str<'a>(&'a self, gc: &'a Gc) -> Cow<'a, str> {
         match self {
             Self::Nil => "nil".into(),
@@ -202,7 +206,7 @@ impl GribValue {
                         joined.push_str("->");
 
                         match value {
-                            HashPropertyValue::AutoProp(_) => joined.push_str("[auto prop]"),
+                            HashPropertyValue::AutoProp { .. } => joined.push_str("[auto prop]"),
                             HashPropertyValue::Value(v) => joined.push_str(v.as_str(gc).as_ref()),
                         }
 

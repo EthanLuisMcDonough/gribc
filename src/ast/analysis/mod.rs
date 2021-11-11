@@ -24,7 +24,8 @@ pub struct WalkError {
 
 pub struct Lams<'a> {
     lambdas: &'a mut Lambdas,
-    properties: &'a mut Vec<AutoProp>,
+    getters: &'a mut Vec<GetProp>,
+    setters: &'a mut Vec<SetProp>,
 }
 
 // Inserts import items into scope
@@ -222,6 +223,7 @@ fn walk_expression<'a>(
         | Expression::IndexAccess {
             item: left,
             index: right,
+
         } => {
             walk_expression(left, scope, lams, cap)
                 .and_then(|()| walk_expression(right, scope, lams, cap))?;
@@ -265,15 +267,23 @@ fn walk_expression<'a>(
             for (_, value) in hash.iter() {
                 match value {
                     ObjectValue::Expression(expr) => walk_expression(expr, scope, lams, cap)?,
-                    ObjectValue::AutoProp(ind) => {
-                        cap.add(scope.level);
-                        let mut auto = mem::take(&mut lams.properties[*ind]);
-
+                    ObjectValue::AutoProp(auto) => {
                         match auto.get.as_ref() {
-                            Some(LocatedOr::Or(block)) => {
-                                walk_lambda_block(block, scope.sub(), lams, cap)?
+                            Some(AutoPropValue::Lambda(ind)) => {
+                                cap.add(scope.level);
+
+                                let mut get = mem::take(&mut lams.getters[*ind]);
+                                walk_lambda_block(
+                                    &get.block,
+                                    scope.sub(),
+                                    lams,
+                                    cap,
+                                )?;
+                                get.capture = cap.pop();
+
+                                lams.getters[*ind] = get;
                             }
-                            Some(LocatedOr::Located(ident)) if !scope.has(&*ident.data, cap) => {
+                            Some(AutoPropValue::String(ident)) if !scope.has(&*ident.data, cap) => {
                                 return Err(WalkError {
                                     identifier: ident.clone(),
                                     kind: WalkErrorType::IdentifierNotFound,
@@ -282,12 +292,18 @@ fn walk_expression<'a>(
                             _ => {}
                         }
                         match auto.set.as_ref() {
-                            Some(LocatedOr::Or(set)) => {
+                            Some(AutoPropValue::Lambda(ind)) => {
+                                cap.add(scope.level);
                                 let mut scope = scope.clone();
+                                let mut set = mem::take(&mut lams.setters[*ind]);
                                 scope.insert_mut(set.param.as_str());
-                                walk_lambda_block(&set.block, scope, lams, cap)?
+
+                                walk_lambda_block(&set.block, scope, lams, cap)?;
+                                set.capture = cap.pop();
+
+                                lams.setters[*ind] = set;
                             }
-                            Some(LocatedOr::Located(ident))
+                            Some(AutoPropValue::String(ident))
                                 if !scope.has(ident.data.as_str(), cap) =>
                             {
                                 return Err(WalkError {
@@ -295,7 +311,7 @@ fn walk_expression<'a>(
                                     kind: WalkErrorType::IdentifierNotFound,
                                 });
                             }
-                            Some(LocatedOr::Located(ident))
+                            Some(AutoPropValue::String(ident))
                                 if !scope.has_editable(ident.data.as_str(), cap) =>
                             {
                                 return Err(WalkError {
@@ -305,9 +321,6 @@ fn walk_expression<'a>(
                             }
                             _ => {}
                         }
-
-                        auto.capture = cap.pop();
-                        lams.properties[*ind] = auto;
                     }
                 }
             }
@@ -346,7 +359,8 @@ pub fn ref_check(program: &mut Program) -> Result<(), WalkError> {
 
     let mut lambdas = Lams {
         lambdas: &mut program.lambdas,
-        properties: &mut program.autoprops,
+        getters: &mut program.getters,
+        setters: &mut program.setters,
     };
 
     for module in modules {

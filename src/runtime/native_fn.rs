@@ -202,7 +202,9 @@ native_package!(NativeMathPackage[gc] {
 });
 
 fn get_array<'a>(arr_ref: GribValue, gc: &'a mut Gc, fn_name: &str) -> &'a mut Vec<GribValue> {
-    if let Some(HeapValue::Array(ref mut arr)) = gc.heap_val_mut(arr_ref) {
+    if let Some(HeapValue::Array(ref mut arr)) =
+        arr_ref.ptr().and_then(move |ptr| gc.heap_val_mut(ptr))
+    {
         arr
     } else {
         eprintln!(

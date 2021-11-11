@@ -31,15 +31,22 @@ pub enum Expression {
         op: Unary,
         expr: Box<Expression>,
     },
+
     Bool(bool),
     Number(f64),
     String(String),
     Identifier(Located<String>),
+
     ArrayCreation(Vec<Expression>),
+    Hash(Hash),
+    MutableHash(Hash),
+
     FunctionCall {
         function: Box<Expression>,
         args: Vec<Expression>,
     },
+    Lambda(usize),
+
     IndexAccess {
         item: Box<Expression>,
         index: Box<Expression>,
@@ -48,14 +55,13 @@ pub enum Expression {
         item: Box<Expression>,
         property: String,
     },
-    Lambda(usize),
-    Hash(Hash),
-    MutableHash(Hash),
+
     Nil,
     Args,
     This,
-}
 
+    StackRef(usize),
+}
 impl Expression {
     pub fn is_statement(&self) -> bool {
         match self {

@@ -28,7 +28,7 @@ impl CaptureStack {
 
     fn check_ref(&mut self, s: &str, def: usize) {
         for Capture { level, identifiers } in &mut self.stack {
-            if *level >= def {
+            if *level > def {
                 identifiers.insert(s.to_owned());
             }
         }

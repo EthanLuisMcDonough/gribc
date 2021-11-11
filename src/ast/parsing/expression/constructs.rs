@@ -24,19 +24,24 @@ pub fn parse_prop(
         next_guard!({ tokens.next() } (start, end) {
             Token::Keyword(Keyword::Get) => if prop.get.is_none() {
                 if let Some(Located { data: Token::Identifier(s), start, end }) = next_if(&mut tokens, |t| t.data.ident()) {
-                    prop.get = LocatedOr::Located(Located { data: s, start, end }).into();
+                    prop.get = AutoPropValue::String(Located { data: s, start, end }).into();
                 } else {
                     if next_if(&mut tokens, |t| t.data == Token::BinaryOp(Binary::LogicalOr)).is_none() {
                         if next_if(&mut tokens, |t| t.data == Token::Pipe).is_some() {
                             next_guard!({ tokens.next() } { Token::Pipe => {} });
                         }
                     }
-                    prop.get = LocatedOr::Or(next_guard!({ tokens.next() } {
+
+                    let ind = program.getters.len();
+                    let body = next_guard!({ tokens.next() } {
                         Token::OpenGroup(Grouper::Brace) => take_until(&mut tokens, Grouper::Brace)
                             .and_then(|(t, e)| lam_body(t, program).map_err(|err| {
                                 err.neof_or(ParseError::UnexpectedToken(e))
                             }))?
-                    })).into();
+                    });
+
+                    program.getters.push(GetProp::new(body));
+                    prop.get = AutoPropValue::Lambda(ind).into();
                 }
             } else {
                 return Err(ParseError::UnexpectedToken(Located {
@@ -46,19 +51,21 @@ pub fn parse_prop(
             },
             Token::Keyword(Keyword::Set) => if prop.set.is_none() {
                 if let Some(Located { data: Token::Identifier(s), start, end }) = next_if(&mut tokens, |t| t.data.ident()) {
-                    prop.set = LocatedOr::Located(Located { data: s, start, end }).into();
+                    prop.set = AutoPropValue::String(Located { data: s, start, end }).into();
                 } else {
                     next_guard!({ tokens.next() } { Token::Pipe => {} });
                     let param = next_guard!({ tokens.next() } { Token::Identifier(s) => s });
                     next_guard!({ tokens.next() } { Token::Pipe => {} });
                     next_guard!({ tokens.next() } { Token::OpenGroup(Grouper::Brace) => {} });
-                    prop.set = LocatedOr::Or(SetProp {
-                        param,
-                        block: take_until(&mut tokens, Grouper::Brace)
-                            .and_then(|(t, e)| lam_body(t, program).map_err(|err| {
-                                err.neof_or(ParseError::UnexpectedToken(e))
-                            }))?
-                    }).into();
+
+                    let ind = program.setters.len();
+                    let body = take_until(&mut tokens, Grouper::Brace)
+                        .and_then(|(t, e)| lam_body(t, program).map_err(|err| {
+                            err.neof_or(ParseError::UnexpectedToken(e))
+                        }))?;
+
+                    program.setters.push(SetProp::new(param, body));
+                    prop.set = AutoPropValue::Lambda(ind).into();
                 }
             } else {
                 return Err(ParseError::UnexpectedToken(Located {
@@ -93,9 +100,7 @@ pub fn parse_hash(
                 let prop = parse_prop(interior, program).map_err(|e| {
                     e.neof_or(ParseError::UnexpectedToken(last))
                 })?;
-                let ind = program.autoprops.len();
-                program.autoprops.push(prop);
-                Ok(ObjectValue::AutoProp(ind))
+                Ok(ObjectValue::AutoProp(prop))
             }
         })?;
         map.insert(key, value);

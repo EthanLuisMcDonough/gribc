@@ -281,7 +281,7 @@ fn ast_level(
         program.push(next_construct(token, &mut tokens, scope, p)?);
     }
 
-    Ok(program)
+    Ok(Block::new(program))
 }
 
 pub fn ast(
