@@ -77,6 +77,24 @@ impl Package for NativePackage {
 */
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub enum StringValue {
+    String(String),
+    Index(usize),
+}
+
+impl From<String> for StringValue {
+    fn from(s: String) -> Self {
+        StringValue::String(s)
+    }
+}
+
+impl From<usize> for StringValue {
+    fn from(u: usize) -> Self {
+        StringValue::Index(u)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Block {
     pub nodes: Vec<Node>,
     pub alloced: usize,
@@ -110,6 +128,7 @@ pub struct Program {
     pub lambdas: Vec<Lambda>,
     pub getters: Vec<GetProp>,
     pub setters: Vec<SetProp>,
+    pub strings: Vec<String>,
     pub body: Block,
 }
 
@@ -123,6 +142,7 @@ impl Program {
             lambdas: Vec::new(),
             getters: Vec::new(),
             setters: Vec::new(),
+            strings: Vec::new(),
         }
     }
 

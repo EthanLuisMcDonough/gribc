@@ -1,33 +1,28 @@
 use std::collections::{HashMap, HashSet};
+use std::rc::{Rc, Weak};
 
 struct Capture {
     level: usize,
-    identifiers: Vec<String>,
+    captures: Vec<usize>,
 }
 
 pub struct CaptureStack {
-    // Stack of captured stacks (for lambda metadata)
     stack: Vec<Capture>,
-    // map of captured identifier names and the scopes in which they're declared
-    markers: HashMap<String, Vec<usize>>,
 }
 
 impl CaptureStack {
     pub fn new() -> Self {
-        Self {
-            stack: vec![],
-            markers: HashMap::new(),
-        }
+        Self { stack: vec![] }
     }
 
     pub fn add(&mut self, level: usize) {
         self.stack.push(Capture {
-            identifiers: Vec::new(),
+            identifiers: HashSet::new(),
             level,
         });
     }
 
-    pub fn pop(&mut self) -> Vec<String> {
+    pub fn pop(&mut self) -> HashSet<String> {
         self.stack.pop().map(|e| e.identifiers).unwrap_or_default()
     }
 
@@ -51,10 +46,105 @@ enum DefType {
 #[derive(Clone, Copy, PartialEq)]
 struct DefData {
     kind: DefType,
+    stack_pos: usize,
     level: usize,
 }
 
-#[derive(PartialEq, Clone)]
+/*use std::collections::HashSet;
+use std::rc::Rc;
+
+fn main() {
+    let s = Rc::new(String::from("thingy"));
+    let mut set = HashSet::new();
+    set.insert(s);
+    println!("{}", set.contains(&String::from("thingy")));
+
+    println!("Hello, world!");
+}*/
+
+pub struct GlobalScope {
+    scope: HashMap<Rc<String>, Vec<DefData>>,
+    stack: Vec<Rc<String>>,
+}
+
+pub struct Scope {
+    level: usize,
+    allocations: usize,
+}
+
+impl Scope {
+    pub fn new() -> Self {
+        Self {
+            level: 0,
+            allocations: 0,
+        }
+    }
+
+    pub fn sub(&self) -> Self {
+        Self {
+            level: self.level + 1,
+            allocations: 0,
+        }
+    }
+
+    // true if entry was inserted
+    fn insert(&mut self, g: &mut GlobalScope, label: String, kind: DefType) -> bool {
+        let label = Rc::new(label);
+        let instances = g.scope.entry(label.clone()).or_insert(vec![]);
+
+        let data = DefData {
+            kind,
+            stack_pos: g.stack.len(),
+            level: self.level,
+        };
+
+        if instances
+            .last()
+            .filter(|d| d.level == self.level && d.kind != DefType::Import)
+            .is_none()
+        {
+            instances.push(data);
+            g.stack.push(label);
+            self.allocations += 1;
+            return true;
+        }
+
+        false
+    }
+
+    pub fn insert_mut(&mut self, g: &mut GlobalScope, name: String) -> bool {
+        self.insert(g, name, DefType::Mutable)
+    }
+    pub fn insert_const(&mut self, g: &mut GlobalScope, name: String) -> bool {
+        self.insert(g, name, DefType::Constant)
+    }
+    pub fn insert_fn(&mut self, g: &mut GlobalScope, name: String) -> bool {
+        self.level == 0 && self.insert(g, name, DefType::Function)
+    }
+    pub fn insert_import(&mut self, g: &mut GlobalScope, name: String) -> bool {
+        self.insert(g, name, DefType::Import)
+    }
+    pub fn insert_var(&mut self, g: &mut GlobalScope, name: String, is_mut: bool) -> bool {
+        if is_mut {
+            self.insert_mut(g, name)
+        } else {
+            self.insert_const(g, name)
+        }
+    }
+
+    pub fn clean(self, g: &mut GlobalScope) {
+        let ind = g
+            .stack
+            .len()
+            .checked_sub(1 + self.allocations)
+            .unwrap_or_default();
+        for ident in g.stack.drain(ind..) {
+            g.scope[&ident].pop();
+        }
+    }
+}
+
+/*#[derive(PartialEq, Clone)]
 pub struct Scope<'a> {
     scope: HashMap<&'a str, DefData>,
     pub level: usize,
@@ -127,3 +217,4 @@ impl<'a> Scope<'a> {
         false
     }
 }
+*/

@@ -12,6 +12,7 @@ pub struct ConditionBodyPair {
 pub struct Declarator {
     pub identifier: Located<String>,
     pub value: Expression,
+    pub captured: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

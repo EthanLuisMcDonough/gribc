@@ -41,6 +41,7 @@ pub fn parse_decl<T: Iterator<Item = Located<Token>>>(
         });
         decls.push(Declarator {
             identifier,
+            captured: false,
             value: next_guard!({ tokens.next() } {
                 Token::AssignOp(Assignment::Assign) => {
                     let (v, Located { data: last, .. }) = zero_level(tokens, |d| *d == Token::Semicolon || *d == Token::Comma)?;
