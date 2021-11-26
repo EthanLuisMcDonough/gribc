@@ -9,7 +9,7 @@ pub struct CaptureStack {
     // Stack of captured stacks (for lambda metadata)
     stack: Vec<Capture>,
     // map of captured identifier names and the scopes in which they're declared
-    markers: HashMap<String, Vec<usize>>,
+    markers: HashMap<String, HashSet<usize>>,
 }
 
 impl CaptureStack {
@@ -34,7 +34,7 @@ impl CaptureStack {
     fn check_ref(&mut self, s: &str, def: usize) {
         for Capture { level, identifiers } in &mut self.stack {
             if *level > def {
-                identifiers.insert(s.to_owned());
+                identifiers.push(s.to_owned());
             }
         }
     }

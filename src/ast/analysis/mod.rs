@@ -223,7 +223,6 @@ fn walk_expression<'a>(
         | Expression::IndexAccess {
             item: left,
             index: right,
-
         } => {
             walk_expression(left, scope, lams, cap)
                 .and_then(|()| walk_expression(right, scope, lams, cap))?;
@@ -273,12 +272,7 @@ fn walk_expression<'a>(
                                 cap.add(scope.level);
 
                                 let mut get = mem::take(&mut lams.getters[*ind]);
-                                walk_lambda_block(
-                                    &get.block,
-                                    scope.sub(),
-                                    lams,
-                                    cap,
-                                )?;
+                                walk_lambda_block(&get.block, scope.sub(), lams, cap)?;
                                 get.capture = cap.pop();
 
                                 lams.getters[*ind] = get;
