@@ -71,6 +71,16 @@ pub struct CustomModule {
     pub path: PathBuf,
 }
 
+impl Default for CustomModule {
+    fn default() -> Self {
+        Self {
+            imports: Vec::new(),
+            functions: Vec::new(),
+            path: PathBuf::default(),
+        }
+    }
+}
+
 impl CustomModule {
     pub fn get_functions<'a>(&'a self) -> HashSet<&'a str> {
         self.functions

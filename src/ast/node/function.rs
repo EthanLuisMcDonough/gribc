@@ -6,8 +6,8 @@ pub type CaptureData = HashSet<String>;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Parameters {
-    pub params: HashSet<String>,
-    pub vardic: Option<String>,
+    pub params: HashSet<usize>,
+    pub vardic: Option<usize>,
 }
 
 impl Parameters {
@@ -18,8 +18,8 @@ impl Parameters {
         }
     }
 
-    pub fn all_params<'a>(&'a self) -> impl Iterator<Item = &'a str> {
-        self.params.iter().chain(self.vardic.iter()).map(|s| &**s)
+    pub fn all_params<'a>(&'a self) -> impl Iterator<Item = &'a usize> {
+        self.params.iter().chain(self.vardic.iter())
     }
 }
 
@@ -31,7 +31,7 @@ pub enum LambdaBody {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Procedure {
-    pub identifier: Located<String>,
+    pub identifier: Located<usize>,
     pub param_list: Parameters,
     pub body: Block,
     pub public: bool,
@@ -41,7 +41,7 @@ pub struct Procedure {
 pub struct Lambda {
     pub param_list: Parameters,
     pub body: LambdaBody,
-    pub captured: HashSet<String>,
+    pub captured: Vec<usize>,
 }
 
 impl Lambda {
@@ -49,7 +49,7 @@ impl Lambda {
         Self {
             body,
             param_list,
-            captured: HashSet::new(),
+            captured: Vec::new(),
         }
     }
 }
@@ -59,7 +59,7 @@ impl Default for Lambda {
         Lambda {
             param_list: Parameters::new(),
             body: LambdaBody::Block(vec![]),
-            captured: HashSet::new(),
+            captured: Vec::new(),
         }
     }
 }

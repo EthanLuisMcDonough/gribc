@@ -4,14 +4,14 @@ use operators::{Assignment, Binary, Unary};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum Assignable {
-    Identifier(Located<String>),
+    Identifier(Located<usize>),
     IndexAccess {
         item: Box<Expression>,
         index: Box<Expression>,
     },
     PropertyAccess {
         item: Box<Expression>,
-        property: String,
+        property: usize,
     },
 }
 
@@ -34,8 +34,8 @@ pub enum Expression {
 
     Bool(bool),
     Number(f64),
-    String(String),
-    Identifier(Located<String>),
+    String(usize),
+    Identifier(Located<usize>),
 
     ArrayCreation(Vec<Expression>),
     Hash(Hash),
@@ -53,7 +53,7 @@ pub enum Expression {
     },
     PropertyAccess {
         item: Box<Expression>,
-        property: String,
+        property: usize,
     },
 
     Nil,

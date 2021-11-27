@@ -77,24 +77,6 @@ impl Package for NativePackage {
 */
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub enum StringValue {
-    String(String),
-    Index(usize),
-}
-
-impl From<String> for StringValue {
-    fn from(s: String) -> Self {
-        StringValue::String(s)
-    }
-}
-
-impl From<usize> for StringValue {
-    fn from(u: usize) -> Self {
-        StringValue::Index(u)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Block {
     pub nodes: Vec<Node>,
     pub alloced: usize,

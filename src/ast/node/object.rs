@@ -1,4 +1,4 @@
-use super::{Expression, LambdaBody};
+use super::{Block, Expression, LambdaBody};
 use location::Located;
 use std::collections::{HashMap, HashSet};
 
@@ -10,23 +10,23 @@ pub enum LocatedOr<T, E> {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct SetProp {
-    pub param: String,
+    pub param: usize,
     pub block: LambdaBody,
-    pub capture: HashSet<String>,
+    pub capture: Vec<usize>,
 }
 
 impl Default for SetProp {
     fn default() -> Self {
-        Self::new(String::new(), LambdaBody::Block(vec![]))
+        Self::new(0, LambdaBody::Block(Block::default()))
     }
 }
 
 impl SetProp {
-    pub fn new(param: String, block: LambdaBody) -> Self {
+    pub fn new(param: usize, block: LambdaBody) -> Self {
         Self {
             param,
             block,
-            capture: HashSet::new(),
+            capture: Vec::new(),
         }
     }
 }
@@ -34,7 +34,7 @@ impl SetProp {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct GetProp {
     pub block: LambdaBody,
-    pub capture: HashSet<String>,
+    pub capture: HashSet<usize>,
 }
 
 impl Default for GetProp {
@@ -54,7 +54,7 @@ impl GetProp {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum AutoPropValue {
-    String(Located<String>),
+    String(Located<usize>),
     Lambda(usize),
 }
 
@@ -85,4 +85,4 @@ pub enum ObjectValue {
     Expression(Expression),
 }
 
-pub type Hash = HashMap<String, ObjectValue>;
+pub type Hash = HashMap<usize, ObjectValue>;

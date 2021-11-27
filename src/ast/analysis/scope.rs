@@ -2,14 +2,14 @@ use std::collections::{HashMap, HashSet};
 
 struct Capture {
     level: usize,
-    identifiers: Vec<String>,
+    identifiers: Vec<usize>,
 }
 
 pub struct CaptureStack {
     // Stack of captured stacks (for lambda metadata)
     stack: Vec<Capture>,
     // map of captured identifier names and the scopes in which they're declared
-    markers: HashMap<String, HashSet<usize>>,
+    markers: HashMap<usize, HashSet<usize>>,
 }
 
 impl CaptureStack {
@@ -27,14 +27,14 @@ impl CaptureStack {
         });
     }
 
-    pub fn pop(&mut self) -> Vec<String> {
+    pub fn pop(&mut self) -> Vec<usize> {
         self.stack.pop().map(|e| e.identifiers).unwrap_or_default()
     }
 
-    fn check_ref(&mut self, s: &str, def: usize) {
+    fn check_ref(&mut self, ident: usize, def: usize) {
         for Capture { level, identifiers } in &mut self.stack {
             if *level > def {
-                identifiers.push(s.to_owned());
+                identifiers.push(ident);
             }
         }
     }
@@ -55,12 +55,12 @@ struct DefData {
 }
 
 #[derive(PartialEq, Clone)]
-pub struct Scope<'a> {
-    scope: HashMap<&'a str, DefData>,
+pub struct Scope {
+    scope: HashMap<usize, DefData>,
     pub level: usize,
 }
 
-impl<'a> Scope<'a> {
+impl Scope {
     pub fn new() -> Self {
         Self {
             scope: HashMap::new(),
@@ -74,7 +74,7 @@ impl<'a> Scope<'a> {
         }
     }
 
-    fn insert(&mut self, name: &'a str, kind: DefType) -> bool {
+    fn insert(&mut self, name: usize, kind: DefType) -> bool {
         self.scope
             .insert(
                 name,
@@ -87,19 +87,19 @@ impl<'a> Scope<'a> {
             .is_none()
     }
 
-    pub fn insert_mut(&mut self, name: &'a str) -> bool {
+    pub fn insert_mut(&mut self, name: usize) -> bool {
         self.insert(name, DefType::Mutable)
     }
-    pub fn insert_const(&mut self, name: &'a str) -> bool {
+    pub fn insert_const(&mut self, name: usize) -> bool {
         self.insert(name, DefType::Constant)
     }
-    pub fn insert_fn(&mut self, name: &'a str) -> bool {
+    pub fn insert_fn(&mut self, name: usize) -> bool {
         self.level == 0 && self.insert(name, DefType::Function)
     }
-    pub fn insert_import(&mut self, name: &'a str) -> bool {
+    pub fn insert_import(&mut self, name: usize) -> bool {
         self.insert(name, DefType::Import)
     }
-    pub fn insert_var(&mut self, name: &'a str, is_mut: bool) -> bool {
+    pub fn insert_var(&mut self, name: usize, is_mut: bool) -> bool {
         if is_mut {
             self.insert_mut(name)
         } else {
@@ -107,17 +107,17 @@ impl<'a> Scope<'a> {
         }
     }
 
-    pub fn has(&self, name: &str, s: &mut CaptureStack) -> bool {
-        if self.scope.contains_key(name) {
+    pub fn has(&self, name: usize, s: &mut CaptureStack) -> bool {
+        if self.scope.contains_key(&name) {
             s.check_ref(name, self.level);
             return true;
         }
         false
     }
-    pub fn has_editable(&self, name: &str, s: &mut CaptureStack) -> bool {
+    pub fn has_editable(&self, name: usize, s: &mut CaptureStack) -> bool {
         if self
             .scope
-            .get(name)
+            .get(&name)
             .filter(|d| d.kind == DefType::Mutable)
             .is_some()
         {

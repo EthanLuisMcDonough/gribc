@@ -1,7 +1,7 @@
 use super::parse_expr;
 use crate::next_guard;
 use ast::node::*;
-use ast::parsing::{ast_level, scope::Scope, util::*};
+use ast::parsing::{ast_level, scope::Scope, util::*, Store};
 use ast::{ModuleError, ModuleErrorBody, ParseError, ParseResult};
 use lex::{lex, tokens::*};
 use location::Located;
@@ -16,13 +16,12 @@ use util::remove_file;
 pub fn parse_if_block<T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
     scope: Scope,
-    program: &mut Program,
+    store: &mut Store,
 ) -> ParseResult<ConditionBodyPair> {
     Ok(ConditionBodyPair {
         condition: zero_level(tokens, |t| *t == Token::OpenGroup(Grouper::Brace))
-            .and_then(|(v, _)| parse_expr(v, scope.in_lam, program))?,
-        block: take_until(tokens, Grouper::Brace)
-            .and_then(|(v, _)| ast_level(v, scope, program))?,
+            .and_then(|(v, _)| parse_expr(v, scope.in_lam, store))?,
+        block: take_until(tokens, Grouper::Brace).and_then(|(v, _)| ast_level(v, scope, store))?,
     })
 }
 
@@ -30,7 +29,7 @@ pub fn parse_decl<T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
     mutable: bool,
     scope: Scope,
-    program: &mut Program,
+    store: &mut Store,
 ) -> ParseResult<Declaration> {
     let mut decls = vec![];
     let mut cont = true;
@@ -46,7 +45,7 @@ pub fn parse_decl<T: Iterator<Item = Located<Token>>>(
                 Token::AssignOp(Assignment::Assign) => {
                     let (v, Located { data: last, .. }) = zero_level(tokens, |d| *d == Token::Semicolon || *d == Token::Comma)?;
                     cont = last == Token::Comma;
-                    parse_expr(v, scope.in_lam, program)?
+                    parse_expr(v, scope.in_lam, store)?
                 },
                 Token::Semicolon => {
                     cont = false;
@@ -63,7 +62,10 @@ pub fn parse_decl<T: Iterator<Item = Located<Token>>>(
     })
 }
 
-pub fn parse_params<T: Iterator<Item = Located<Token>>>(tokens: &mut T) -> ParseResult<Parameters> {
+pub fn parse_params<T: Iterator<Item = Located<Token>>>(
+    tokens: &mut T,
+    store: &mut Store,
+) -> ParseResult<Parameters> {
     let mut params = Parameters::new();
     Ok(next_guard!({ tokens.next() } {
         Token::OpenGroup(Grouper::Brace) => params,
@@ -83,7 +85,7 @@ pub fn parse_params<T: Iterator<Item = Located<Token>>>(tokens: &mut T) -> Parse
                         return Err(ParseError::ParamAfterSpread(Located {
                             data: s, start, end
                         }));
-                    } else if !params.params.insert(s.clone()) {
+                    } else if !params.params.insert(store.ins_str(s.clone())) {
                         return Err(ParseError::DuplicateParam(Located {
                             data: s, start, end
                         }));
@@ -93,12 +95,12 @@ pub fn parse_params<T: Iterator<Item = Located<Token>>>(tokens: &mut T) -> Parse
                             return Err(ParseError::ParamAfterSpread(Located {
                                 data: s, start, end
                             }));
-                        } else if params.params.contains(&s) {
+                        } else if store.get_str(&s).map(|i| params.params.contains(&i)).is_some() {
                             return Err(ParseError::DuplicateParam(Located {
                                 data: s, start, end
                             }));
                         } else {
-                            params.vardic = s.to_owned().into();
+                            params.vardic = store.ins_str(s).into();
                         }
                     })
                 });
@@ -111,18 +113,18 @@ pub fn parse_params<T: Iterator<Item = Located<Token>>>(tokens: &mut T) -> Parse
 pub fn parse_proc<T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
     public: bool,
-    program: &mut Program,
+    store: &mut Store,
 ) -> ParseResult<Procedure> {
     let name = next_guard!({ tokens.next() } (start, end) {
         Token::Identifier(i) => Located { data: i, start, end }
     });
-    let param_list = parse_params(tokens)?;
+    let param_list = parse_params(tokens, store)?;
 
     Ok(Procedure {
         identifier: name,
         param_list,
         body: take_until(tokens, Grouper::Brace)
-            .and_then(|(v, _)| ast_level(v, Scope::fn_proc(), program))?,
+            .and_then(|(v, _)| ast_level(v, Scope::fn_proc(), store))?,
         public,
     })
 }
@@ -131,7 +133,7 @@ fn module_err(data: ModuleErrorBody, path: Located<PathBuf>) -> ParseError {
     ParseError::ModuleError(ModuleError { path, data })
 }
 
-pub fn parse_module(path: &Located<PathBuf>, program: &mut Program) -> ParseResult<CustomModule> {
+pub fn parse_module(path: &Located<PathBuf>, store: &mut Store) -> ParseResult<CustomModule> {
     let mut dir = path.data.clone();
 
     let text = fs::read_to_string(&dir)
@@ -150,13 +152,11 @@ pub fn parse_module(path: &Located<PathBuf>, program: &mut Program) -> ParseResu
     while let Some(token) = tokens.next() {
         match token.data {
             Token::Keyword(Keyword::Public) => next_guard!({ tokens.next() } {
-                Token::Keyword(Keyword::Proc) => functions.push(parse_proc(&mut tokens, true, program)?)
+                Token::Keyword(Keyword::Proc) => functions.push(parse_proc(&mut tokens, true, store)?)
             }),
-            Token::Keyword(Keyword::Proc) => {
-                functions.push(parse_proc(&mut tokens, true, program)?)
-            }
+            Token::Keyword(Keyword::Proc) => functions.push(parse_proc(&mut tokens, true, store)?),
             Token::Keyword(Keyword::Import) => {
-                imports.push(parse_import(&mut tokens, dir.as_path(), program)?)
+                imports.push(parse_import(&mut tokens, dir.as_path(), store)?)
             }
             _ => return Err(ParseError::UnexpectedToken(token)),
         };
@@ -172,7 +172,7 @@ pub fn parse_module(path: &Located<PathBuf>, program: &mut Program) -> ParseResu
 pub fn parse_import<T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
     path: &Path,
-    program: &mut Program,
+    store: &mut Store,
 ) -> ParseResult<Import> {
     let kind = next_guard!({ tokens.next() } (start, end) {
         Token::BinaryOp(Binary::Mult) => ImportKind::All,
@@ -215,15 +215,15 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
                                 start: start.clone(),
                             }))?;
 
-                    Module::Custom(match program.has_module(&new_path) {
-                        Some(ind) => ind,
+                    Module::Custom(match store.get_mod(&new_path) {
+                        Some(ind) => *ind,
                         None => {
                             let module = parse_module(&Located {
                                 data: new_path,
                                 end: end.clone(),
                                 start: start.clone(),
-                            }, program)?;
-                            program.set_module(module)
+                            }, store)?;
+                            store.ins_mod(new_path, module)
                         },
                     })
                 },
