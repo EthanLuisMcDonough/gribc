@@ -10,7 +10,7 @@ pub struct ConditionBodyPair {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Declarator {
-    pub identifier: Located<String>,
+    pub identifier: Located<usize>,
     pub value: Expression,
     pub captured: bool,
 }
@@ -24,8 +24,8 @@ pub struct Declaration {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum ImportKind {
     All,
-    ModuleObject(Located<String>),
-    List(HashMap<String, (Location, Location)>),
+    ModuleObject(Located<usize>),
+    List(HashMap<usize, (Location, Location)>),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

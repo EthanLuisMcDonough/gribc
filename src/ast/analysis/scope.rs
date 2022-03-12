@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 struct Capture {
     level: usize,
-    identifiers: Vec<usize>,
+    identifiers: HashSet<usize>,
 }
 
 pub struct CaptureStack {
@@ -22,19 +22,19 @@ impl CaptureStack {
 
     pub fn add(&mut self, level: usize) {
         self.stack.push(Capture {
-            identifiers: Vec::new(),
+            identifiers: HashSet::new(),
             level,
         });
     }
 
-    pub fn pop(&mut self) -> Vec<usize> {
+    pub fn pop(&mut self) -> HashSet<usize> {
         self.stack.pop().map(|e| e.identifiers).unwrap_or_default()
     }
 
     fn check_ref(&mut self, ident: usize, def: usize) {
         for Capture { level, identifiers } in &mut self.stack {
             if *level > def {
-                identifiers.push(ident);
+                identifiers.insert(ident);
             }
         }
     }

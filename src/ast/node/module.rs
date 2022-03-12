@@ -6,7 +6,10 @@ use std::path::PathBuf;
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Module {
     Custom(usize),
-    Native(NativePackage),
+    Native {
+        package: NativePackage,
+        indices: Vec<usize>,
+    },
 }
 
 impl Module {
@@ -17,17 +20,26 @@ impl Module {
         }
     }
 
-    pub fn names<'a>(&self, program: &'a Program) -> HashSet<&'a str> {
-        match self {
-            Module::Custom(ind) => program.modules[*ind].get_functions(),
-            Module::Native(n) => n.raw_names().iter().map(|f| *f).collect(),
+    pub fn is_native(&self) -> bool {
+        if let Self::Native { .. } = self {
+            true
+        } else {
+            false
         }
     }
 
-    pub fn iter<'a>(&'a self, program: &Program) -> ModFns<'a> {
+    pub fn names(&self, program: &Program) -> HashSet<usize> {
+        match self {
+            Module::Custom(ind) => program.modules[*ind].get_functions(),
+            Module::Native(native) => native.indices.clone().into_iter().collect(),
+        }
+    }
+
+    pub fn iter<'a>(&'a self, program: &'a Program) -> ModFns<'a> {
         ModFns {
             index: 0,
             module: self,
+            program,
             fnc_max: self
                 .custom_index()
                 .and_then(|i| program.modules.get(i))
@@ -40,6 +52,7 @@ impl Module {
 pub struct ModFns<'a> {
     index: usize,
     module: &'a Module,
+    program: &'a Program,
     fnc_max: usize,
 }
 
@@ -54,10 +67,10 @@ impl<'a> Iterator for ModFns<'a> {
                 index,
                 module: Some(*i),
             }),
-            Module::Native(n) => n
-                .raw_names()
+            Module::Native { package, indices } => indices
                 .get(index)
-                .and_then(|s| n.fn_from_str(s))
+                .and_then(|ind| self.program.strings.get(*ind))
+                .and_then(|s| package.fn_from_str(s))
                 .map(Callable::Native),
             _ => None,
         }
@@ -82,15 +95,15 @@ impl Default for CustomModule {
 }
 
 impl CustomModule {
-    pub fn get_functions<'a>(&'a self) -> HashSet<&'a str> {
+    pub fn get_functions(&self) -> HashSet<usize> {
         self.functions
             .iter()
             .filter(|f| f.public)
-            .map(|f| f.identifier.data.as_str())
+            .map(|f| f.identifier.data)
             .collect()
     }
 
-    pub fn has_function(&self, name: &str) -> bool {
+    pub fn has_function(&self, name: usize) -> bool {
         self.functions
             .iter()
             .filter(|f| f.public)

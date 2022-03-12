@@ -1,6 +1,10 @@
-use ast::node::{CustomModule, GetProp, Import, Lambda, Procedure, Program, SetProp};
+use ast::node::*;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+
+type ModMap = HashMap<PathBuf, ModuleData>;
+type StrMap = HashMap<String, usize>;
 
 struct ModuleData {
     module: CustomModule,
@@ -8,8 +12,8 @@ struct ModuleData {
 }
 
 pub struct Store {
-    str_map: HashMap<String, usize>,
-    mod_map: HashMap<PathBuf, ModuleData>,
+    str_map: StrMap,
+    mod_map: ModMap,
     imports: Vec<Import>,
     functions: Vec<Procedure>,
     lambdas: Vec<Lambda>,
@@ -30,13 +34,14 @@ impl Store {
         }
     }
 
-    pub fn ins_str(&mut self, s: String) -> usize {
-        if let Some(ind) = self.str_map.get(&s) {
+    pub fn ins_str<'a>(&mut self, s: impl Into<Cow<'a, str>>) -> usize {
+        let s = s.into();
+        if let Some(ind) = self.str_map.get(s.as_ref()) {
             return *ind;
         }
 
         let ind = self.str_map.len();
-        self.str_map.insert(s, ind);
+        self.str_map.insert(s.into_owned(), ind);
 
         ind
     }
@@ -86,6 +91,27 @@ impl Store {
     }
 }
 
+// Change imports so that "all" imports have a list of string indexes
+// of all identifiers that are actually used in the program
+// This is specifically fo native modules
+fn rewrite_imports(imports: &mut Vec<Import>, str_map: &StrMap) {
+    for import in imports {
+        if let Import {
+            module:
+                Module::Native {
+                    package,
+                    ref mut indices,
+                },
+            kind: ImportKind::All,
+        } = import
+        {
+            for index in package.raw_names().iter().filter_map(|n| str_map.get(*n)) {
+                indices.push(*index);
+            }
+        }
+    }
+}
+
 impl From<Store> for Program {
     fn from(s: Store) -> Self {
         let mut p = Program::new();
@@ -95,15 +121,18 @@ impl From<Store> for Program {
         p.setters = s.setters;
         p.imports = s.imports;
 
-        p.strings = vec![String::new(); s.str_map.len()];
         p.modules = vec![CustomModule::default(); s.mod_map.len()];
 
-        for (string, index) in s.str_map {
-            p.strings[index] = string;
-        }
+        rewrite_imports(&mut p.imports, &s.str_map);
 
         for (_, data) in s.mod_map {
+            rewrite_imports(&mut data.module.imports, &s.str_map);
             p.modules[data.index] = data.module;
+        }
+
+        p.strings = vec![String::new(); s.str_map.len()];
+        for (string, index) in s.str_map {
+            p.strings[index] = string;
         }
 
         p

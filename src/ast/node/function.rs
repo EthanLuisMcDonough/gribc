@@ -41,7 +41,7 @@ pub struct Procedure {
 pub struct Lambda {
     pub param_list: Parameters,
     pub body: LambdaBody,
-    pub captured: Vec<usize>,
+    pub captured: HashSet<usize>,
 }
 
 impl Lambda {
@@ -49,7 +49,7 @@ impl Lambda {
         Self {
             body,
             param_list,
-            captured: Vec::new(),
+            captured: HashSet::new(),
         }
     }
 }
@@ -59,7 +59,7 @@ impl Default for Lambda {
         Lambda {
             param_list: Parameters::new(),
             body: LambdaBody::Block(vec![]),
-            captured: Vec::new(),
+            captured: HashSet::new(),
         }
     }
 }

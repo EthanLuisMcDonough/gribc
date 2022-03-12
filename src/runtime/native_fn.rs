@@ -194,7 +194,7 @@ native_package!(NativeMathPackage[gc] {
     MathConst["mathConst"](s) {
         use std::f64::consts::*;
         GribValue::Number(match s.as_str(gc).as_ref() {
-            "pi" | "PI" => PI,
+            "pi" | "PI" | "Pi" => PI,
             "e" | "E" => E,
             _ => f64::NAN,
         })

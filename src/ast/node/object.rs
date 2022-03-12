@@ -12,7 +12,7 @@ pub enum LocatedOr<T, E> {
 pub struct SetProp {
     pub param: usize,
     pub block: LambdaBody,
-    pub capture: Vec<usize>,
+    pub capture: HashSet<usize>,
 }
 
 impl Default for SetProp {
@@ -26,7 +26,7 @@ impl SetProp {
         Self {
             param,
             block,
-            capture: Vec::new(),
+            capture: HashSet::new(),
         }
     }
 }

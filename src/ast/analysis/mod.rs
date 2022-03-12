@@ -18,7 +18,7 @@ pub enum WalkErrorType {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WalkError {
-    identifier: Located<String>,
+    identifier: Located<usize>,
     kind: WalkErrorType,
 }
 
@@ -31,21 +31,21 @@ pub struct Lams<'a> {
 // Inserts import items into scope
 fn module_register<'a>(
     import: &'a Import,
-    functions: &HashSet<&'a str>,
-    scope: &mut Scope<'a>,
+    functions: &HashSet<usize>,
+    scope: &mut Scope,
 ) -> WalkResult {
     match &import.kind {
         ImportKind::All => {
             for key in functions {
-                scope.insert_import(key);
+                scope.insert_import(*key);
             }
         }
         ImportKind::ModuleObject(Located { data, .. }) => {
-            scope.insert_import(data.as_str());
+            scope.insert_import(*data);
         }
         ImportKind::List(l) => {
             for (key, (start, end)) in l {
-                if !functions.contains(key.as_str()) {
+                if !functions.contains(key) {
                     return Err(WalkError {
                         identifier: Located {
                             data: key.clone(),
@@ -56,7 +56,7 @@ fn module_register<'a>(
                     });
                 }
 
-                scope.insert_import(key);
+                scope.insert_import(*key);
             }
         }
     }
@@ -64,15 +64,11 @@ fn module_register<'a>(
     Ok(())
 }
 
-fn walk_import<'a>(
-    import: &'a Import,
-    modules: &'a ModuleStore,
-    scope: &mut Scope<'a>,
-) -> WalkResult {
+fn walk_import<'a>(import: &'a Import, modules: &'a ModuleStore, scope: &mut Scope) -> WalkResult {
     let module = &import.module;
 
     let functions = match module {
-        Module::Native(n) => n.get_functions(),
+        Module::Native { indices, .. } => indices.iter().map(|e| *e).collect(),
         Module::Custom(p) => modules[*p].get_functions(),
     };
 
@@ -92,7 +88,7 @@ fn walk_module(
     }
 
     for Procedure { identifier, .. } in &module.functions {
-        if !scope.insert_fn(identifier.data.as_str()) {
+        if !scope.insert_fn(identifier.data) {
             return Err(WalkError {
                 identifier: identifier.clone(),
                 kind: WalkErrorType::InvalidRedefinition,
@@ -109,13 +105,13 @@ fn walk_module(
 
 fn walk_decl<'a>(
     decl: &'a Declaration,
-    scope: &mut Scope<'a>,
+    scope: &mut Scope,
     lams: &mut Lams,
     cap: &mut CaptureStack,
 ) -> Result<(), WalkError> {
     for d in &decl.declarations {
         walk_expression(&d.value, &scope, lams, cap)?;
-        if !scope.insert_var(&d.identifier.data, decl.mutable) {
+        if !scope.insert_var(d.identifier.data, decl.mutable) {
             return Err(WalkError {
                 identifier: d.identifier.clone(),
                 kind: WalkErrorType::InvalidRedefinition,
@@ -127,7 +123,7 @@ fn walk_decl<'a>(
 
 fn walk_ast<'a>(
     nodes: impl Iterator<Item = &'a Node> + Clone,
-    mut scope: Scope<'a>,
+    mut scope: Scope,
     lams: &mut Lams,
     cap: &mut CaptureStack,
 ) -> Result<(), WalkError> {
@@ -181,7 +177,7 @@ fn walk_ast<'a>(
 
 fn walk_lambda_block<'a>(
     block: &LambdaBody,
-    scope: Scope<'a>,
+    scope: Scope,
     lams: &mut Lams,
     cap: &mut CaptureStack,
 ) -> Result<(), WalkError> {
@@ -193,7 +189,7 @@ fn walk_lambda_block<'a>(
 
 fn walk_procedure<'a>(
     procedure: &Procedure,
-    scope: &Scope<'a>,
+    scope: &Scope,
     lams: &mut Lams,
     cap: &mut CaptureStack,
 ) -> Result<(), WalkError> {
@@ -202,7 +198,7 @@ fn walk_procedure<'a>(
         {
             let mut scope = scope.clone();
             for param in procedure.param_list.all_params() {
-                scope.insert_mut(param);
+                scope.insert_mut(*param);
             }
             scope
         },
@@ -213,7 +209,7 @@ fn walk_procedure<'a>(
 
 fn walk_expression<'a>(
     expression: &Expression,
-    scope: &Scope<'a>,
+    scope: &Scope,
     lams: &mut Lams,
     cap: &mut CaptureStack,
 ) -> Result<(), WalkError> {
@@ -242,7 +238,7 @@ fn walk_expression<'a>(
         Expression::Assignment { left, right, .. } => {
             match left {
                 Assignable::Identifier(i) => {
-                    let s = i.data.as_ref();
+                    let s = i.data;
 
                     if !scope.has(s, cap) {
                         return Err(WalkError {
@@ -277,7 +273,7 @@ fn walk_expression<'a>(
 
                                 lams.getters[*ind] = get;
                             }
-                            Some(AutoPropValue::String(ident)) if !scope.has(&*ident.data, cap) => {
+                            Some(AutoPropValue::String(ident)) if !scope.has(ident.data, cap) => {
                                 return Err(WalkError {
                                     identifier: ident.clone(),
                                     kind: WalkErrorType::IdentifierNotFound,
@@ -290,23 +286,21 @@ fn walk_expression<'a>(
                                 cap.add(scope.level);
                                 let mut scope = scope.clone();
                                 let mut set = mem::take(&mut lams.setters[*ind]);
-                                scope.insert_mut(set.param.as_str());
+                                scope.insert_mut(set.param);
 
                                 walk_lambda_block(&set.block, scope, lams, cap)?;
                                 set.capture = cap.pop();
 
                                 lams.setters[*ind] = set;
                             }
-                            Some(AutoPropValue::String(ident))
-                                if !scope.has(ident.data.as_str(), cap) =>
-                            {
+                            Some(AutoPropValue::String(ident)) if !scope.has(ident.data, cap) => {
                                 return Err(WalkError {
                                     identifier: ident.clone(),
                                     kind: WalkErrorType::IdentifierNotFound,
                                 });
                             }
                             Some(AutoPropValue::String(ident))
-                                if !scope.has_editable(ident.data.as_str(), cap) =>
+                                if !scope.has_editable(ident.data, cap) =>
                             {
                                 return Err(WalkError {
                                     identifier: ident.clone(),
@@ -326,14 +320,14 @@ fn walk_expression<'a>(
             let mut scope = scope.sub();
 
             for param in lambda.param_list.all_params() {
-                scope.insert_mut(param);
+                scope.insert_mut(*param);
             }
             walk_lambda_block(&lambda.body, scope, lams, cap)?;
 
             lambda.captured = cap.pop();
             lams.lambdas[*ind] = lambda;
         }
-        Expression::Identifier(identifier) if !scope.has(&*identifier.data, cap) => {
+        Expression::Identifier(identifier) if !scope.has(identifier.data, cap) => {
             return Err(WalkError {
                 identifier: identifier.clone(),
                 kind: WalkErrorType::IdentifierNotFound,
@@ -366,7 +360,7 @@ pub fn ref_check(program: &mut Program) -> Result<(), WalkError> {
     }
 
     for Procedure { identifier, .. } in &program.functions {
-        if !scope.insert_fn(&identifier.data) {
+        if !scope.insert_fn(identifier.data) {
             return Err(WalkError {
                 identifier: identifier.clone(),
                 kind: WalkErrorType::InvalidRedefinition,

@@ -29,7 +29,7 @@ fn scope_imports<'a>(
         }
         ImportKind::ModuleObject(name) => scope.declare_stack(
             stack,
-            &name.data,
+            name.data,
             GribValue::ModuleObject(import.module.clone()),
         ),
     }
@@ -47,7 +47,7 @@ pub fn execute(program: &Program, config: GcConfig) {
     for (index, fnc) in program.functions.iter().enumerate() {
         scope.declare_stack(
             &mut stack,
-            &fnc.identifier.data,
+            fnc.identifier.data,
             Callable::Procedure {
                 module: None,
                 index,
@@ -141,7 +141,7 @@ fn evaluate_hash(
 
                     let get = prop.get.as_ref().and_then(|p| match p {
                         AutoPropValue::String(s) => scope
-                            .capture_var(stack, gc, s.data.as_str())
+                            .capture_var(stack, gc,  &program.getters[s.data.as_str())
                             .map(AccessFunc::Captured),
                         AutoPropValue::Lambda(ind) => AccessFunc::Callable {
                             index: *ind,
@@ -260,7 +260,7 @@ pub fn evaluate_expression(
         Expression::Nil => GribValue::Nil,
         Expression::This => scope.get_this(gc),
         Expression::Number(f) => GribValue::Number(*f),
-        Expression::String(s) => gc.alloc_str(s.clone()),
+        Expression::String(s) => gc.alloc_str(program.strings[*s].clone()),
         Expression::Hash(h) => evaluate_hash(h, false, scope, stack, gc, program),
         Expression::MutableHash(h) => evaluate_hash(h, true, scope, stack, gc, program),
         Expression::ArrayCreation(expressions) => {
@@ -270,12 +270,18 @@ pub fn evaluate_expression(
             }
             GribValue::HeapValue(gc.alloc_heap(HeapValue::Array(array)))
         }
-        Expression::Identifier(Located { data, .. }) => {
-            scope.get(stack, gc, data).cloned().unwrap_or_default()
-        }
-        Expression::PropertyAccess { item, property } => {
-            property_access(&*item, property, scope, stack, gc, program)
-        }
+        Expression::Identifier(Located { data, .. }) => scope
+            .get(stack, gc, &program.strings[*data])
+            .cloned()
+            .unwrap_or_default(),
+        Expression::PropertyAccess { item, property } => property_access(
+            &*item,
+            &program.strings[*property],
+            scope,
+            stack,
+            gc,
+            program,
+        ),
         _ => unimplemented!(),
     }
 }
