@@ -8,7 +8,7 @@ pub enum Module {
     Custom(usize),
     Native {
         package: NativePackage,
-        indices: Vec<usize>,
+        indices: HashSet<usize>,
     },
 }
 
@@ -31,25 +31,43 @@ impl Module {
     pub fn names(&self, program: &Program) -> HashSet<usize> {
         match self {
             Module::Custom(ind) => program.modules[*ind].get_functions(),
-            Module::Native(native) => native.indices.clone().into_iter().collect(),
+            Module::Native { indices, .. } => indices.clone(),
         }
     }
 
-    pub fn iter<'a>(&'a self, program: &'a Program) -> ModFns<'a> {
-        ModFns {
-            index: 0,
-            module: self,
-            program,
-            fnc_max: self
-                .custom_index()
-                .and_then(|i| program.modules.get(i))
-                .map(|mods| mods.functions.len())
-                .unwrap_or(0),
+    pub fn callables<'a>(&'a self, program: &'a Program) -> Vec<(Callable, usize)> {
+        match self {
+            Module::Custom(i) => program.modules[*i]
+                .functions
+                .iter()
+                .filter(|f| f.public)
+                .enumerate()
+                .map(|(index, fnc)| {
+                    (
+                        Callable::Procedure {
+                            index,
+                            module: Some(*i),
+                        },
+                        fnc.identifier.data,
+                    )
+                })
+                .collect(),
+            Module::Native { package, indices } => indices
+                .iter()
+                .flat_map(|ind| {
+                    program
+                        .strings
+                        .get(*ind)
+                        .and_then(|s| package.fn_from_str(s))
+                        .map(Callable::Native)
+                        .map(|c| (c, *ind))
+                })
+                .collect(),
         }
     }
 }
 
-pub struct ModFns<'a> {
+/*pub struct ModFns<'a> {
     index: usize,
     module: &'a Module,
     program: &'a Program,
@@ -57,16 +75,19 @@ pub struct ModFns<'a> {
 }
 
 impl<'a> Iterator for ModFns<'a> {
-    type Item = Callable;
+    type Item = (/* name */ usize, /* function */ Callable);
 
     fn next(&mut self) -> Option<Self::Item> {
         let index = self.index;
         self.index += 1;
         match self.module {
-            Module::Custom(i) if i < &self.fnc_max => Some(Callable::Procedure {
-                index,
-                module: Some(*i),
-            }),
+            Module::Custom(i) if i < &self.fnc_max => Some((
+                self.program.functions[*i].identifier.data,
+                Callable::Procedure {
+                    index,
+                    module: Some(*i),
+                },
+            )),
             Module::Native { package, indices } => indices
                 .get(index)
                 .and_then(|ind| self.program.strings.get(*ind))
@@ -75,7 +96,7 @@ impl<'a> Iterator for ModFns<'a> {
             _ => None,
         }
     }
-}
+}*/
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct CustomModule {

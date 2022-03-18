@@ -4,13 +4,13 @@ use std::collections::HashMap;
 
 const STACK_OVERFLOW_MSG: &str = "Grib stack overflow";
 
-pub struct Scope<'a> {
-    scope: HashMap<&'a str, usize>,
+pub struct Scope {
+    scope: HashMap<usize, usize>,
     local_count: usize,
     this: GribValue,
 }
 
-impl<'a> Scope<'a> {
+impl Scope {
     pub fn new() -> Self {
         Self {
             scope: HashMap::new(),
@@ -27,30 +27,19 @@ impl<'a> Scope<'a> {
         self.this = this.into();
     }
 
-    fn declare(&mut self, label: &'a str, ptr: usize) {
+    fn declare(&mut self, label: usize, ptr: usize) {
         self.scope.insert(label, ptr);
         self.local_count += 1;
     }
 
-    pub fn declare_stack(
-        &mut self,
-        stack: &mut Stack,
-        label: &'a str,
-        value: impl Into<GribValue>,
-    ) {
+    pub fn declare_stack(&mut self, stack: &mut Stack, label: usize, value: impl Into<GribValue>) {
         let ptr = stack
             .add(StackSlot::Value(value.into()))
             .expect(STACK_OVERFLOW_MSG);
         self.declare(label, ptr);
     }
 
-    pub fn declare_heap(
-        &mut self,
-        stack: &mut Stack,
-        gc: &mut Gc,
-        label: &'a str,
-        value: HeapValue,
-    ) {
+    pub fn declare_heap(&mut self, stack: &mut Stack, gc: &mut Gc, label: usize, value: HeapValue) {
         let heap_ptr = gc.alloc_heap(value);
         let val = StackSlot::Value(GribValue::HeapValue(heap_ptr));
         let ptr = stack.add(val).expect(STACK_OVERFLOW_MSG);
@@ -61,7 +50,7 @@ impl<'a> Scope<'a> {
         &mut self,
         stack: &mut Stack,
         gc: &mut Gc,
-        label: &'a str,
+        label: usize,
         value: GribValue,
     ) {
         let heap_ptr = gc.alloc_captured(value);
@@ -74,54 +63,54 @@ impl<'a> Scope<'a> {
         stack.pop_stack(self.local_count);
     }
 
-    pub fn get<'b>(&self, stack: &'b Stack, gc: &'b Gc, label: &str) -> Option<&'b GribValue> {
+    pub fn get<'a>(&self, stack: &'a Stack, gc: &'a Gc, label: usize) -> Option<&'a GribValue> {
         self.scope
-            .get(label)
+            .get(&label)
             .cloned()
             .and_then(|index| stack.get(gc, index))
     }
 
-    fn get_mut<'b>(
+    fn get_mut<'a>(
         &self,
-        stack: &'b mut Stack,
-        gc: &'b mut Gc,
-        label: &str,
-    ) -> Option<&'b mut GribValue> {
+        stack: &'a mut Stack,
+        gc: &'a mut Gc,
+        label: usize,
+    ) -> Option<&'a mut GribValue> {
         self.scope
-            .get(label)
+            .get(&label)
             .cloned()
             .and_then(move |index| stack.get_mut(gc, index))
     }
 
-    pub fn capture_var(&mut self, stack: &mut Stack, gc: &mut Gc, label: &str) -> Option<usize> {
+    pub fn capture_var(&mut self, stack: &mut Stack, gc: &mut Gc, label: usize) -> Option<usize> {
         self.scope
-            .get(label)
+            .get(&label)
             .and_then(|&ind| stack.capture_at_ind(ind, gc))
     }
 
-    pub fn set(&self, stack: &mut Stack, gc: &mut Gc, label: &str, value: GribValue) {
+    pub fn set(&self, stack: &mut Stack, gc: &mut Gc, label: usize, value: GribValue) {
         if let Some(r) = self.get_mut(stack, gc, label) {
             *r = value;
         }
     }
 
-    pub fn add_existing_captured(&mut self, stack: &mut Stack, label: &'a str, index: usize) {
+    pub fn add_existing_captured(&mut self, stack: &mut Stack, label: usize, index: usize) {
         let ptr = stack
             .add(StackSlot::Captured(index))
             .expect(STACK_OVERFLOW_MSG);
         self.declare(label, ptr);
     }
 
-    pub fn add_captured_stack(&'a mut self, stack: &mut Stack, gc: &'a mut Gc, ptr: usize) {
+    pub fn add_captured_stack(&mut self, stack: &mut Stack, gc: &mut Gc, ptr: usize) {
         if let Some(HeapValue::CapturedStack(stack_ref)) = gc.heap_val(ptr) {
             for (key, index) in stack_ref {
-                self.add_existing_captured(stack, key, *index);
+                self.add_existing_captured(stack, *key, *index);
             }
         }
     }
 }
 
-impl<'a> Clone for Scope<'a> {
+impl Clone for Scope {
     fn clone(&self) -> Self {
         Self {
             local_count: 0,

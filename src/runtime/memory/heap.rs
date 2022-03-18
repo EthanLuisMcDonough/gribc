@@ -50,12 +50,12 @@ impl Gc {
         &mut self,
         stack: &mut Stack,
         scope: &mut Scope,
-        to_capture: &HashSet<String>,
+        to_capture: &HashSet<usize>,
     ) -> usize {
         let mut heap_stack = HashMap::new();
 
         for name in to_capture {
-            if let Some(ind) = scope.capture_var(stack, self, name) {
+            if let Some(ind) = scope.capture_var(stack, self, *name) {
                 heap_stack.insert(name.clone(), ind);
             }
         }
@@ -63,7 +63,7 @@ impl Gc {
         self.alloc_heap(HeapValue::CapturedStack(heap_stack))
     }
 
-    pub fn get_captured_stack(&self, index: usize) -> Option<&HashMap<String, usize>> {
+    pub fn get_captured_stack(&self, index: usize) -> Option<&HashMap<usize, usize>> {
         self.heap_slot(index).and_then(|slot| match slot {
             HeapSlot::Value(HeapValue::CapturedStack(stack)) => Some(stack),
             _ => None,

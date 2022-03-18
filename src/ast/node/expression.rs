@@ -57,7 +57,6 @@ pub enum Expression {
     },
 
     Nil,
-    Args,
     This,
 
     StackRef(usize),

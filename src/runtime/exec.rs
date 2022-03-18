@@ -6,15 +6,12 @@ use runtime::values::*;
 use std::collections::HashMap;
 
 fn scope_imports<'a>(
-    scope: &mut Scope<'a>,
+    scope: &mut Scope,
     stack: &mut Stack,
     program: &'a Program,
     import: &'a Import,
 ) {
-    let imports = import
-        .module
-        .iter(program)
-        .zip(import.module.names(program));
+    let imports = import.module.callables(program).into_iter();
 
     match &import.kind {
         ImportKind::All => {
@@ -23,7 +20,7 @@ fn scope_imports<'a>(
             }
         }
         ImportKind::List(hash) => {
-            for (callable, name) in imports.filter(|(_, key)| hash.contains_key(*key)) {
+            for (callable, name) in imports.filter(|(_, key)| hash.contains_key(key)) {
                 scope.declare_stack(stack, name, callable);
             }
         }
@@ -80,29 +77,118 @@ impl From<ControlFlow> for GribValue {
     }
 }
 
+macro_rules! control_guard {
+    ($control:expr) => {
+        if $control.is_some() {
+            return $control;
+        }
+    };
+}
+
+fn declare(
+    decl: &Declaration,
+    scope: &mut Scope,
+    stack: &mut Stack,
+    gc: &mut Gc,
+    program: &Program,
+) {
+    for declaration in &decl.declarations {
+        let value = evaluate_expression(&declaration.value, scope, stack, gc, program);
+        let label = declaration.identifier.data;
+        if declaration.captured {
+            scope.declare_stack(stack, label, value);
+        } else {
+            scope.declare_captured(stack, gc, label, value);
+        }
+    }
+}
+
 fn run_block(
     block: &Block,
     scope: &mut Scope,
     stack: &mut Stack,
     gc: &mut Gc,
     program: &Program,
-) -> ControlFlow {
+) -> Option<ControlFlow> {
     for node in block.iter() {
         match node {
             Node::Block(block) => {
-                run_block(block, scope, stack, gc, program);
+                control_guard!(run_block(block, scope, stack, gc, program));
             }
-            Node::Break => return ControlFlow::Break,
-            Node::Continue => return ControlFlow::Continue,
+            Node::Break => return Some(ControlFlow::Break),
+            Node::Continue => return Some(ControlFlow::Continue),
             Node::Return(expr) => {
                 return ControlFlow::Return(evaluate_expression(expr, scope, stack, gc, program))
+                    .into()
             }
-            //Node::Declaration(decl) => decl.
-            _ => unimplemented!(),
+            Node::Declaration(decl) => declare(decl, scope, stack, gc, program),
+            Node::Expression(expression) => {
+                evaluate_expression(expression, scope, stack, gc, program);
+            }
+            Node::LogicChain {
+                if_block,
+                elseifs,
+                else_block,
+            } => {
+                let first_cond =
+                    evaluate_expression(&if_block.condition, scope, stack, gc, program);
+                if truthy(&first_cond, gc) {
+                    control_guard!(run_block(&if_block.block, scope, stack, gc, program));
+                } else {
+                    let mut run_else = true;
+                    for ConditionBodyPair { condition, block } in elseifs {
+                        let cond = evaluate_expression(&condition, scope, stack, gc, program);
+                        if truthy(&cond, gc) {
+                            run_else = false;
+                            control_guard!(run_block(&block, scope, stack, gc, program));
+                            break;
+                        }
+                    }
+
+                    if let Some(block) = else_block.filter(|_| run_else) {
+                        control_guard!(run_block(&block, scope, stack, gc, program));
+                    }
+                }
+            }
+            Node::While(pair) => {
+                while {
+                    let cond = evaluate_expression(&pair.condition, scope, stack, gc, program);
+                    truthy(&cond, gc)
+                } {
+                    let val = run_block(&pair.block, scope, stack, gc, program);
+                    match &val {
+                        Some(ControlFlow::Return(_)) => return val,
+                        Some(ControlFlow::Break) => break,
+                        _ => {}
+                    };
+                }
+            }
+            Node::For {
+                declaration,
+                condition,
+                increment,
+                body,
+            } => {
+                if let Some(d) = declaration {
+                    declare(d, scope, stack, gc, program);
+                }
+
+                while condition
+                    .map(|c| evaluate_expression(&c, scope, stack, gc, program))
+                    .map(|g| truthy(&g, gc))
+                    .unwrap_or(true)
+                {
+                    control_guard!(run_block(body, scope, stack, gc, program));
+
+                    if let Some(incr_expr) = increment {
+                        evaluate_expression(incr_expr, scope, stack, gc, program);
+                    }
+                }
+            }
         }
     }
 
-    ControlFlow::default()
+    None
 }
 
 //fn hash_create_prop(hash: &mut Hash, )
@@ -141,7 +227,7 @@ fn evaluate_hash(
 
                     let get = prop.get.as_ref().and_then(|p| match p {
                         AutoPropValue::String(s) => scope
-                            .capture_var(stack, gc,  &program.getters[s.data.as_str())
+                            .capture_var(stack, gc, s.data)
                             .map(AccessFunc::Captured),
                         AutoPropValue::Lambda(ind) => AccessFunc::Callable {
                             index: *ind,
@@ -175,7 +261,10 @@ fn evaluate_lambda(
     scope.set_this(binding);
 
     let res = match body {
-        LambdaBody::Block(block) => run_block(block, &mut scope, stack, gc, program).into(),
+        LambdaBody::Block(block) => match run_block(block, &mut scope, stack, gc, program) {
+            Some(ControlFlow::Return(val)) => val,
+            _ => GribValue::Nil,
+        },
         LambdaBody::ImplicitReturn(expr) => {
             evaluate_expression(&expr, &mut scope, stack, gc, program)
         }
@@ -204,7 +293,7 @@ fn evaluate_access_func_get(
 
             if let Some(captures) = gc.get_captured_stack(*stack_index) {
                 for (key, index) in captures {
-                    new_scope.add_existing_captured(stack, key, *index);
+                    new_scope.add_existing_captured(stack, *key, *index);
                 }
             }
 
@@ -213,7 +302,7 @@ fn evaluate_access_func_get(
                 new_scope,
                 *binding,
                 stack,
-                unimplemented!(),
+                gc,
                 program,
             )
         }
@@ -232,18 +321,13 @@ fn property_access(
     let value = evaluate_expression(&*expression, scope, stack, gc, program);
 
     match value.ptr().and_then(|ind| gc.heap_val(ind)) {
-        Some(HeapValue::Hash(HashValue { values, .. })) => {
-            match values.get(key) {
-                Some(HashPropertyValue::AutoProp {
-                    get: Some(getter), ..
-                }) => {
-                    //evaluate_access_func_get(getter, scope, gc, program)
-                    unimplemented!()
-                }
-                Some(HashPropertyValue::Value(val)) => val.clone(),
-                _ => GribValue::Nil,
-            }
-        }
+        Some(HeapValue::Hash(HashValue { values, .. })) => match values.get(key) {
+            Some(HashPropertyValue::AutoProp {
+                get: Some(getter), ..
+            }) => evaluate_access_func_get(getter, scope, stack, gc, program),
+            Some(HashPropertyValue::Value(val)) => val.clone(),
+            _ => GribValue::Nil,
+        },
         _ => GribValue::Nil,
     }
 }
@@ -270,10 +354,9 @@ pub fn evaluate_expression(
             }
             GribValue::HeapValue(gc.alloc_heap(HeapValue::Array(array)))
         }
-        Expression::Identifier(Located { data, .. }) => scope
-            .get(stack, gc, &program.strings[*data])
-            .cloned()
-            .unwrap_or_default(),
+        Expression::Identifier(Located { data, .. }) => {
+            scope.get(stack, gc, *data).cloned().unwrap_or_default()
+        }
         Expression::PropertyAccess { item, property } => property_access(
             &*item,
             &program.strings[*property],
@@ -282,6 +365,11 @@ pub fn evaluate_expression(
             gc,
             program,
         ),
+        Expression::IndexAccess { item, index } => {
+            let item = evaluate_expression(item.as_ref(), scope, stack, gc, program);
+            let index = evaluate_expression(index.as_ref(), scope, stack, gc, program);
+            index_access(item, index, scope, stack, gc, program)
+        }
         _ => unimplemented!(),
     }
 }

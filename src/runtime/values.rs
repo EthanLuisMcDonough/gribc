@@ -1,10 +1,10 @@
 use ast::node::*;
 use runtime::memory::Gc;
 use std::borrow::Cow;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::cmp::Ordering;
 
 /*pub trait Callable {
     //fn call(&self, gc: &mut Gc, args: Vec<GribValue>) -> GribValue;
@@ -92,7 +92,11 @@ impl From<NativeConsolePackage> for NativeReference {
 
 #[derive(Clone)]
 pub enum AccessFunc {
-    Callable { index: usize, stack: usize, binding: usize },
+    Callable {
+        index: usize,
+        stack: usize,
+        binding: usize,
+    },
     Captured(usize),
 }
 
@@ -134,13 +138,19 @@ pub enum HeapValue {
     Array(Vec<GribValue>),
     Hash(HashValue),
     String(String),
-    CapturedStack(HashMap<String, usize>),
+    CapturedStack(HashMap<usize, usize>),
 }
 
 #[derive(Clone)]
 pub enum ModuleObject {
     Native(NativePackage),
     Custom(usize),
+}
+
+pub fn float_to_ind(f: f64) -> Option<usize> {
+    Some(f.trunc())
+        .filter(|&i| i.is_finite() && i >= 0. && i <= (usize::MAX as f64))
+        .map(|i| i as usize)
 }
 
 #[derive(Clone)]
@@ -185,7 +195,7 @@ impl GribValue {
             Self::Bool(b) => if *b { "true" } else { "false" }.into(),
             Self::HeapValue(ind) => match gc.heap_val(*ind) {
                 Some(HeapValue::Array(v)) => {
-                    let mut joined = "[".to_string();
+                    let mut joined = String::from("[");
 
                     for value in v {
                         joined.push_str(value.as_str(gc).as_ref());
@@ -227,8 +237,8 @@ impl GribValue {
     }
 
     pub fn cast_ind(&self, gc: &Gc) -> Option<usize> {
-        Some(self.cast_num(gc).trunc().abs())
-            .filter(|i| i.is_finite())
+        Some(self.cast_num(gc).trunc())
+            .filter(|&i| i.is_finite() && i >= 0. && i <= (usize::MAX as f64))
             .map(|i| i as usize)
     }
 

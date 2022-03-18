@@ -76,6 +76,24 @@ fn mod_values(left: &GribValue, right: &GribValue, gc: &Gc) -> GribValue {
     GribValue::Number(left.cast_num(gc) % right.cast_num(gc))
 }
 
+pub fn index_access(
+    item: GribValue,
+    index: GribValue,
+    scope: &mut Scope,
+    stack: &mut Stack,
+    gc: &mut Gc,
+    program: &Program,
+) -> GribValue {
+    match item.ptr().and_then(|ptr| gc.heap_val(ptr)) {
+        Some(HeapValue::Array(arr)) => index
+            .cast_ind(gc)
+            .and_then(|i| arr.get(i).cloned())
+            .map(|val| gc.normalize_val(val))
+            .unwrap_or_default(),
+        _ => GribValue::Nil,
+    }
+}
+
 pub fn binary_expr(
     op: &Binary,
     left: &GribValue,

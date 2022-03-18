@@ -106,7 +106,7 @@ fn rewrite_imports(imports: &mut Vec<Import>, str_map: &StrMap) {
         } = import
         {
             for index in package.raw_names().iter().filter_map(|n| str_map.get(*n)) {
-                indices.push(*index);
+                indices.insert(*index);
             }
         }
     }
