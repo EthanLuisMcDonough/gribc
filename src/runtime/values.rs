@@ -41,7 +41,7 @@ pub enum Callable {
 impl Callable {
     pub fn call(&self, gc: &mut Gc, program: &Program, args: Vec<GribValue>) -> GribValue {
         match self {
-            Callable::Native(n) => n.call(gc, args),
+            Callable::Native(n) => n.call(gc, program, args),
             Callable::Procedure { module, index } => {
                 let fnc = if let Some(i) = module {
                     &program.modules[*i].functions[*index]
@@ -154,9 +154,36 @@ pub fn float_to_ind(f: f64) -> Option<usize> {
 }
 
 #[derive(Clone)]
+pub enum GribString {
+    Stored(usize),
+    Heap(usize),
+    Char(char),
+    Static(&'static str),
+}
+
+impl GribString {
+    pub fn get<'a>(&self, gc: &'a Gc, program: &'a Program) -> GribStringRef<'a> {
+        match self {
+            Self::Stored(ind) => GribStringRef::Ref(&program.strings[*ind]),
+            Self::Heap(ind) => {
+                GribStringRef::Ref(gc.get_str(*ind).map(|s| s.as_str()).unwrap_or(""))
+            }
+            Self::Static(s) => GribStringRef::Ref(s),
+            Self::Char(c) => GribStringRef::Char(*c),
+        }
+    }
+}
+
+pub enum GribStringRef<'a> {
+    Ref(&'a str),
+    Char(char),
+}
+
+#[derive(Clone)]
 pub enum GribValue {
     Nil,
     Number(f64),
+    String(GribString),
     Callable(Callable),
     ModuleObject(Module),
     HeapValue(usize),
@@ -184,7 +211,7 @@ impl GribValue {
         }
     }
 
-    pub fn as_str<'a>(&'a self, gc: &'a Gc) -> Cow<'a, str> {
+    pub fn as_str<'a>(&'a self, gc: &'a Gc, program: &'a Program) -> Cow<'a, str> {
         match self {
             Self::Nil => "nil".into(),
             Self::Callable(fnc) => match fnc {
@@ -198,7 +225,7 @@ impl GribValue {
                     let mut joined = String::from("[");
 
                     for value in v {
-                        joined.push_str(value.as_str(gc).as_ref());
+                        joined.push_str(value.as_str(gc, program).as_ref());
                         joined.push(',');
                     }
 
@@ -217,7 +244,9 @@ impl GribValue {
 
                         match value {
                             HashPropertyValue::AutoProp { .. } => joined.push_str("[auto prop]"),
-                            HashPropertyValue::Value(v) => joined.push_str(v.as_str(gc).as_ref()),
+                            HashPropertyValue::Value(v) => {
+                                joined.push_str(v.as_str(gc, program).as_ref())
+                            }
                         }
 
                         joined.push(',')
@@ -228,9 +257,9 @@ impl GribValue {
 
                     joined.into()
                 }
-                Some(HeapValue::String(s)) => Cow::Borrowed(s),
                 _ => "[stack object]".into(),
             },
+            Self::String(s) => Cow::Borrowed(s.get(gc, program)),
             Self::Number(n) => n.to_string().into(),
             Self::ModuleObject(_) => "[module]".into(),
         }

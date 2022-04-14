@@ -21,7 +21,7 @@ fn try_get_array_mut<'a>(gc: &'a mut Gc, val: GribValue) -> Option<&'a mut Vec<G
     }
 }
 
-fn add_values(left: &GribValue, right: &GribValue, gc: &mut Gc) -> GribValue {
+fn add_values(left: &GribValue, right: &GribValue, gc: &mut Gc, program: &Program) -> GribValue {
     if let Some(arr) = try_get_array_mut(gc, left.clone()) {
         let mut new_arr = arr.clone();
         new_arr.push(right.clone());
@@ -29,7 +29,7 @@ fn add_values(left: &GribValue, right: &GribValue, gc: &mut Gc) -> GribValue {
     } else {
         if let Some(string) = left.ptr().and_then(|ptr| gc.get_str(ptr)) {
             let mut new_str = string.clone();
-            new_str.push_str(right.as_str(gc).as_ref());
+            new_str.push_str(right.as_str(gc, program).as_ref());
             gc.alloc_str(new_str)
         } else {
             GribValue::Number(left.cast_num(gc) + right.cast_num(gc))
@@ -84,12 +84,30 @@ pub fn index_access(
     gc: &mut Gc,
     program: &Program,
 ) -> GribValue {
-    match item.ptr().and_then(|ptr| gc.heap_val(ptr)) {
-        Some(HeapValue::Array(arr)) => index
-            .cast_ind(gc)
-            .and_then(|i| arr.get(i).cloned())
-            .map(|val| gc.normalize_val(val))
-            .unwrap_or_default(),
+    match item {
+        GribValue::String(s) => match s.get(gc, program) {
+            GribStringRef::Ref(r) => index
+                .cast_ind(gc)
+                .and_then(|i| r.chars().nth(i))
+                .map(GribString::Char)
+                .map(GribValue::String)
+                .unwrap_or_default(),
+            GribStringRef::Char(c) => index
+                .cast_ind(gc)
+                .filter(|&i| i == 0)
+                .map(|_| c)
+                .map(GribString::Char)
+                .map(GribValue::String)
+                .unwrap_or_default(),
+        },
+        GribValue::HeapValue(s) => match item.ptr().and_then(|ptr| gc.heap_val(ptr)) {
+            Some(HeapValue::Array(arr)) => index
+                .cast_ind(gc)
+                .and_then(|i| arr.get(i).cloned())
+                .map(|val| gc.normalize_val(val))
+                .unwrap_or_default(),
+            _ => GribValue::Nil,
+        },
         _ => GribValue::Nil,
     }
 }
@@ -113,7 +131,7 @@ pub fn binary_expr(
     } else {
         let right_expr = evaluate_expression(right, scope, stack, gc, program);
         match op {
-            Binary::Plus => add_values(left, &right_expr, gc),
+            Binary::Plus => add_values(left, &right_expr, gc, program),
             Binary::Minus => sub_values(left, &right_expr, gc),
             Binary::Mult => mult_values(left, &right_expr, gc),
             Binary::Div => div_values(left, &right_expr, gc),

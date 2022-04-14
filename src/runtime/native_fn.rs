@@ -1,5 +1,6 @@
+use ast::node::Program;
 use runtime::memory::Gc;
-use runtime::values::{Callable, GribValue, HeapValue};
+use runtime::values::{GribValue, HeapValue};
 use std::collections::HashSet;
 use std::io;
 use std::io::Read;
@@ -30,10 +31,10 @@ macro_rules! native_obj {
                 }
             }
 
-            pub fn call(&self, gc: &mut Gc, args: Vec<GribValue>)  -> GribValue {
+            pub fn call(&self, gc: &mut Gc, program: &Program, args: Vec<GribValue>)  -> GribValue {
                 use self::$name::*;
                 match self {
-                    $( $enum(e) => e.call(gc, args), )*
+                    $( $enum(e) => e.call(gc, program, args), )*
                 }
             }
         }
@@ -87,20 +88,20 @@ macro_rules! native_obj {
 }
 
 macro_rules! native_package {
-    (@branch $_:ident $gc:ident [args] $b:block) => { $b };
-    (@branch $args:ident $gc:ident [$($param:ident),*] $b:block) => {
+    (@branch $_:ident $gc:ident $program:ident [args] $b:block) => { $b };
+    (@branch $args:ident $gc:ident $program:ident [$($param:ident),*] $b:block) => {
         {
-            fn closure( $gc: &mut Gc, $( $param: GribValue ),* ) -> GribValue $b
+            fn closure( $gc: &mut Gc, $program: &Program, $( $param: GribValue ),* ) -> GribValue $b
 
-            let mut a = $args.into_iter();
+            let mut argument_iterator = $args.into_iter();
 
-            $( let $param = a.next().unwrap_or_default(); )*
+            $( let $param = argument_iterator.next().unwrap_or_default(); )*
 
-            closure( $gc, $( $param ),* )
+            closure( $gc, $program, $( $param ),* )
         }
     };
 
-    ($name:ident [$gc:ident] {
+    ($name:ident [$gc:ident $program:ident] {
         $(
             $fn_name:ident [$str:expr] ($($param:ident),*) $b:block
         )*
@@ -129,10 +130,10 @@ macro_rules! native_package {
                 }
             }
 
-            pub fn call(&self, $gc: &mut Gc, mut args: Vec<GribValue>)  -> GribValue {
+            pub fn call(&self, $gc: &mut Gc, $program: &Program, mut args: Vec<GribValue>)  -> GribValue {
                 use self::$name::*;
                 match self {
-                    $( $fn_name => { native_package!(@branch args $gc [$( $param ),*] $b) }, )*
+                    $( $fn_name => { native_package!(@branch args $gc $program [$( $param ),*] $b) }, )*
                 }
             }
         }
@@ -140,13 +141,13 @@ macro_rules! native_package {
     };
 }
 
-native_package!(NativeConsolePackage[gc] {
+native_package!(NativeConsolePackage[gc program] {
     Println["println"](str) {
-        println!("{}", str.as_str(gc));
+        println!("{}", str.as_str(gc, program));
         GribValue::Nil
     }
     Error["error"](str) {
-        eprintln!("{}", str.as_str(gc));
+        eprintln!("{}", str.as_str(gc, program));
         GribValue::Nil
     }
     Readline["readline"]() {
@@ -161,16 +162,16 @@ native_package!(NativeConsolePackage[gc] {
     }
 });
 
-native_package!(NativeFmtPackage[gc] {
+native_package!(NativeFmtPackage[gc program] {
     ToString["toString"](obj) {
-        gc.alloc_str(obj.as_str(gc).into_owned())
+        gc.alloc_str(obj.as_str(gc, program).into_owned())
     }
     ToNumber["toNumber"](obj) {
         GribValue::Number(obj.cast_num(gc))
     }
 });
 
-native_package!(NativeMathPackage[gc] {
+native_package!(NativeMathPackage[gc program] {
     Sin["sin"](n) { GribValue::Number(n.cast_num(gc).sin()) }
     Cos["cos"](n) { GribValue::Number(n.cast_num(gc).cos()) }
     Tan["tan"](n) { GribValue::Number(n.cast_num(gc).tan()) }
@@ -193,7 +194,7 @@ native_package!(NativeMathPackage[gc] {
 
     MathConst["mathConst"](s) {
         use std::f64::consts::*;
-        GribValue::Number(match s.as_str(gc).as_ref() {
+        GribValue::Number(match s.as_str(gc, program).as_ref() {
             "pi" | "PI" | "Pi" => PI,
             "e" | "E" => E,
             _ => f64::NAN,
@@ -215,7 +216,7 @@ fn get_array<'a>(arr_ref: GribValue, gc: &'a mut Gc, fn_name: &str) -> &'a mut V
     }
 }
 
-native_package!(NativeArrayPackage[gc] {
+native_package!(NativeArrayPackage[gc program] {
     Push["push"](arr_ref, s) {
         let arr = get_array(arr_ref, gc, "push");
         arr.push(s);
