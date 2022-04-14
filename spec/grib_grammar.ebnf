@@ -49,7 +49,7 @@ lambda = "lam", [ parameters ], lambda_body;
 array = "[", [ { expression, "," }, expression, [","] ] "]";
 
 (*highest level of precedence*)
-literal_value = string | number | lambda | hash;
+literal_value = string | number | lambda | hash | nil;
 group = "(", expression, ")";
 ind_access = base_expr, "[", expression, "]";
 prop_access = base_expr, ".", identifier;
