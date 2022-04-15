@@ -18,7 +18,7 @@ identifier = alphabetic, { alphanumeric };
 
 number = nonzero_digit, { digit }, [ ".", { digit } ];
 
-str_char = ? any_char excluding "\\" and "\"";
+str_char = ? any_char excluding "\\" and "\"" ?;
 string = "\"", { str_char | "\\", any_char }, "\"";
 nil = "nil";
 
