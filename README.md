@@ -3,3 +3,4 @@ Grib is a dynamically typed general purpose programming language that is reminis
 
 * [Grib Language Guide](spec/guide.md)
 * [Grib Standard Library Reference](spec/std.md)
+* [Formal Grammar](spec/grib_grammar.ebnf)
