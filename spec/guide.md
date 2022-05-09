@@ -150,6 +150,7 @@ Because Grib is loosely typed, operators can be used on values that don't make s
 | Number | `+`, `-`, `*`, `/`, `%`, `>(=)`, `<(=)`, `+=`, `-=`, `*=`, `/=`, `%=` | Anything | = | Second value will be coerced into a number. |
 | Anything | `+`, `-`, `*`, `/`, `%`, `>(=)`, `<(=)` | Number | = | The first value will be coerced into a number. |
 | String | `+`, `+=` | Anything | = | Second value will be converted into a string. |
+| String | `*`, `*=` | Anything | = | Second value will be converted into a positive, whole number.  The string will be repeated that many times if possible. |
 | Array | `+` | Anything | = | A new array with the second value added to the end will be returned. |
 | Array | `+=` | Anything | = | The right value will be pushed into the array on the left hand side.  Said array will be returned by the expression. |
 
