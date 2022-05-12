@@ -31,10 +31,10 @@ macro_rules! native_obj {
                 }
             }
 
-            pub fn call(&self, gc: &mut Gc, program: &Program, args: Vec<GribValue>)  -> GribValue {
+            pub fn call(&self, program: &Program, gc: &mut Gc, args: Vec<GribValue>)  -> GribValue {
                 use self::$name::*;
                 match self {
-                    $( $enum(e) => e.call(gc, program, args), )*
+                    $( $enum(e) => e.call(program, gc, args), )*
                 }
             }
         }
@@ -101,7 +101,7 @@ macro_rules! native_package {
         }
     };
 
-    ($name:ident [$gc:ident $program:ident] {
+    ($name:ident [$program:ident $gc:ident] {
         $(
             $fn_name:ident [$str:expr] ($($param:ident),*) $b:block
         )*
@@ -130,7 +130,7 @@ macro_rules! native_package {
                 }
             }
 
-            pub fn call(&self, $gc: &mut Gc, $program: &Program, mut args: Vec<GribValue>)  -> GribValue {
+            pub fn call(&self, $program: &Program, $gc: &mut Gc, mut args: Vec<GribValue>)  -> GribValue {
                 use self::$name::*;
                 match self {
                     $( $fn_name => { native_package!(@branch args $gc $program [$( $param ),*] $b) }, )*
@@ -141,13 +141,13 @@ macro_rules! native_package {
     };
 }
 
-native_package!(NativeConsolePackage[gc program] {
+native_package!(NativeConsolePackage[program gc] {
     Println["println"](str) {
-        println!("{}", str.as_str(gc, program));
+        println!("{}", str.as_str(program, gc));
         GribValue::Nil
     }
     Error["error"](str) {
-        eprintln!("{}", str.as_str(gc, program));
+        eprintln!("{}", str.as_str(program, gc));
         GribValue::Nil
     }
     Readline["readline"]() {
@@ -162,39 +162,39 @@ native_package!(NativeConsolePackage[gc program] {
     }
 });
 
-native_package!(NativeFmtPackage[gc program] {
+native_package!(NativeFmtPackage[program gc] {
     ToString["toString"](obj) {
-        gc.alloc_str(obj.as_str(gc, program).into_owned())
+        gc.alloc_str(obj.as_str(program, gc).into_owned())
     }
     ToNumber["toNumber"](obj) {
-        GribValue::Number(obj.cast_num(gc))
+        GribValue::Number(obj.cast_num(program, gc))
     }
 });
 
-native_package!(NativeMathPackage[gc program] {
-    Sin["sin"](n) { GribValue::Number(n.cast_num(gc).sin()) }
-    Cos["cos"](n) { GribValue::Number(n.cast_num(gc).cos()) }
-    Tan["tan"](n) { GribValue::Number(n.cast_num(gc).tan()) }
+native_package!(NativeMathPackage[program gc] {
+    Sin["sin"](n) { GribValue::Number(n.cast_num(program, gc).sin()) }
+    Cos["cos"](n) { GribValue::Number(n.cast_num(program, gc).cos()) }
+    Tan["tan"](n) { GribValue::Number(n.cast_num(program, gc).tan()) }
 
-    Asin["asin"](n) { GribValue::Number(n.cast_num(gc).asin()) }
-    Acos["acos"](n) { GribValue::Number(n.cast_num(gc).acos()) }
-    Atan["atan"](n) { GribValue::Number(n.cast_num(gc).atan()) }
+    Asin["asin"](n) { GribValue::Number(n.cast_num(program, gc).asin()) }
+    Acos["acos"](n) { GribValue::Number(n.cast_num(program, gc).acos()) }
+    Atan["atan"](n) { GribValue::Number(n.cast_num(program, gc).atan()) }
 
-    Sqrt["sqrt"](n) { GribValue::Number(n.cast_num(gc).sqrt()) }
-    Ln["ln"](n) { GribValue::Number(n.cast_num(gc).ln()) }
-    Log["log"](n) { GribValue::Number(n.cast_num(gc).log10()) }
+    Sqrt["sqrt"](n) { GribValue::Number(n.cast_num(program, gc).sqrt()) }
+    Ln["ln"](n) { GribValue::Number(n.cast_num(program, gc).ln()) }
+    Log["log"](n) { GribValue::Number(n.cast_num(program, gc).log10()) }
     Pow["pow"](base, exp) {
-        GribValue::Number(base.cast_num(gc).powf(exp.cast_num(gc)))
+        GribValue::Number(base.cast_num(program, gc).powf(exp.cast_num(program, gc)))
     }
 
-    Round["round"](n) { GribValue::Number(n.cast_num(gc).round()) }
-    Floor["floor"](n) { GribValue::Number(n.cast_num(gc).floor()) }
-    Ceil["ceil"](n) { GribValue::Number(n.cast_num(gc).ceil()) }
-    Trunc["trunc"](n) { GribValue::Number(n.cast_num(gc).trunc()) }
+    Round["round"](n) { GribValue::Number(n.cast_num(program, gc).round()) }
+    Floor["floor"](n) { GribValue::Number(n.cast_num(program, gc).floor()) }
+    Ceil["ceil"](n) { GribValue::Number(n.cast_num(program, gc).ceil()) }
+    Trunc["trunc"](n) { GribValue::Number(n.cast_num(program, gc).trunc()) }
 
     MathConst["mathConst"](s) {
         use std::f64::consts::*;
-        GribValue::Number(match s.as_str(gc, program).as_ref() {
+        GribValue::Number(match s.as_str(program, gc).as_ref() {
             "pi" | "PI" | "Pi" => PI,
             "e" | "E" => E,
             _ => f64::NAN,
@@ -216,7 +216,7 @@ fn get_array<'a>(arr_ref: GribValue, gc: &'a mut Gc, fn_name: &str) -> &'a mut V
     }
 }
 
-native_package!(NativeArrayPackage[gc program] {
+native_package!(NativeArrayPackage[program gc] {
     Push["push"](arr_ref, s) {
         let arr = get_array(arr_ref, gc, "push");
         arr.push(s);

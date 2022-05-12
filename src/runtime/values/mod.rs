@@ -1,3 +1,7 @@
+mod callable;
+mod hash;
+mod string;
+
 use ast::node::*;
 use runtime::memory::Gc;
 use std::borrow::Cow;
@@ -5,6 +9,10 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
+
+pub use self::callable::*;
+pub use self::hash::*;
+pub use self::string::*;
 
 /*pub trait Callable {
     //fn call(&self, gc: &mut Gc, args: Vec<GribValue>) -> GribValue;
@@ -17,121 +25,11 @@ pub enum CallableType {
     Procedure,
 }*/
 
-#[derive(Clone)]
-pub struct LambdaRef {
-    pub binding: usize,
-    index: usize,
-    pub stack: usize,
-}
-
-#[derive(Clone)]
-pub enum Callable {
-    Native(NativeFunction),
-    Procedure {
-        module: Option<usize>,
-        index: usize,
-    },
-    Lambda {
-        binding: usize,
-        index: usize,
-        stack: usize,
-    },
-}
-
-impl Callable {
-    pub fn call(&self, gc: &mut Gc, program: &Program, args: Vec<GribValue>) -> GribValue {
-        match self {
-            Callable::Native(n) => n.call(gc, program, args),
-            Callable::Procedure { module, index } => {
-                let fnc = if let Some(i) = module {
-                    &program.modules[*i].functions[*index]
-                } else {
-                    &program.functions[*index]
-                };
-
-                unimplemented!()
-            }
-            Callable::Lambda { .. } => {
-                unimplemented!()
-            }
-        }
-    }
-}
-
-pub struct CapturedStack {}
-
-/*// Modules
-#[derive(Clone)]
-pub enum NativeReference {
-    Fmt(NativeFmtPackage),
-    Math(NativeMathPackage),
-    Console(NativeConsolePackage),
-}
-
-impl NativeReference {
-    pub fn name(&self) -> &'static str {
-        unimplemented!()
-    }
-}
-
-impl From<NativeFmtPackage> for NativeReference {
-    fn from(f: NativeFmtPackage) -> Self {
-        Self::Fmt(f)
-    }
-}
-impl From<NativeMathPackage> for NativeReference {
-    fn from(f: NativeMathPackage) -> Self {
-        Self::Math(f)
-    }
-}
-impl From<NativeConsolePackage> for NativeReference {
-    fn from(f: NativeConsolePackage) -> Self {
-        Self::Console(f)
-    }
-}*/
-
-#[derive(Clone)]
-pub enum AccessFunc {
-    Callable {
-        index: usize,
-        stack: usize,
-        binding: usize,
-    },
-    Captured(usize),
-}
-
 /*impl AutoPropValue {
     pub fn functions<'a>(&'a self) -> impl Iterator<Item = &'a AccessFunc> {
         self.get.iter().chain(self.set.iter())
     }
 }*/
-
-#[derive(Clone)]
-pub enum HashPropertyValue {
-    AutoProp {
-        get: Option<AccessFunc>,
-        set: Option<AccessFunc>,
-    },
-    Value(GribValue),
-}
-
-#[derive(Clone)]
-pub struct HashValue {
-    pub mutable: bool,
-    pub values: HashMap<String, HashPropertyValue>,
-}
-
-impl From<GribValue> for HashPropertyValue {
-    fn from(prop: GribValue) -> Self {
-        HashPropertyValue::Value(prop)
-    }
-}
-
-impl HashValue {
-    pub fn insert_property(&mut self, key: String, value: impl Into<HashPropertyValue>) {
-        self.values.insert(key, value.into());
-    }
-}
 
 #[derive(Clone)]
 pub enum HeapValue {
@@ -152,33 +50,6 @@ pub fn float_to_ind(f: f64) -> Option<usize> {
         .filter(|&i| i.is_finite() && i >= 0. && i <= (usize::MAX as f64))
         .map(|i| i as usize)
 }
-
-#[derive(Clone)]
-pub enum GribString {
-    Stored(usize),
-    Heap(usize),
-    Char(char),
-    Static(&'static str),
-}
-
-impl GribString {
-    pub fn get<'a>(&self, gc: &'a Gc, program: &'a Program) -> GribStringRef<'a> {
-        match self {
-            Self::Stored(ind) => GribStringRef::Ref(&program.strings[*ind]),
-            Self::Heap(ind) => {
-                GribStringRef::Ref(gc.get_str(*ind).map(|s| s.as_str()).unwrap_or(""))
-            }
-            Self::Static(s) => GribStringRef::Ref(s),
-            Self::Char(c) => GribStringRef::Char(*c),
-        }
-    }
-}
-
-pub enum GribStringRef<'a> {
-    Ref(&'a str),
-    Char(char),
-}
-
 #[derive(Clone)]
 pub enum GribValue {
     Nil,
@@ -199,19 +70,16 @@ impl GribValue {
         }
     }
 
-    pub fn partial_cmp(&self, val: &GribValue, gc: &Gc) -> Option<Ordering> {
-        match self {
-            //GribValue::Number(n) => *n.partial_cmp(&val.cast_num(gc)),
-            /*GribValue::HeapValue(ptr) => {
-
-                gc
-            }*/
-            //GribValue::Bool()
-            _ => unimplemented!(),
+    pub fn partial_cmp(&self, val: &GribValue, program: &Program, gc: &Gc) -> Option<Ordering> {
+        if let Some(string) = gc.try_get_string(self, program) {
+            unimplemented!()
+        } else {
+            self.cast_num(program, gc)
+                .partial_cmp(&val.cast_num(program, gc))
         }
     }
 
-    pub fn as_str<'a>(&'a self, gc: &'a Gc, program: &'a Program) -> Cow<'a, str> {
+    pub fn as_str<'a>(&'a self, program: &'a Program, gc: &'a Gc) -> Cow<'a, str> {
         match self {
             Self::Nil => "nil".into(),
             Self::Callable(fnc) => match fnc {
@@ -225,7 +93,7 @@ impl GribValue {
                     let mut joined = String::from("[");
 
                     for value in v {
-                        joined.push_str(value.as_str(gc, program).as_ref());
+                        joined.push_str(value.as_str(program, gc).as_ref());
                         joined.push(',');
                     }
 
@@ -245,7 +113,7 @@ impl GribValue {
                         match value {
                             HashPropertyValue::AutoProp { .. } => joined.push_str("[auto prop]"),
                             HashPropertyValue::Value(v) => {
-                                joined.push_str(v.as_str(gc, program).as_ref())
+                                joined.push_str(v.as_str(program, gc).as_ref())
                             }
                         }
 
@@ -259,14 +127,14 @@ impl GribValue {
                 }
                 _ => "[stack object]".into(),
             },
-            Self::String(s) => Cow::Borrowed(s.get(gc, program)),
+            Self::String(s) => s.as_ref(program, gc).unwrap_or_default().into(),
             Self::Number(n) => n.to_string().into(),
             Self::ModuleObject(_) => "[module]".into(),
         }
     }
 
-    pub fn cast_ind(&self, gc: &Gc) -> Option<usize> {
-        Some(self.cast_num(gc).trunc())
+    pub fn cast_ind(&self, program: &Program, gc: &Gc) -> Option<usize> {
+        Some(self.cast_num(program, gc).trunc())
             .filter(|&i| i.is_finite() && i >= 0. && i <= (usize::MAX as f64))
             .map(|i| i as usize)
     }
@@ -281,14 +149,14 @@ impl GribValue {
         }
     }
 
-    pub fn cast_num(&self, gc: &Gc) -> f64 {
+    pub fn cast_num(&self, program: &Program, gc: &Gc) -> f64 {
         match self {
             Self::Nil => 0.0,
-            Self::Callable(_) | Self::ModuleObject(_) => f64::NAN,
+            Self::Callable(_) | Self::ModuleObject(_) | Self::HeapValue(_) => f64::NAN,
             Self::Number(n) => *n,
-            Self::HeapValue(ind) => gc
-                .get_str(*ind)
-                .and_then(|s| s.parse().ok())
+            Self::String(s) => s
+                .as_ref(program, gc)
+                .and_then(|s| s.cast_num())
                 .unwrap_or(f64::NAN),
             Self::Bool(b) => (*b as i32) as f64,
         }

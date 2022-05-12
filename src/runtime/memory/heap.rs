@@ -1,5 +1,9 @@
+use ast::node::Program;
 use runtime::memory::{slot::*, Scope, Stack};
-use runtime::values::{AccessFunc, Callable, GribValue, HashPropertyValue, HeapValue};
+use runtime::values::{
+    string::{GribString, GribStringRef},
+    AccessFunc, Callable, GribValue, HashPropertyValue, HeapValue,
+};
 use std::collections::{HashMap, HashSet, LinkedList};
 
 pub struct GcConfig {
@@ -104,14 +108,7 @@ impl Gc {
     }
 
     pub fn alloc_str(&mut self, s: String) -> GribValue {
-        GribValue::HeapValue(self.alloc_heap(HeapValue::String(s)))
-    }
-
-    pub fn get_str<'a>(&'a self, ptr: usize) -> Option<&'a String> {
-        self.heap_val(ptr).and_then(|v| match v {
-            HeapValue::String(s) => Some(s),
-            _ => None,
-        })
+        GribValue::String(GribString::Heap(self.alloc_heap(HeapValue::String(s))))
     }
 
     pub(in runtime::memory) fn heap_slot<'a>(&'a self, ptr: usize) -> Option<&'a HeapSlot> {
@@ -159,6 +156,34 @@ impl Gc {
             }
         }
     }*/
+
+    pub fn try_get_array(&'_ self, val: GribValue) -> Option<&'_ Vec<GribValue>> {
+        if let Some(HeapValue::Array(arr)) = val.ptr().and_then(|ptr| self.heap_val(ptr)) {
+            Some(arr)
+        } else {
+            None
+        }
+    }
+
+    pub fn try_get_array_mut(&'_ mut self, val: GribValue) -> Option<&'_ mut Vec<GribValue>> {
+        if let Some(HeapValue::Array(arr)) = val.ptr().and_then(move |ptr| self.heap_val_mut(ptr)) {
+            Some(arr)
+        } else {
+            None
+        }
+    }
+
+    pub fn try_get_string<'a>(
+        &'a self,
+        val: &GribValue,
+        program: &'a Program,
+    ) -> Option<GribStringRef<'a>> {
+        if let GribValue::String(s) = val {
+            self.str_ref(program, s)
+        } else {
+            None
+        }
+    }
 }
 
 fn mark(gc: &mut Gc, ind: usize) {
