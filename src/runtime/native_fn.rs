@@ -158,13 +158,13 @@ native_package!(NativeConsolePackage[program gc] {
             return GribValue::Nil
         }
 
-        gc.alloc_str(buf)
+        GribValue::String(gc.alloc_str(buf))
     }
 });
 
 native_package!(NativeFmtPackage[program gc] {
     ToString["toString"](obj) {
-        gc.alloc_str(obj.as_str(program, gc).into_owned())
+        GribValue::String(gc.alloc_str(obj.as_str(program, gc).into_owned()))
     }
     ToNumber["toNumber"](obj) {
         GribValue::Number(obj.cast_num(program, gc))

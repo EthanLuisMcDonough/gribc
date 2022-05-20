@@ -79,6 +79,63 @@ impl GribValue {
         }
     }
 
+    pub fn to_str(&self, program: &Program, gc: &Gc) -> GribString {
+        match self {
+            Self::Nil => GribString::Static("nil"),
+            Self::Callable(fnc) => match fnc {
+                Callable::Native(n) => gc.alloc_str(format!("[native {}()]", n.fn_name())),
+                Callable::Procedure { .. } => GribString::Static("[proc]"),
+                Callable::Lambda { .. } => GribString::Static("[lambda]"),
+            },
+            Self::Bool(b) => GribString::Static(if *b { "true" } else { "false" }),
+            Self::HeapValue(ind) => match gc.heap_val(*ind) {
+                Some(HeapValue::Array(v)) => {
+                    let mut joined = String::from("[");
+
+                    for value in v {
+                        joined.push_str(value.as_str(program, gc).as_ref());
+                        joined.push(',');
+                    }
+
+                    joined.pop();
+                    joined.push(']');
+
+                    gc.alloc_str(joined)
+                }
+                Some(HeapValue::Hash(h)) => {
+                    let mut joined = if h.is_mutable() { '$' } else { '#' }.to_string();
+
+                    joined.push('{');
+
+                    /*for (key, value) in h.values.iter() {
+                        joined.push_str(key);
+                        joined.push_str("->");
+
+                        match value {
+                            HashPropertyValue::AutoProp { .. } => joined.push_str("[auto prop]"),
+                            HashPropertyValue::Value(v) => {
+                                joined.push_str(v.as_str(program, gc).as_ref())
+                            }
+                        }
+
+                        joined.push(',')
+                    }*/
+
+                    unimplemented!();
+
+                    joined.pop();
+                    joined.push('}');
+
+                    gc.alloc_str(joined)
+                }
+                _ => GribString::Static("[stack object]"),
+            },
+            Self::String(s) => s.clone(),
+            Self::Number(n) => gc.alloc_str(n.to_string()),
+            Self::ModuleObject(_) => GribString::Static("[module]"),
+        }
+    }
+
     pub fn as_str<'a>(&'a self, program: &'a Program, gc: &'a Gc) -> Cow<'a, str> {
         match self {
             Self::Nil => "nil".into(),
@@ -103,10 +160,11 @@ impl GribValue {
                     joined.into()
                 }
                 Some(HeapValue::Hash(h)) => {
-                    let mut joined = if h.mutable { '$' } else { '#' }.to_string();
+                    let mut joined = if h.is_mutable() { '$' } else { '#' }.to_string();
 
                     joined.push('{');
-                    for (key, value) in h.values.iter() {
+
+                    /*for (key, value) in h.values.iter() {
                         joined.push_str(key);
                         joined.push_str("->");
 
@@ -118,7 +176,9 @@ impl GribValue {
                         }
 
                         joined.push(',')
-                    }
+                    }*/
+
+                    unimplemented!();
 
                     joined.pop();
                     joined.push('}');

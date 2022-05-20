@@ -192,10 +192,10 @@ fn run_block(
 }
 
 //fn hash_create_prop(hash: &mut Hash, )
-
+///@TODO remove if necessary unimplemented!
 fn bind_value(val: &mut GribValue, bind_target: usize) {
     if let GribValue::Callable(Callable::Lambda { binding, .. }) = val {
-        *binding = bind_target;
+        *binding = Some(bind_target);
     }
 }
 
@@ -223,8 +223,6 @@ fn evaluate_hash(
                     evaluated.into()
                 }
                 ObjectValue::AutoProp(prop) => {
-                    let mut set = None;
-
                     let get = prop.get.as_ref().and_then(|p| match p {
                         AutoPropValue::String(s) => scope
                             .capture_var(stack, gc, s.data)
@@ -232,7 +230,17 @@ fn evaluate_hash(
                         AutoPropValue::Lambda(ind) => AccessFunc::Callable {
                             index: *ind,
                             stack: gc.capture_stack(stack, scope, &program.getters[*ind].capture),
-                            binding: ptr,
+                        }
+                        .into(),
+                    });
+
+                    let set = prop.set.as_ref().and_then(|p| match p {
+                        AutoPropValue::String(s) => scope
+                            .capture_var(stack, gc, s.data)
+                            .map(AccessFunc::Captured),
+                        AutoPropValue::Lambda(ind) => AccessFunc::Callable {
+                            index: *ind,
+                            stack: gc.capture_stack(stack, scope, &program.setters[*ind].capture),
                         }
                         .into(),
                     });
@@ -244,21 +252,23 @@ fn evaluate_hash(
     }
 
     if let Some(HeapValue::Hash(hash)) = gc.heap_val_mut(ptr) {
-        hash.values = values;
+        unimplemented!()
     }
 
     GribValue::HeapValue(ptr)
 }
 
-fn evaluate_lambda(
+pub fn evaluate_lambda(
     body: &LambdaBody,
     mut scope: Scope,
-    binding: usize,
+    binding: Option<usize>,
     stack: &mut Stack,
     program: &Program,
     gc: &mut Gc,
 ) -> GribValue {
-    scope.set_this(binding);
+    if let Some(i) = binding {
+        scope.set_this(i);
+    }
 
     let res = match body {
         LambdaBody::Block(block) => match run_block(block, &mut scope, stack, program, gc) {
@@ -282,16 +292,16 @@ fn evaluate_access_func_get(
     stack: &mut Stack,
     program: &Program,
     gc: &mut Gc,
+    binding: usize,
 ) -> GribValue {
     match fnc {
         AccessFunc::Callable {
             stack: stack_index,
             index: getter_index,
-            binding,
         } => {
             let mut new_scope = scope.clone();
 
-            if let Some(captures) = gc.get_captured_stack(*stack_index) {
+            if let Some(captures) = stack_index.and_then(|i| gc.get_captured_stack(i)) {
                 for (key, index) in captures {
                     new_scope.add_existing_captured(stack, *key, *index);
                 }
@@ -300,7 +310,7 @@ fn evaluate_access_func_get(
             evaluate_lambda(
                 &program.getters[*getter_index].block,
                 new_scope,
-                *binding,
+                binding.into(),
                 stack,
                 program,
                 gc,
@@ -321,13 +331,9 @@ fn property_access(
     let value = evaluate_expression(&*expression, scope, stack, program, gc);
 
     match value.ptr().and_then(|ind| gc.heap_val(ind)) {
-        Some(HeapValue::Hash(HashValue { values, .. })) => match values.get(key) {
-            Some(HashPropertyValue::AutoProp {
-                get: Some(getter), ..
-            }) => evaluate_access_func_get(getter, scope, stack, program, gc),
-            Some(HashPropertyValue::Value(val)) => val.clone(),
-            _ => GribValue::Nil,
-        },
+        Some(HeapValue::Hash(hash_value)) => {
+            hash_value.get_property(value.as_str(program: &'a Program, gc: &'a Gc))
+        }
         _ => GribValue::Nil,
     }
 }

@@ -1,8 +1,7 @@
 use ast::node::Program;
 use runtime::memory::{slot::*, Scope, Stack};
 use runtime::values::{
-    string::{GribString, GribStringRef},
-    AccessFunc, Callable, GribValue, HashPropertyValue, HeapValue,
+    AccessFunc, Callable, GribString, GribStringRef, GribValue, HashPropertyValue, HeapValue,
 };
 use std::collections::{HashMap, HashSet, LinkedList};
 
@@ -50,26 +49,41 @@ impl Gc {
         self.alloc(HeapSlot::Value(value))
     }
 
+    pub fn reserve_slot(&mut self) -> usize {
+        self.alloc(HeapSlot::Empty)
+    }
+
     pub fn capture_stack(
         &mut self,
         stack: &mut Stack,
         scope: &mut Scope,
         to_capture: &HashSet<usize>,
-    ) -> usize {
+    ) -> Option<usize> {
+        if to_capture.is_empty() {
+            return None;
+        }
+
         let mut heap_stack = HashMap::new();
 
         for name in to_capture {
             if let Some(ind) = scope.capture_var(stack, self, *name) {
-                heap_stack.insert(name.clone(), ind);
+                heap_stack.insert(*name, ind);
             }
         }
 
-        self.alloc_heap(HeapValue::CapturedStack(heap_stack))
+        self.alloc_heap(HeapValue::CapturedStack(heap_stack)).into()
     }
 
     pub fn get_captured_stack(&self, index: usize) -> Option<&HashMap<usize, usize>> {
         self.heap_slot(index).and_then(|slot| match slot {
             HeapSlot::Value(HeapValue::CapturedStack(stack)) => Some(stack),
+            _ => None,
+        })
+    }
+
+    pub fn get_captured(&self, index: usize) -> Option<GribValue> {
+        self.heap_slot(index).and_then(|slot| match slot {
+            HeapSlot::Captured(val) => Some(val.clone()),
             _ => None,
         })
     }
@@ -107,8 +121,8 @@ impl Gc {
         }
     }
 
-    pub fn alloc_str(&mut self, s: String) -> GribValue {
-        GribValue::String(GribString::Heap(self.alloc_heap(HeapValue::String(s))))
+    pub fn alloc_str(&mut self, s: String) -> GribString {
+        GribString::Heap(self.alloc_heap(HeapValue::String(s)))
     }
 
     pub(in runtime::memory) fn heap_slot<'a>(&'a self, ptr: usize) -> Option<&'a HeapSlot> {
@@ -179,7 +193,7 @@ impl Gc {
         program: &'a Program,
     ) -> Option<GribStringRef<'a>> {
         if let GribValue::String(s) = val {
-            self.str_ref(program, s)
+            s.as_ref(program, self).into()
         } else {
             None
         }
@@ -213,7 +227,8 @@ fn mark(gc: &mut Gc, ind: usize) {
                 }
             }
             HeapValue::Hash(hash) => {
-                for (_, value) in &hash.values {
+                unimplemented!()
+                /*for (_, value) in &hash.values {
                     match value {
                         HashPropertyValue::Value(val) => marked_stack.push(val.clone()),
                         /*HashPropertyValue::AutoProp(prop) => {
@@ -223,7 +238,7 @@ fn mark(gc: &mut Gc, ind: usize) {
                         }*/
                         _ => unimplemented!(),
                     }
-                }
+                }*/
             }
         },
         _ => to_mark = false,
@@ -242,9 +257,10 @@ fn mark(gc: &mut Gc, ind: usize) {
     for value in marked_func {
         match value {
             AccessFunc::Captured(ind) => mark(gc, ind),
-            AccessFunc::Callable { stack, binding, .. } => {
-                mark(gc, stack);
-                mark(gc, binding);
+            AccessFunc::Callable { stack, .. } => {
+                if let Some(ind) = stack {
+                    mark(gc, ind);
+                }
             }
         }
     }
@@ -261,8 +277,12 @@ fn mark_stack(gc: &mut Gc, obj: GribValue) {
 fn mark_function(gc: &mut Gc, fnc: Callable) {
     match fnc {
         Callable::Lambda { binding, stack, .. } => {
-            mark(gc, binding);
-            mark(gc, stack);
+            if let Some(ind) = binding {
+                mark(gc, ind);
+            }
+            if let Some(ind) = stack {
+                mark(gc, ind);
+            }
         }
         _ => {}
     }

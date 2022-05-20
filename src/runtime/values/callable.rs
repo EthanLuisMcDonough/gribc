@@ -17,9 +17,9 @@ pub enum Callable {
         index: usize,
     },
     Lambda {
-        binding: usize,
+        binding: Option<usize>,
+        stack: Option<usize>,
         index: usize,
-        stack: usize,
     },
 }
 
@@ -77,10 +77,6 @@ impl From<NativeConsolePackage> for NativeReference {
 
 #[derive(Clone)]
 pub enum AccessFunc {
-    Callable {
-        index: usize,
-        stack: usize,
-        binding: usize,
-    },
+    Callable { index: usize, stack: Option<usize> },
     Captured(usize),
 }

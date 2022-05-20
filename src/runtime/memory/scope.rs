@@ -1,5 +1,5 @@
 use runtime::memory::{slot::*, Gc, Stack};
-use runtime::values::{GribValue, HeapValue};
+use runtime::values::{GribValue, HashValue, HeapValue};
 use std::collections::HashMap;
 
 const STACK_OVERFLOW_MSG: &str = "Grib stack overflow";
@@ -105,6 +105,14 @@ impl Scope {
         if let Some(HeapValue::CapturedStack(stack_ref)) = gc.heap_val(ptr) {
             for (key, index) in stack_ref {
                 self.add_existing_captured(stack, *key, *index);
+            }
+        }
+    }
+
+    pub fn load_captured_stack(&mut self, stack: &mut Stack, gc: &mut Gc, index: usize) {
+        if let Some(s) = gc.get_captured_stack(index) {
+            for (label, index) in s {
+                self.add_existing_captured(stack, *label, *index);
             }
         }
     }

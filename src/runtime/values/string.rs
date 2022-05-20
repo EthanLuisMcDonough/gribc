@@ -107,4 +107,11 @@ impl GribStringRef<'_> {
             }
         }
     }
+
+    pub fn stringify(&self) -> String {
+        match self {
+            Self::Ref(r) => format!("{:?}", r),
+            Self::Char(c) => format!("{:?}", c.to_string()),
+        }
+    }
 }
