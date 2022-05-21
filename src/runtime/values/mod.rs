@@ -3,7 +3,7 @@ mod hash;
 mod string;
 
 use ast::node::*;
-use runtime::memory::Gc;
+use runtime::memory::{Gc, Stack};
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -63,10 +63,9 @@ pub enum GribValue {
 
 impl GribValue {
     pub fn ptr(&self) -> Option<usize> {
-        if let &Self::HeapValue(i) = self {
-            Some(i)
-        } else {
-            None
+        match self {
+            Self::HeapValue(i) | Self::String(GribString::Heap(i)) => Some(*i),
+            _ => None,
         }
     }
 
@@ -79,7 +78,7 @@ impl GribValue {
         }
     }
 
-    pub fn to_str(&self, program: &Program, gc: &Gc) -> GribString {
+    pub fn to_str(&self, stack: &mut Stack, program: &Program, gc: &mut Gc) -> GribString {
         match self {
             Self::Nil => GribString::Static("nil"),
             Self::Callable(fnc) => match fnc {
@@ -107,6 +106,12 @@ impl GribValue {
 
                     joined.push('{');
 
+                    for (key, value) in h.values(stack, program, gc, *ind).into_iter() {
+                        joined.push_str(key.as_ref());
+                        joined.push_str("->");
+                        joined.push_str(value.to_str(stack, program, gc));
+                    }
+
                     /*for (key, value) in h.values.iter() {
                         joined.push_str(key);
                         joined.push_str("->");
@@ -123,7 +128,9 @@ impl GribValue {
 
                     unimplemented!();
 
-                    joined.pop();
+                    if !h.is_empty() {
+                        joined.pop();
+                    }
                     joined.push('}');
 
                     gc.alloc_str(joined)
@@ -244,5 +251,11 @@ impl From<usize> for GribValue {
 impl From<Callable> for GribValue {
     fn from(f: Callable) -> Self {
         GribValue::Callable(f)
+    }
+}
+
+impl From<GribString> for GribValue {
+    fn from(s: GribString) -> Self {
+        GribValue::String(s)
     }
 }

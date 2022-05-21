@@ -116,6 +116,10 @@ impl HashValue {
             .unwrap_or_default()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+
     pub fn values(
         &self,
         stack: &mut Stack,

@@ -331,9 +331,7 @@ fn property_access(
     let value = evaluate_expression(&*expression, scope, stack, program, gc);
 
     match value.ptr().and_then(|ind| gc.heap_val(ind)) {
-        Some(HeapValue::Hash(hash_value)) => {
-            hash_value.get_property(value.as_str(program: &'a Program, gc: &'a Gc))
-        }
+        Some(HeapValue::Hash(hash_value)) => hash_value.get_property(value.as_str(program, gc)),
         _ => GribValue::Nil,
     }
 }
@@ -350,7 +348,7 @@ pub fn evaluate_expression(
         Expression::Nil => GribValue::Nil,
         Expression::This => scope.get_this(gc),
         Expression::Number(f) => GribValue::Number(*f),
-        Expression::String(s) => gc.alloc_str(program.strings[*s].clone()),
+        Expression::String(s) => gc.alloc_str(program.strings[*s].clone()).into(),
         Expression::Hash(h) => evaluate_hash(h, false, scope, stack, program, gc),
         Expression::MutableHash(h) => evaluate_hash(h, true, scope, stack, program, gc),
         Expression::ArrayCreation(expressions) => {

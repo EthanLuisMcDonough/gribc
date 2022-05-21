@@ -14,7 +14,7 @@ fn add_values(left: &GribValue, right: &GribValue, program: &Program, gc: &mut G
         if let Some(string) = gc.try_get_string(left, program) {
             let mut new_str = string.to_string();
             new_str.push_str(right.as_str(program, gc).as_ref());
-            gc.alloc_str(new_str)
+            gc.alloc_str(new_str).into()
         } else {
             GribValue::Number(left.cast_num(program, gc) + right.cast_num(program, gc))
         }
@@ -46,6 +46,7 @@ fn mult_values(left: &GribValue, right: &GribValue, program: &Program, gc: &mut 
                     .map(|i| string.repeat(i))
                     .unwrap_or_default(),
             )
+            .into()
         } else {
             GribValue::Number(left.cast_num(program, gc) + right.cast_num(program, gc))
         }
