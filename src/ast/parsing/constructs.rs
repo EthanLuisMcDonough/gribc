@@ -89,7 +89,7 @@ pub fn parse_params<T: Iterator<Item = Located<Token>>>(
                         return Err(ParseError::ParamAfterSpread(Located {
                             data: s, start, end
                         }));
-                    } else if !params.params.insert(store.ins_str(s.clone())) {
+                    } else if !params.try_add(store.ins_str(s.clone())) {
                         return Err(ParseError::DuplicateParam(Located {
                             data: s, start, end
                         }));

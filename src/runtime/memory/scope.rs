@@ -1,5 +1,6 @@
-use runtime::memory::{slot::*, Gc, Stack};
-use runtime::values::{GribValue, HashValue, HeapValue};
+use ast::node::Parameters;
+use runtime::memory::{slot::*, Gc, Runtime, Stack};
+use runtime::values::{GribValue, HeapValue};
 use std::collections::HashMap;
 
 const STACK_OVERFLOW_MSG: &str = "Grib stack overflow";
@@ -39,23 +40,17 @@ impl Scope {
         self.declare(label, ptr);
     }
 
-    pub fn declare_heap(&mut self, stack: &mut Stack, gc: &mut Gc, label: usize, value: HeapValue) {
-        let heap_ptr = gc.alloc_heap(value);
+    pub fn declare_heap(&mut self, runtime: &mut Runtime, label: usize, value: HeapValue) {
+        let heap_ptr = runtime.alloc_heap(value);
         let val = StackSlot::Value(GribValue::HeapValue(heap_ptr));
-        let ptr = stack.add(val).expect(STACK_OVERFLOW_MSG);
+        let ptr = runtime.stack.add(val).expect(STACK_OVERFLOW_MSG);
         self.declare(label, ptr);
     }
 
-    pub fn declare_captured(
-        &mut self,
-        stack: &mut Stack,
-        gc: &mut Gc,
-        label: usize,
-        value: GribValue,
-    ) {
-        let heap_ptr = gc.alloc_captured(value);
+    pub fn declare_captured(&mut self, runtime: &mut Runtime, label: usize, value: GribValue) {
+        let heap_ptr = runtime.alloc_captured(value);
         let val = StackSlot::Captured(heap_ptr);
-        let ptr = stack.add(val).expect(STACK_OVERFLOW_MSG);
+        let ptr = runtime.stack.add(val).expect(STACK_OVERFLOW_MSG);
         self.declare(label, ptr);
     }
 
@@ -63,33 +58,28 @@ impl Scope {
         stack.pop_stack(self.local_count);
     }
 
-    pub fn get<'a>(&self, stack: &'a Stack, gc: &'a Gc, label: usize) -> Option<&'a GribValue> {
+    pub fn get<'a>(&self, runtime: &'a Runtime, label: usize) -> Option<&'a GribValue> {
         self.scope
             .get(&label)
             .cloned()
-            .and_then(|index| stack.get(gc, index))
+            .and_then(|index| runtime.get_stack(index))
     }
 
-    fn get_mut<'a>(
-        &self,
-        stack: &'a mut Stack,
-        gc: &'a mut Gc,
-        label: usize,
-    ) -> Option<&'a mut GribValue> {
+    fn get_mut<'a>(&self, runtime: &'a mut Runtime, label: usize) -> Option<&'a mut GribValue> {
         self.scope
             .get(&label)
             .cloned()
-            .and_then(move |index| stack.get_mut(gc, index))
+            .and_then(|index| runtime.get_stack_mut(index))
     }
 
-    pub fn capture_var(&mut self, stack: &mut Stack, gc: &mut Gc, label: usize) -> Option<usize> {
+    pub fn capture_var(&mut self, runtime: &mut Runtime, label: usize) -> Option<usize> {
         self.scope
             .get(&label)
-            .and_then(|&ind| stack.capture_at_ind(ind, gc))
+            .and_then(|&ind| runtime.capture_at_ind(ind))
     }
 
-    pub fn set(&self, stack: &mut Stack, gc: &mut Gc, label: usize, value: GribValue) {
-        if let Some(r) = self.get_mut(stack, gc, label) {
+    pub fn set(&self, runtime: &mut Runtime, label: usize, value: GribValue) {
+        if let Some(r) = self.get_mut(runtime, label) {
             *r = value;
         }
     }
@@ -101,19 +91,27 @@ impl Scope {
         self.declare(label, ptr);
     }
 
-    pub fn add_captured_stack(&mut self, stack: &mut Stack, gc: &mut Gc, ptr: usize) {
-        if let Some(HeapValue::CapturedStack(stack_ref)) = gc.heap_val(ptr) {
+    pub fn add_captured_stack(&mut self, runtime: &mut Runtime, ptr: usize) {
+        if let Some(HeapValue::CapturedStack(stack_ref)) = runtime.gc.heap_val(ptr) {
             for (key, index) in stack_ref {
-                self.add_existing_captured(stack, *key, *index);
+                self.add_existing_captured(&mut runtime.stack, *key, *index);
             }
         }
     }
 
-    pub fn load_captured_stack(&mut self, stack: &mut Stack, gc: &mut Gc, index: usize) {
-        if let Some(s) = gc.get_captured_stack(index) {
-            for (label, index) in s {
-                self.add_existing_captured(stack, *label, *index);
-            }
+    pub fn add_params(&mut self, params: &Parameters, runtime: &mut Runtime, args: Vec<GribValue>) {
+        let mut arg_iter = args.into_iter();
+
+        for ident in params.params {
+            self.declare_stack(
+                &mut runtime.stack,
+                ident,
+                arg_iter.next().unwrap_or_default(),
+            );
+        }
+
+        if let Some(ident) = &params.vardic {
+            self.declare_heap(runtime, *ident, HeapValue::Array(arg_iter.collect()));
         }
     }
 }

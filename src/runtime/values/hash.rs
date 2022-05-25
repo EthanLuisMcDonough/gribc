@@ -1,7 +1,7 @@
 use super::{AccessFunc, Callable, GribString, GribValue};
 use ast::node::Program;
 use runtime::exec::evaluate_lambda;
-use runtime::memory::{Gc, Scope, Stack};
+use runtime::memory::{Gc, Runtime, Scope};
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash, Hasher};
 
@@ -106,13 +106,12 @@ impl HashValue {
     pub fn get_property(
         &self,
         string: GribString,
-        stack: &mut Stack,
+        runtime: &mut Runtime,
         program: &Program,
-        gc: &mut Gc,
         self_ptr: usize,
     ) -> GribValue {
-        self.get_raw_property(string, program, gc)
-            .and_then(|val| eval_raw_get_property(val, stack, program, gc, self_ptr))
+        self.get_raw_property(string, program, &mut runtime.gc)
+            .and_then(|val| eval_raw_get_property(val, runtime, program, self_ptr))
             .unwrap_or_default()
     }
 
@@ -122,16 +121,15 @@ impl HashValue {
 
     pub fn values(
         &self,
-        stack: &mut Stack,
+        runtime: &mut Runtime,
         program: &Program,
-        gc: &mut Gc,
         self_ptr: usize,
     ) -> HashMap<String, GribValue> {
         let mut values = HashMap::new();
 
         for (raw_key, raw_value) in &self.values {
-            if let Some(key) = raw_key.string.as_ref(program, gc) {
-                let val = eval_raw_get_property(raw_value.clone(), stack, program, gc, self_ptr);
+            if let Some(key) = raw_key.string.as_ref(program, &runtime.gc) {
+                let val = eval_raw_get_property(raw_value.clone(), runtime, program, self_ptr);
                 if let Some(v) = val {
                     values.insert(key.to_string(), v);
                 }
@@ -140,13 +138,32 @@ impl HashValue {
 
         values
     }
+
+    pub fn to_str(&self, runtime: &mut Runtime, program: &Program, self_ptr: usize) -> String {
+        let mut joined = if self.is_mutable() { '$' } else { '#' }.to_string();
+
+        joined.push('{');
+
+        for (key, value) in self.values(runtime, program, self_ptr).into_iter() {
+            joined.push_str(key.as_ref());
+            joined.push_str("->");
+            joined.push_str(value.as_str(program, runtime).as_ref());
+        }
+
+        if !self.is_empty() {
+            joined.pop();
+        }
+
+        joined.push('}');
+
+        joined
+    }
 }
 
 fn eval_raw_get_property(
     val: HashPropertyValue,
-    stack: &mut Stack,
+    runtime: &mut Runtime,
     program: &Program,
-    gc: &mut Gc,
     self_ptr: usize,
 ) -> Option<GribValue> {
     match val {
@@ -158,16 +175,16 @@ fn eval_raw_get_property(
             grib_val.into()
         }
         HashPropertyValue::AutoProp { get, .. } => get.and_then(|f| match f {
-            AccessFunc::Captured(ptr) => gc.get_captured(ptr),
+            AccessFunc::Captured(ptr) => runtime.gc.get_captured(ptr),
             AccessFunc::Callable {
                 index,
                 stack: captured_ind,
             } => program.getters.get(index).and_then(|getter| {
                 let mut scope = Scope::new();
                 if let Some(i) = captured_ind {
-                    scope.add_captured_stack(stack, gc, i);
+                    scope.add_captured_stack(runtime, i);
                 }
-                evaluate_lambda(&getter.block, scope, self_ptr.into(), stack, program, gc).into()
+                evaluate_lambda(&getter.block, scope, self_ptr.into(), runtime, program).into()
             }),
         }),
     }

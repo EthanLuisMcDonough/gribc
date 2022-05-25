@@ -34,7 +34,7 @@ macro_rules! next_guard {
             )*)*
             Some(t) => return Err(ParseError::UnexpectedToken(t)),
             None => return Err(ParseError::UnexpectedEOF),
-        };
+        }
     };
     ({ $next:expr } { $( $token:tt )* }) => {
         next_guard!({ $next } (_s, _e) { $( $token )* })

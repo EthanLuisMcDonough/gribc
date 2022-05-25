@@ -6,20 +6,29 @@ pub type CaptureData = HashSet<String>;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Parameters {
-    pub params: HashSet<usize>,
+    pub params: Vec<usize>,
     pub vardic: Option<usize>,
 }
 
 impl Parameters {
     pub fn new() -> Self {
         Parameters {
-            params: HashSet::new(),
+            params: Vec::new(),
             vardic: None,
         }
     }
 
-    pub fn all_params<'a>(&'a self) -> impl Iterator<Item = &'a usize> {
+    pub fn all_params(&'_ self) -> impl Iterator<Item = &'_ usize> {
         self.params.iter().chain(self.vardic.iter())
+    }
+
+    pub fn try_add(&mut self, name: usize) -> bool {
+        if self.params.contains(&name) {
+            false
+        } else {
+            self.params.push(name);
+            true
+        }
     }
 }
 

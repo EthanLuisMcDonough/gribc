@@ -3,12 +3,10 @@ mod hash;
 mod string;
 
 use ast::node::*;
-use runtime::memory::{Gc, Stack};
+use runtime::memory::{Gc, Runtime};
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::path::PathBuf;
-use std::rc::Rc;
 
 pub use self::callable::*;
 pub use self::hash::*;
@@ -50,6 +48,21 @@ pub fn float_to_ind(f: f64) -> Option<usize> {
         .filter(|&i| i.is_finite() && i >= 0. && i <= (usize::MAX as f64))
         .map(|i| i as usize)
 }
+
+fn array_to_string(arr: &Vec<GribValue>, program: &Program, runtime: &mut Runtime) -> String {
+    let mut joined = String::from("[");
+
+    for value in arr {
+        joined.push_str(value.as_str(program, runtime).as_ref());
+        joined.push(',');
+    }
+
+    joined.pop();
+    joined.push(']');
+
+    joined
+}
+
 #[derive(Clone)]
 pub enum GribValue {
     Nil,
@@ -78,72 +91,29 @@ impl GribValue {
         }
     }
 
-    pub fn to_str(&self, stack: &mut Stack, program: &Program, gc: &mut Gc) -> GribString {
+    pub fn to_str(&self, runtime: &mut Runtime, program: &Program) -> GribString {
         match self {
             Self::Nil => GribString::Static("nil"),
             Self::Callable(fnc) => match fnc {
-                Callable::Native(n) => gc.alloc_str(format!("[native {}()]", n.fn_name())),
+                Callable::Native(n) => runtime.alloc_str(format!("[native {}()]", n.fn_name())),
                 Callable::Procedure { .. } => GribString::Static("[proc]"),
                 Callable::Lambda { .. } => GribString::Static("[lambda]"),
             },
             Self::Bool(b) => GribString::Static(if *b { "true" } else { "false" }),
-            Self::HeapValue(ind) => match gc.heap_val(*ind) {
+            Self::HeapValue(ind) => match runtime.gc.heap_val(*ind) {
                 Some(HeapValue::Array(v)) => {
-                    let mut joined = String::from("[");
-
-                    for value in v {
-                        joined.push_str(value.as_str(program, gc).as_ref());
-                        joined.push(',');
-                    }
-
-                    joined.pop();
-                    joined.push(']');
-
-                    gc.alloc_str(joined)
+                    runtime.alloc_str(array_to_string(&v, program, runtime))
                 }
-                Some(HeapValue::Hash(h)) => {
-                    let mut joined = if h.is_mutable() { '$' } else { '#' }.to_string();
-
-                    joined.push('{');
-
-                    for (key, value) in h.values(stack, program, gc, *ind).into_iter() {
-                        joined.push_str(key.as_ref());
-                        joined.push_str("->");
-                        joined.push_str(value.to_str(stack, program, gc));
-                    }
-
-                    /*for (key, value) in h.values.iter() {
-                        joined.push_str(key);
-                        joined.push_str("->");
-
-                        match value {
-                            HashPropertyValue::AutoProp { .. } => joined.push_str("[auto prop]"),
-                            HashPropertyValue::Value(v) => {
-                                joined.push_str(v.as_str(program, gc).as_ref())
-                            }
-                        }
-
-                        joined.push(',')
-                    }*/
-
-                    unimplemented!();
-
-                    if !h.is_empty() {
-                        joined.pop();
-                    }
-                    joined.push('}');
-
-                    gc.alloc_str(joined)
-                }
+                Some(HeapValue::Hash(h)) => runtime.alloc_str(h.to_str(runtime, program, *ind)),
                 _ => GribString::Static("[stack object]"),
             },
             Self::String(s) => s.clone(),
-            Self::Number(n) => gc.alloc_str(n.to_string()),
+            Self::Number(n) => runtime.alloc_str(n.to_string()),
             Self::ModuleObject(_) => GribString::Static("[module]"),
         }
     }
 
-    pub fn as_str<'a>(&'a self, program: &'a Program, gc: &'a Gc) -> Cow<'a, str> {
+    pub fn as_str<'a>(&'a self, program: &'a Program, runtime: &'a mut Runtime) -> Cow<'a, str> {
         match self {
             Self::Nil => "nil".into(),
             Self::Callable(fnc) => match fnc {
@@ -152,49 +122,12 @@ impl GribValue {
                 Callable::Lambda { .. } => "[lambda]".into(),
             },
             Self::Bool(b) => if *b { "true" } else { "false" }.into(),
-            Self::HeapValue(ind) => match gc.heap_val(*ind) {
-                Some(HeapValue::Array(v)) => {
-                    let mut joined = String::from("[");
-
-                    for value in v {
-                        joined.push_str(value.as_str(program, gc).as_ref());
-                        joined.push(',');
-                    }
-
-                    joined.pop();
-                    joined.push(']');
-
-                    joined.into()
-                }
-                Some(HeapValue::Hash(h)) => {
-                    let mut joined = if h.is_mutable() { '$' } else { '#' }.to_string();
-
-                    joined.push('{');
-
-                    /*for (key, value) in h.values.iter() {
-                        joined.push_str(key);
-                        joined.push_str("->");
-
-                        match value {
-                            HashPropertyValue::AutoProp { .. } => joined.push_str("[auto prop]"),
-                            HashPropertyValue::Value(v) => {
-                                joined.push_str(v.as_str(program, gc).as_ref())
-                            }
-                        }
-
-                        joined.push(',')
-                    }*/
-
-                    unimplemented!();
-
-                    joined.pop();
-                    joined.push('}');
-
-                    joined.into()
-                }
+            Self::HeapValue(ind) => match runtime.gc.heap_val(*ind) {
+                Some(HeapValue::Array(v)) => array_to_string(&v, program, runtime).into(),
+                Some(HeapValue::Hash(h)) => h.to_str(runtime, program, *ind).into(),
                 _ => "[stack object]".into(),
             },
-            Self::String(s) => s.as_ref(program, gc).unwrap_or_default().into(),
+            Self::String(s) => s.as_ref(program, &runtime.gc).unwrap_or_default().into(),
             Self::Number(n) => n.to_string().into(),
             Self::ModuleObject(_) => "[module]".into(),
         }

@@ -32,18 +32,17 @@ fn scope_imports<'a>(
     }
 }
 
-pub fn execute(program: &Program, config: GcConfig) {
-    let mut stack = Stack::new();
-    let mut gc = Gc::new(config);
+pub fn execute(program: &Program, config: RuntimeConfig) {
+    let mut runtime = Runtime::new(config);
     let mut scope = Scope::new();
 
     for import in &program.imports {
-        scope_imports(&mut scope, &mut stack, program, import);
+        scope_imports(&mut scope, &mut runtime.stack, program, import);
     }
 
     for (index, fnc) in program.functions.iter().enumerate() {
         scope.declare_stack(
-            &mut stack,
+            &mut runtime.stack,
             fnc.identifier.data,
             Callable::Procedure {
                 module: None,
@@ -52,7 +51,7 @@ pub fn execute(program: &Program, config: GcConfig) {
         );
     }
 
-    run_block(&program.body, &mut scope, &mut stack, program, &mut gc);
+    run_block(&program.body, &mut scope, &mut runtime, program);
 }
 
 enum ControlFlow {
@@ -85,77 +84,69 @@ macro_rules! control_guard {
     };
 }
 
-fn declare(
-    decl: &Declaration,
-    scope: &mut Scope,
-    stack: &mut Stack,
-    program: &Program,
-    gc: &mut Gc,
-) {
+fn declare(decl: &Declaration, scope: &mut Scope, runtime: &mut Runtime, program: &Program) {
     for declaration in &decl.declarations {
-        let value = evaluate_expression(&declaration.value, scope, stack, program, gc);
+        let value = evaluate_expression(&declaration.value, scope, runtime, program);
         let label = declaration.identifier.data;
         if declaration.captured {
-            scope.declare_stack(stack, label, value);
+            scope.declare_stack(&mut runtime.stack, label, value);
         } else {
-            scope.declare_captured(stack, gc, label, value);
+            scope.declare_captured(runtime, label, value);
         }
     }
 }
 
-fn run_block(
+pub fn run_block(
     block: &Block,
     scope: &mut Scope,
-    stack: &mut Stack,
+    runtime: &mut Runtime,
     program: &Program,
-    gc: &mut Gc,
 ) -> Option<ControlFlow> {
     for node in block.iter() {
         match node {
             Node::Block(block) => {
-                control_guard!(run_block(block, scope, stack, program, gc));
+                control_guard!(run_block(block, scope, runtime, program));
             }
             Node::Break => return Some(ControlFlow::Break),
             Node::Continue => return Some(ControlFlow::Continue),
             Node::Return(expr) => {
-                return ControlFlow::Return(evaluate_expression(expr, scope, stack, program, gc))
+                return ControlFlow::Return(evaluate_expression(expr, scope, runtime, program))
                     .into()
             }
-            Node::Declaration(decl) => declare(decl, scope, stack, program, gc),
+            Node::Declaration(decl) => declare(decl, scope, runtime, program),
             Node::Expression(expression) => {
-                evaluate_expression(expression, scope, stack, program, gc);
+                evaluate_expression(expression, scope, runtime, program);
             }
             Node::LogicChain {
                 if_block,
                 elseifs,
                 else_block,
             } => {
-                let first_cond =
-                    evaluate_expression(&if_block.condition, scope, stack, program, gc);
-                if truthy(&first_cond, program, gc) {
-                    control_guard!(run_block(&if_block.block, scope, stack, program, gc));
+                let first_cond = evaluate_expression(&if_block.condition, scope, runtime, program);
+                if truthy(&first_cond, program, &runtime.gc) {
+                    control_guard!(run_block(&if_block.block, scope, runtime, program));
                 } else {
                     let mut run_else = true;
                     for ConditionBodyPair { condition, block } in elseifs {
-                        let cond = evaluate_expression(&condition, scope, stack, program, gc);
-                        if truthy(&cond, program, gc) {
+                        let cond = evaluate_expression(&condition, scope, runtime, program);
+                        if truthy(&cond, program, &runtime.gc) {
                             run_else = false;
-                            control_guard!(run_block(&block, scope, stack, program, gc));
+                            control_guard!(run_block(&block, scope, runtime, program));
                             break;
                         }
                     }
 
                     if let Some(block) = else_block.filter(|_| run_else) {
-                        control_guard!(run_block(&block, scope, stack, program, gc));
+                        control_guard!(run_block(&block, scope, runtime, program));
                     }
                 }
             }
             Node::While(pair) => {
                 while {
-                    let cond = evaluate_expression(&pair.condition, scope, stack, program, gc);
-                    truthy(&cond, program, gc)
+                    let cond = evaluate_expression(&pair.condition, scope, runtime, program);
+                    truthy(&cond, program, &runtime.gc)
                 } {
-                    let val = run_block(&pair.block, scope, stack, program, gc);
+                    let val = run_block(&pair.block, scope, runtime, program);
                     match &val {
                         Some(ControlFlow::Return(_)) => return val,
                         Some(ControlFlow::Break) => break,
@@ -170,18 +161,18 @@ fn run_block(
                 body,
             } => {
                 if let Some(d) = declaration {
-                    declare(d, scope, stack, program, gc);
+                    declare(d, scope, runtime, program);
                 }
 
                 while condition
-                    .map(|c| evaluate_expression(&c, scope, stack, program, gc))
-                    .map(|g| truthy(&g, program, gc))
+                    .map(|c| evaluate_expression(&c, scope, runtime, program))
+                    .map(|g| truthy(&g, program, &runtime.gc))
                     .unwrap_or(true)
                 {
-                    control_guard!(run_block(body, scope, stack, program, gc));
+                    control_guard!(run_block(body, scope, runtime, program));
 
                     if let Some(incr_expr) = increment {
-                        evaluate_expression(incr_expr, scope, stack, program, gc);
+                        evaluate_expression(incr_expr, scope, runtime, program);
                     }
                 }
             }
@@ -203,11 +194,10 @@ fn evaluate_hash(
     hash: &Hash,
     mutable: bool,
     scope: &mut Scope,
-    stack: &mut Stack,
+    runtime: &mut Runtime,
     program: &Program,
-    gc: &mut Gc,
 ) -> GribValue {
-    let ptr = gc.alloc_heap(HeapValue::Hash(HashValue {
+    let ptr = runtime.alloc_heap(HeapValue::Hash(HashValue {
         mutable,
         values: HashMap::new(),
     }));
@@ -218,29 +208,29 @@ fn evaluate_hash(
             label.to_string(),
             match val {
                 ObjectValue::Expression(e) => {
-                    let mut evaluated = evaluate_expression(e, scope, stack, program, gc);
+                    let mut evaluated = evaluate_expression(e, scope, runtime, program);
                     bind_value(&mut evaluated, ptr);
                     evaluated.into()
                 }
                 ObjectValue::AutoProp(prop) => {
                     let get = prop.get.as_ref().and_then(|p| match p {
-                        AutoPropValue::String(s) => scope
-                            .capture_var(stack, gc, s.data)
-                            .map(AccessFunc::Captured),
+                        AutoPropValue::String(s) => {
+                            scope.capture_var(runtime, s.data).map(AccessFunc::Captured)
+                        }
                         AutoPropValue::Lambda(ind) => AccessFunc::Callable {
                             index: *ind,
-                            stack: gc.capture_stack(stack, scope, &program.getters[*ind].capture),
+                            stack: runtime.capture_stack(scope, &program.getters[*ind].capture),
                         }
                         .into(),
                     });
 
                     let set = prop.set.as_ref().and_then(|p| match p {
-                        AutoPropValue::String(s) => scope
-                            .capture_var(stack, gc, s.data)
-                            .map(AccessFunc::Captured),
+                        AutoPropValue::String(s) => {
+                            scope.capture_var(runtime, s.data).map(AccessFunc::Captured)
+                        }
                         AutoPropValue::Lambda(ind) => AccessFunc::Callable {
                             index: *ind,
-                            stack: gc.capture_stack(stack, scope, &program.setters[*ind].capture),
+                            stack: runtime.capture_stack(scope, &program.setters[*ind].capture),
                         }
                         .into(),
                     });
@@ -251,7 +241,7 @@ fn evaluate_hash(
         );
     }
 
-    if let Some(HeapValue::Hash(hash)) = gc.heap_val_mut(ptr) {
+    if let Some(HeapValue::Hash(hash)) = runtime.gc.heap_val_mut(ptr) {
         unimplemented!()
     }
 
@@ -262,25 +252,24 @@ pub fn evaluate_lambda(
     body: &LambdaBody,
     mut scope: Scope,
     binding: Option<usize>,
-    stack: &mut Stack,
+    runtime: &mut Runtime,
     program: &Program,
-    gc: &mut Gc,
 ) -> GribValue {
     if let Some(i) = binding {
         scope.set_this(i);
     }
 
     let res = match body {
-        LambdaBody::Block(block) => match run_block(block, &mut scope, stack, program, gc) {
+        LambdaBody::Block(block) => match run_block(block, &mut scope, runtime, program) {
             Some(ControlFlow::Return(val)) => val,
             _ => GribValue::Nil,
         },
         LambdaBody::ImplicitReturn(expr) => {
-            evaluate_expression(&expr, &mut scope, stack, program, gc)
+            evaluate_expression(&expr, &mut scope, runtime, program)
         }
     };
 
-    scope.cleanup(stack);
+    scope.cleanup(&mut runtime.stack);
 
     res
 }
@@ -289,9 +278,8 @@ pub fn evaluate_lambda(
 fn evaluate_access_func_get(
     fnc: &AccessFunc,
     scope: &mut Scope,
-    stack: &mut Stack,
+    runtime: &mut Runtime,
     program: &Program,
-    gc: &mut Gc,
     binding: usize,
 ) -> GribValue {
     match fnc {
@@ -301,9 +289,9 @@ fn evaluate_access_func_get(
         } => {
             let mut new_scope = scope.clone();
 
-            if let Some(captures) = stack_index.and_then(|i| gc.get_captured_stack(i)) {
+            if let Some(captures) = stack_index.and_then(|i| runtime.gc.get_captured_stack(i)) {
                 for (key, index) in captures {
-                    new_scope.add_existing_captured(stack, *key, *index);
+                    new_scope.add_existing_captured(&mut runtime.stack, *key, *index);
                 }
             }
 
@@ -311,12 +299,11 @@ fn evaluate_access_func_get(
                 &program.getters[*getter_index].block,
                 new_scope,
                 binding.into(),
-                stack,
+                runtime,
                 program,
-                gc,
             )
         }
-        AccessFunc::Captured(captured) => gc.normalize_val(*captured),
+        AccessFunc::Captured(captured) => runtime.gc.normalize_val(*captured),
     }
 }
 
@@ -324,14 +311,13 @@ fn property_access(
     expression: &Expression,
     key: &String,
     scope: &mut Scope,
-    stack: &mut Stack,
+    runtime: &mut Runtime,
     program: &Program,
-    gc: &mut Gc,
 ) -> GribValue {
-    let value = evaluate_expression(&*expression, scope, stack, program, gc);
+    let value = evaluate_expression(&*expression, scope, runtime, program);
 
-    match value.ptr().and_then(|ind| gc.heap_val(ind)) {
-        Some(HeapValue::Hash(hash_value)) => hash_value.get_property(value.as_str(program, gc)),
+    match value.ptr().and_then(|ind| runtime.gc.heap_val(ind)) {
+        Some(HeapValue::Hash(hash_value)) => unimplemented!(), //hash_value.get_property(value.as_str(program, gc)),
         _ => GribValue::Nil,
     }
 }
@@ -339,40 +325,34 @@ fn property_access(
 pub fn evaluate_expression(
     expression: &Expression,
     scope: &mut Scope,
-    stack: &mut Stack,
+    runtime: &mut Runtime,
     program: &Program,
-    gc: &mut Gc,
 ) -> GribValue {
     match expression {
         Expression::Bool(b) => GribValue::Bool(*b),
         Expression::Nil => GribValue::Nil,
-        Expression::This => scope.get_this(gc),
+        Expression::This => scope.get_this(&runtime.gc),
         Expression::Number(f) => GribValue::Number(*f),
-        Expression::String(s) => gc.alloc_str(program.strings[*s].clone()).into(),
-        Expression::Hash(h) => evaluate_hash(h, false, scope, stack, program, gc),
-        Expression::MutableHash(h) => evaluate_hash(h, true, scope, stack, program, gc),
+        Expression::String(s) => runtime.alloc_str(program.strings[*s].clone()).into(),
+        Expression::Hash(h) => evaluate_hash(h, false, scope, runtime, program),
+        Expression::MutableHash(h) => evaluate_hash(h, true, scope, runtime, program),
         Expression::ArrayCreation(expressions) => {
             let mut array = vec![];
             for e in expressions {
-                array.push(evaluate_expression(e, scope, stack, program, gc));
+                array.push(evaluate_expression(e, scope, runtime, program));
             }
-            GribValue::HeapValue(gc.alloc_heap(HeapValue::Array(array)))
+            GribValue::HeapValue(runtime.alloc_heap(HeapValue::Array(array)))
         }
         Expression::Identifier(Located { data, .. }) => {
-            scope.get(stack, gc, *data).cloned().unwrap_or_default()
+            scope.get(runtime, *data).cloned().unwrap_or_default()
         }
-        Expression::PropertyAccess { item, property } => property_access(
-            &*item,
-            &program.strings[*property],
-            scope,
-            stack,
-            program,
-            gc,
-        ),
+        Expression::PropertyAccess { item, property } => {
+            property_access(&*item, &program.strings[*property], scope, runtime, program)
+        }
         Expression::IndexAccess { item, index } => {
-            let item = evaluate_expression(item.as_ref(), scope, stack, program, gc);
-            let index = evaluate_expression(index.as_ref(), scope, stack, program, gc);
-            index_access(item, index, scope, stack, program, gc)
+            let item = evaluate_expression(item.as_ref(), scope, runtime, program);
+            let index = evaluate_expression(index.as_ref(), scope, runtime, program);
+            index_access(item, index, scope, runtime, program)
         }
         _ => unimplemented!(),
     }

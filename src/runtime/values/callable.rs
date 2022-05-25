@@ -1,6 +1,9 @@
 use super::GribValue;
 use ast::node::{NativeFunction, Program};
-use runtime::memory::Gc;
+use runtime::{
+    exec::run_block,
+    memory::{Runtime, Scope},
+};
 
 #[derive(Clone)]
 pub struct LambdaRef {
@@ -24,9 +27,14 @@ pub enum Callable {
 }
 
 impl Callable {
-    pub fn call(&self, program: &Program, gc: &mut Gc, args: Vec<GribValue>) -> GribValue {
+    pub fn call(
+        &self,
+        program: &Program,
+        runtime: &mut Runtime,
+        args: Vec<GribValue>,
+    ) -> GribValue {
         match self {
-            Callable::Native(n) => n.call(program, gc, args),
+            Callable::Native(n) => n.call(program, runtime, args),
             Callable::Procedure { module, index } => {
                 let fnc = if let Some(i) = module {
                     &program.modules[*i].functions[*index]
@@ -34,7 +42,12 @@ impl Callable {
                     &program.functions[*index]
                 };
 
-                unimplemented!()
+                let mut scope = Scope::new();
+                scope.add_params(&fnc.param_list, runtime, args);
+
+                run_block(&fnc.body, &mut scope, runtime, program)
+                    .map(GribValue::from)
+                    .unwrap_or_default()
             }
             Callable::Lambda { .. } => {
                 unimplemented!()
@@ -42,38 +55,6 @@ impl Callable {
         }
     }
 }
-
-pub struct CapturedStack {}
-
-/*// Modules
-#[derive(Clone)]
-pub enum NativeReference {
-    Fmt(NativeFmtPackage),
-    Math(NativeMathPackage),
-    Console(NativeConsolePackage),
-}
-
-impl NativeReference {
-    pub fn name(&self) -> &'static str {
-        unimplemented!()
-    }
-}
-
-impl From<NativeFmtPackage> for NativeReference {
-    fn from(f: NativeFmtPackage) -> Self {
-        Self::Fmt(f)
-    }
-}
-impl From<NativeMathPackage> for NativeReference {
-    fn from(f: NativeMathPackage) -> Self {
-        Self::Math(f)
-    }
-}
-impl From<NativeConsolePackage> for NativeReference {
-    fn from(f: NativeConsolePackage) -> Self {
-        Self::Console(f)
-    }
-}*/
 
 #[derive(Clone)]
 pub enum AccessFunc {

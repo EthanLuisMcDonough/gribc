@@ -1,5 +1,5 @@
 use ast::node::Program;
-use runtime::memory::Gc;
+use runtime::memory::{Gc, Runtime};
 use runtime::values::{GribValue, HeapValue};
 use std::collections::HashSet;
 use std::io;
@@ -31,10 +31,10 @@ macro_rules! native_obj {
                 }
             }
 
-            pub fn call(&self, program: &Program, gc: &mut Gc, args: Vec<GribValue>)  -> GribValue {
+            pub fn call(&self, program: &Program, runtime: &mut Runtime, args: Vec<GribValue>)  -> GribValue {
                 use self::$name::*;
                 match self {
-                    $( $enum(e) => e.call(program, gc, args), )*
+                    $( $enum(e) => e.call(program, runtime, args), )*
                 }
             }
         }
@@ -88,20 +88,20 @@ macro_rules! native_obj {
 }
 
 macro_rules! native_package {
-    (@branch $_:ident $gc:ident $program:ident [args] $b:block) => { $b };
-    (@branch $args:ident $gc:ident $program:ident [$($param:ident),*] $b:block) => {
+    (@branch $_:ident $rt:ident $program:ident [args] $b:block) => { $b };
+    (@branch $args:ident $rt:ident $program:ident [$($param:ident),*] $b:block) => {
         {
-            fn closure( $gc: &mut Gc, $program: &Program, $( $param: GribValue ),* ) -> GribValue $b
+            fn closure( $rt: &mut Runtime, $program: &Program, $( $param: GribValue ),* ) -> GribValue $b
 
             let mut argument_iterator = $args.into_iter();
 
             $( let $param = argument_iterator.next().unwrap_or_default(); )*
 
-            closure( $gc, $program, $( $param ),* )
+            closure( $rt, $program, $( $param ),* )
         }
     };
 
-    ($name:ident [$program:ident $gc:ident] {
+    ($name:ident [$program:ident $rt:ident] {
         $(
             $fn_name:ident [$str:expr] ($($param:ident),*) $b:block
         )*
@@ -130,10 +130,10 @@ macro_rules! native_package {
                 }
             }
 
-            pub fn call(&self, $program: &Program, $gc: &mut Gc, mut args: Vec<GribValue>)  -> GribValue {
+            pub fn call(&self, $program: &Program, $rt: &mut Runtime, mut args: Vec<GribValue>)  -> GribValue {
                 use self::$name::*;
                 match self {
-                    $( $fn_name => { native_package!(@branch args $gc $program [$( $param ),*] $b) }, )*
+                    $( $fn_name => { native_package!(@branch args $rt $program [$( $param ),*] $b) }, )*
                 }
             }
         }
@@ -162,39 +162,39 @@ native_package!(NativeConsolePackage[program gc] {
     }
 });
 
-native_package!(NativeFmtPackage[program gc] {
+native_package!(NativeFmtPackage[program runtime] {
     ToString["toString"](obj) {
-        GribValue::String(gc.alloc_str(obj.as_str(program, gc).into_owned()))
+        GribValue::String(runtime.alloc_str(obj.as_str(program, runtime).into_owned()))
     }
     ToNumber["toNumber"](obj) {
-        GribValue::Number(obj.cast_num(program, gc))
+        GribValue::Number(obj.cast_num(program, &runtime.gc))
     }
 });
 
-native_package!(NativeMathPackage[program gc] {
-    Sin["sin"](n) { GribValue::Number(n.cast_num(program, gc).sin()) }
-    Cos["cos"](n) { GribValue::Number(n.cast_num(program, gc).cos()) }
-    Tan["tan"](n) { GribValue::Number(n.cast_num(program, gc).tan()) }
+native_package!(NativeMathPackage[program runtime] {
+    Sin["sin"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).sin()) }
+    Cos["cos"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).cos()) }
+    Tan["tan"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).tan()) }
 
-    Asin["asin"](n) { GribValue::Number(n.cast_num(program, gc).asin()) }
-    Acos["acos"](n) { GribValue::Number(n.cast_num(program, gc).acos()) }
-    Atan["atan"](n) { GribValue::Number(n.cast_num(program, gc).atan()) }
+    Asin["asin"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).asin()) }
+    Acos["acos"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).acos()) }
+    Atan["atan"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).atan()) }
 
-    Sqrt["sqrt"](n) { GribValue::Number(n.cast_num(program, gc).sqrt()) }
-    Ln["ln"](n) { GribValue::Number(n.cast_num(program, gc).ln()) }
-    Log["log"](n) { GribValue::Number(n.cast_num(program, gc).log10()) }
+    Sqrt["sqrt"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).sqrt()) }
+    Ln["ln"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).ln()) }
+    Log["log"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).log10()) }
     Pow["pow"](base, exp) {
-        GribValue::Number(base.cast_num(program, gc).powf(exp.cast_num(program, gc)))
+        GribValue::Number(base.cast_num(program, &runtime.gc).powf(exp.cast_num(program, &runtime.gc)))
     }
 
-    Round["round"](n) { GribValue::Number(n.cast_num(program, gc).round()) }
-    Floor["floor"](n) { GribValue::Number(n.cast_num(program, gc).floor()) }
-    Ceil["ceil"](n) { GribValue::Number(n.cast_num(program, gc).ceil()) }
-    Trunc["trunc"](n) { GribValue::Number(n.cast_num(program, gc).trunc()) }
+    Round["round"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).round()) }
+    Floor["floor"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).floor()) }
+    Ceil["ceil"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).ceil()) }
+    Trunc["trunc"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).trunc()) }
 
     MathConst["mathConst"](s) {
         use std::f64::consts::*;
-        GribValue::Number(match s.as_str(program, gc).as_ref() {
+        GribValue::Number(match s.as_str(program, runtime).as_ref() {
             "pi" | "PI" | "Pi" => PI,
             "e" | "E" => E,
             _ => f64::NAN,
@@ -216,18 +216,18 @@ fn get_array<'a>(arr_ref: GribValue, gc: &'a mut Gc, fn_name: &str) -> &'a mut V
     }
 }
 
-native_package!(NativeArrayPackage[program gc] {
+native_package!(NativeArrayPackage[program runtime] {
     Push["push"](arr_ref, s) {
-        let arr = get_array(arr_ref, gc, "push");
+        let arr = get_array(arr_ref, &mut runtime.gc, "push");
         arr.push(s);
         GribValue::Number(arr.len() as f64)
     }
     Pop["pop"](arr_ref) {
-        let arr = get_array(arr_ref, gc, "pop");
+        let arr = get_array(arr_ref, &mut runtime.gc, "pop");
         arr.pop().unwrap_or_default()
     }
     Len["len"](arr_ref) {
-        let arr = get_array(arr_ref, gc, "len");
+        let arr = get_array(arr_ref, &mut runtime.gc, "len");
         GribValue::Number(arr.len() as f64)
     }
     //RemoveAt["removeAt"](arr_ref, index) {}

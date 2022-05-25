@@ -5,18 +5,25 @@ use runtime::exec::*;
 use runtime::memory::*;
 use runtime::values::*;
 
-fn add_values(left: &GribValue, right: &GribValue, program: &Program, gc: &mut Gc) -> GribValue {
-    if let Some(arr) = gc.try_get_array_mut(left.clone()) {
+fn add_values(
+    left: &GribValue,
+    right: &GribValue,
+    program: &Program,
+    runtime: &mut Runtime,
+) -> GribValue {
+    if let Some(arr) = runtime.gc.try_get_array_mut(left.clone()) {
         let mut new_arr = arr.clone();
         new_arr.push(right.clone());
-        GribValue::HeapValue(gc.alloc_heap(HeapValue::Array(new_arr)))
+        GribValue::HeapValue(runtime.alloc_heap(HeapValue::Array(new_arr)))
     } else {
-        if let Some(string) = gc.try_get_string(left, program) {
+        if let Some(string) = runtime.gc.try_get_string(left, program) {
             let mut new_str = string.to_string();
-            new_str.push_str(right.as_str(program, gc).as_ref());
-            gc.alloc_str(new_str).into()
+            new_str.push_str(right.as_str(program, runtime).as_ref());
+            runtime.alloc_str(new_str).into()
         } else {
-            GribValue::Number(left.cast_num(program, gc) + right.cast_num(program, gc))
+            GribValue::Number(
+                left.cast_num(program, &runtime.gc) + right.cast_num(program, &runtime.gc),
+            )
         }
     }
 }
@@ -25,11 +32,16 @@ fn sub_values(left: &GribValue, right: &GribValue, program: &Program, gc: &Gc) -
     GribValue::Number(left.cast_num(program, gc) - right.cast_num(program, gc))
 }
 
-fn mult_values(left: &GribValue, right: &GribValue, program: &Program, gc: &mut Gc) -> GribValue {
-    if let Some(arr) = gc.try_get_array(left.clone()) {
+fn mult_values(
+    left: &GribValue,
+    right: &GribValue,
+    program: &Program,
+    runtime: &mut Runtime,
+) -> GribValue {
+    if let Some(arr) = runtime.gc.try_get_array(left.clone()) {
         let mut new_arr = Vec::new();
 
-        if let Some(range) = right.cast_ind(program, gc) {
+        if let Some(range) = right.cast_ind(program, &runtime.gc) {
             for _ in 0..range {
                 for value in arr.iter() {
                     new_arr.push(value.clone());
@@ -37,18 +49,21 @@ fn mult_values(left: &GribValue, right: &GribValue, program: &Program, gc: &mut 
             }
         }
 
-        GribValue::HeapValue(gc.alloc_heap(HeapValue::Array(new_arr)))
+        GribValue::HeapValue(runtime.alloc_heap(HeapValue::Array(new_arr)))
     } else {
-        if let Some(string) = gc.try_get_string(left, program) {
-            gc.alloc_str(
-                right
-                    .cast_ind(program, gc)
-                    .map(|i| string.repeat(i))
-                    .unwrap_or_default(),
-            )
-            .into()
+        if let Some(string) = runtime.gc.try_get_string(left, program) {
+            runtime
+                .alloc_str(
+                    right
+                        .cast_ind(program, &runtime.gc)
+                        .map(|i| string.repeat(i))
+                        .unwrap_or_default(),
+                )
+                .into()
         } else {
-            GribValue::Number(left.cast_num(program, gc) + right.cast_num(program, gc))
+            GribValue::Number(
+                left.cast_num(program, &runtime.gc) + right.cast_num(program, &runtime.gc),
+            )
         }
     }
 }
@@ -65,31 +80,30 @@ pub fn index_access(
     item: GribValue,
     index: GribValue,
     scope: &mut Scope,
-    stack: &mut Stack,
+    runtime: &mut Runtime,
     program: &Program,
-    gc: &mut Gc,
 ) -> GribValue {
     match item {
-        GribValue::String(s) => match s.as_ref(program, gc).expect("String not found") {
+        GribValue::String(s) => match s.as_ref(program, &runtime.gc).expect("String not found") {
             GribStringRef::Ref(r) => index
-                .cast_ind(program, gc)
+                .cast_ind(program, &runtime.gc)
                 .and_then(|i| r.chars().nth(i))
                 .map(GribString::Char)
                 .map(GribValue::String)
                 .unwrap_or_default(),
             GribStringRef::Char(c) => index
-                .cast_ind(program, gc)
+                .cast_ind(program, &runtime.gc)
                 .filter(|&i| i == 0)
                 .map(|_| c)
                 .map(GribString::Char)
                 .map(GribValue::String)
                 .unwrap_or_default(),
         },
-        GribValue::HeapValue(s) => match item.ptr().and_then(|ptr| gc.heap_val(ptr)) {
+        GribValue::HeapValue(s) => match item.ptr().and_then(|ptr| runtime.gc.heap_val(ptr)) {
             Some(HeapValue::Array(arr)) => index
-                .cast_ind(program, gc)
+                .cast_ind(program, &runtime.gc)
                 .and_then(|i| arr.get(i).cloned())
-                .map(|val| gc.normalize_val(val))
+                .map(|val| runtime.gc.normalize_val(val))
                 .unwrap_or_default(),
             _ => GribValue::Nil,
         },
@@ -102,36 +116,34 @@ pub fn binary_expr(
     left: &GribValue,
     right: &Expression,
     scope: &mut Scope,
-    stack: &mut Stack,
-    gc: &mut Gc,
+    runtime: &mut Runtime,
     program: &Program,
 ) -> GribValue {
     if op.is_lazy() {
         GribValue::Bool(if let &Binary::LogicalAnd = op {
-            truthy(left, program, gc)
+            truthy(left, program, &runtime.gc)
                 && truthy(
-                    &evaluate_expression(right, scope, stack, program, gc),
+                    &evaluate_expression(right, scope, runtime, program),
                     program,
-                    gc,
+                    &runtime.gc,
                 )
         } else {
             // LogicalOr
-            truthy(left, program, gc)
+            truthy(left, program, &runtime.gc)
                 || truthy(
-                    &evaluate_expression(right, scope, stack, program, gc),
+                    &evaluate_expression(right, scope, runtime, program),
                     program,
-                    gc,
+                    &runtime.gc,
                 )
         })
     } else {
-        let right_expr = evaluate_expression(right, scope, stack, program, gc);
+        let right_expr = evaluate_expression(right, scope, runtime, program);
         match op {
-            Binary::Plus => add_values(left, &right_expr, program, gc),
-            Binary::Minus => sub_values(left, &right_expr, program, gc),
-            Binary::Mult => mult_values(left, &right_expr, program, gc),
-            Binary::Div => div_values(left, &right_expr, program, gc),
-            Binary::Mod => mod_values(left, &right_expr, program, gc),
-
+            Binary::Plus => add_values(left, &right_expr, program, runtime),
+            Binary::Minus => sub_values(left, &right_expr, program, &runtime.gc),
+            Binary::Mult => mult_values(left, &right_expr, program, runtime),
+            Binary::Div => div_values(left, &right_expr, program, &runtime.gc),
+            Binary::Mod => mod_values(left, &right_expr, program, &runtime.gc),
             _ => unimplemented!(),
             Binary::LogicalAnd | Binary::LogicalOr => panic!("Unreachable arm"),
         }

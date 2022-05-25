@@ -1,4 +1,4 @@
-use super::{Hash, Lambda};
+use super::Hash;
 use location::Located;
 use operators::{Assignment, Binary, Unary};
 
