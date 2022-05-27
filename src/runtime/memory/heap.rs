@@ -66,6 +66,12 @@ impl Gc {
         })
     }
 
+    pub fn set_heap_val_at(&mut self, value: HeapValue, ptr: usize) {
+        if let Some(slot) = self.heap_slot_mut(ptr) {
+            *slot = MemSlot::Value(value);
+        }
+    }
+
     pub fn try_get_array(&'_ self, val: GribValue) -> Option<&'_ Vec<GribValue>> {
         if let Some(HeapValue::Array(arr)) = val.ptr().and_then(|ptr| self.heap_val(ptr)) {
             Some(arr)

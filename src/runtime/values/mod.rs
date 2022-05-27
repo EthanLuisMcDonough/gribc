@@ -51,14 +51,43 @@ pub fn float_to_ind(f: f64) -> Option<usize> {
 
 fn array_to_string(arr: &Vec<GribValue>, program: &Program, runtime: &mut Runtime) -> String {
     let mut joined = String::from("[");
+    let empty = arr.is_empty();
 
     for value in arr {
         joined.push_str(value.as_str(program, runtime).as_ref());
         joined.push(',');
     }
 
-    joined.pop();
+    if empty {
+        joined.pop();
+    }
     joined.push(']');
+
+    joined
+}
+
+fn values_to_string(
+    v: Vec<(String, GribValue)>,
+    mutable: bool,
+    program: &Program,
+    runtime: &mut Runtime,
+) -> String {
+    let mut joined = if mutable { '$' } else { '#' }.to_string();
+
+    joined.push('{');
+    let empty = v.is_empty();
+
+    for (key, value) in v {
+        joined.push_str(key.as_ref());
+        joined.push_str("->");
+        joined.push_str(value.as_str(program, runtime).as_ref());
+    }
+
+    if !empty {
+        joined.pop();
+    }
+
+    joined.push('}');
 
     joined
 }
@@ -102,9 +131,20 @@ impl GribValue {
             Self::Bool(b) => GribString::Static(if *b { "true" } else { "false" }),
             Self::HeapValue(ind) => match runtime.gc.heap_val(*ind) {
                 Some(HeapValue::Array(v)) => {
-                    runtime.alloc_str(array_to_string(&v, program, runtime))
+                    let array = v.clone();
+                    let s = array_to_string(&array, program, runtime);
+                    runtime.alloc_str(s)
                 }
-                Some(HeapValue::Hash(h)) => runtime.alloc_str(h.to_str(runtime, program, *ind)),
+                Some(HeapValue::Hash(h)) => {
+                    let mutable = h.is_mutable();
+                    let s = values_to_string(
+                        h.clone().into_values(runtime, program, *ind),
+                        mutable,
+                        program,
+                        runtime,
+                    );
+                    runtime.alloc_str(s)
+                }
                 _ => GribString::Static("[stack object]"),
             },
             Self::String(s) => s.clone(),
@@ -123,8 +163,20 @@ impl GribValue {
             },
             Self::Bool(b) => if *b { "true" } else { "false" }.into(),
             Self::HeapValue(ind) => match runtime.gc.heap_val(*ind) {
-                Some(HeapValue::Array(v)) => array_to_string(&v, program, runtime).into(),
-                Some(HeapValue::Hash(h)) => h.to_str(runtime, program, *ind).into(),
+                Some(HeapValue::Array(v)) => {
+                    let array = v.clone();
+                    array_to_string(&array, program, runtime).into()
+                }
+                Some(HeapValue::Hash(h)) => {
+                    let mutable = h.is_mutable();
+                    values_to_string(
+                        h.clone().into_values(runtime, program, *ind),
+                        mutable,
+                        program,
+                        runtime,
+                    )
+                    .into()
+                }
                 _ => "[stack object]".into(),
             },
             Self::String(s) => s.as_ref(program, &runtime.gc).unwrap_or_default().into(),
@@ -139,13 +191,14 @@ impl GribValue {
             .map(|i| i as usize)
     }
 
-    pub fn truthy(&self) -> bool {
+    pub fn truthy(&self, program: &Program, gc: &Gc) -> bool {
         match self {
             GribValue::Callable(_) | GribValue::ModuleObject(_) => true,
             GribValue::Number(n) => *n != 0.0,
             GribValue::Nil => false,
             GribValue::HeapValue(_) => true,
             GribValue::Bool(b) => *b,
+            GribValue::String(s) => s.as_ref(program, gc).filter(|r| r.is_empty()).is_some(),
         }
     }
 

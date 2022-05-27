@@ -67,38 +67,7 @@ impl Module {
     }
 }
 
-/*pub struct ModFns<'a> {
-    index: usize,
-    module: &'a Module,
-    program: &'a Program,
-    fnc_max: usize,
-}
-
-impl<'a> Iterator for ModFns<'a> {
-    type Item = (/* name */ usize, /* function */ Callable);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let index = self.index;
-        self.index += 1;
-        match self.module {
-            Module::Custom(i) if i < &self.fnc_max => Some((
-                self.program.functions[*i].identifier.data,
-                Callable::Procedure {
-                    index,
-                    module: Some(*i),
-                },
-            )),
-            Module::Native { package, indices } => indices
-                .get(index)
-                .and_then(|ind| self.program.strings.get(*ind))
-                .and_then(|s| package.fn_from_str(s))
-                .map(Callable::Native),
-            _ => None,
-        }
-    }
-}*/
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct CustomModule {
     pub imports: Vec<Import>,
     pub functions: Vec<Procedure>,

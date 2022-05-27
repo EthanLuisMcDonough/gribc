@@ -1,7 +1,7 @@
 use super::GribValue;
 use ast::node::{NativeFunction, Program};
 use runtime::{
-    exec::run_block,
+    exec::{evaluate_lambda, run_block},
     memory::{Runtime, Scope},
 };
 
@@ -45,12 +45,24 @@ impl Callable {
                 let mut scope = Scope::new();
                 scope.add_params(&fnc.param_list, runtime, args);
 
-                run_block(&fnc.body, &mut scope, runtime, program)
+                run_block(&fnc.body, scope, runtime, program)
                     .map(GribValue::from)
                     .unwrap_or_default()
             }
-            Callable::Lambda { .. } => {
-                unimplemented!()
+            Callable::Lambda {
+                binding,
+                stack,
+                index,
+            } => {
+                let lambda = &program.lambdas[*index];
+                let mut scope = Scope::new();
+
+                if let Some(stack_ptr) = stack {
+                    scope.add_captured_stack(runtime, *stack_ptr);
+                }
+                scope.add_params(&lambda.param_list, runtime, args);
+
+                evaluate_lambda(&lambda.body, scope, binding.clone(), runtime, program)
             }
         }
     }

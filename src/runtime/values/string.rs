@@ -48,7 +48,10 @@ impl Hash for GribStringRef<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             Self::Ref(s) => s.hash(state),
-            Self::Char(c) => c.hash(state),
+            Self::Char(c) => {
+                let mut bytes = [0u8; 4];
+                c.encode_utf8(&mut bytes).hash(state)
+            }
         }
     }
 }
@@ -75,6 +78,21 @@ impl<'a> From<GribStringRef<'a>> for Cow<'a, str> {
         match s {
             GribStringRef::Char(c) => Cow::Owned(c.into()),
             GribStringRef::Ref(r) => Cow::Borrowed(r),
+        }
+    }
+}
+
+impl PartialEq for GribStringRef<'_> {
+    fn eq(&self, other: &GribStringRef) -> bool {
+        use self::GribStringRef::*;
+        match (self, other) {
+            (Ref(r1), Ref(r2)) => r1 == r2,
+            (Char(c1), Char(c2)) => c1 == c2,
+            (Char(c), Ref(r)) | (Ref(r), Char(c)) => {
+                let mut bytes = [0u8; 4];
+                let char_ref = c.encode_utf8(&mut bytes);
+                char_ref == *r
+            }
         }
     }
 }
@@ -111,7 +129,10 @@ impl GribStringRef<'_> {
     pub fn stringify(&self) -> String {
         match self {
             Self::Ref(r) => format!("{:?}", r),
-            Self::Char(c) => format!("{:?}", c.to_string()),
+            Self::Char(c) => {
+                let mut bytes = [0u8; 4];
+                format!("{:?}", c.encode_utf8(&mut bytes))
+            }
         }
     }
 }

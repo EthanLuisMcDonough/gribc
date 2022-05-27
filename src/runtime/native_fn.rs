@@ -164,7 +164,7 @@ native_package!(NativeConsolePackage[program gc] {
 
 native_package!(NativeFmtPackage[program runtime] {
     ToString["toString"](obj) {
-        GribValue::String(runtime.alloc_str(obj.as_str(program, runtime).into_owned()))
+        GribValue::String(obj.to_str(runtime, program))
     }
     ToNumber["toNumber"](obj) {
         GribValue::Number(obj.cast_num(program, &runtime.gc))

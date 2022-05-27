@@ -273,7 +273,7 @@ fn ast_level(
         program.push(next_construct(token, &mut tokens, scope, store)?);
     }
 
-    Ok(Block::new(program))
+    Ok(program)
 }
 
 pub fn ast(

@@ -2,13 +2,7 @@ use super::{Block, Expression, LambdaBody};
 use location::Located;
 use std::collections::{HashMap, HashSet};
 
-/*#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub enum LocatedOr<T, E> {
-    Located(Located<T>),
-    Or(E),
-}*/
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct SetProp {
     pub param: usize,
     pub block: LambdaBody,
@@ -31,7 +25,7 @@ impl SetProp {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct GetProp {
     pub block: LambdaBody,
     pub capture: HashSet<usize>,
@@ -52,13 +46,13 @@ impl GetProp {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum AutoPropValue {
     String(Located<usize>),
     Lambda(usize),
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct AutoProp {
     pub get: Option<AutoPropValue>,
     pub set: Option<AutoPropValue>,
@@ -79,7 +73,7 @@ impl AutoProp {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum ObjectValue {
     AutoProp(AutoProp),
     Expression(Expression),

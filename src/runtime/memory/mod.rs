@@ -37,7 +37,7 @@ impl Runtime {
     }
 
     pub fn clean(&mut self) {
-        for pointer in self.stack.iter().flat_map(get_heap_ref) {
+        for pointer in self.stack.iter().flat_map(get_heap_ref).collect::<Vec<_>>() {
             mark(self, pointer);
         }
 

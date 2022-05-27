@@ -227,7 +227,7 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
                     Some(ind) => *ind,
                     None => {
                         let module = parse_module(&Located {
-                            data: new_path,
+                            data: new_path.clone(),
                             end: end.clone(),
                             start: start.clone(),
                         }, store)?;

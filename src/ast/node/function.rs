@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 pub type CaptureData = HashSet<String>;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Parameters {
     pub params: Vec<usize>,
     pub vardic: Option<usize>,
@@ -32,13 +32,13 @@ impl Parameters {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum LambdaBody {
     ImplicitReturn(Box<Expression>),
     Block(Block),
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Procedure {
     pub identifier: Located<usize>,
     pub param_list: Parameters,
@@ -46,7 +46,7 @@ pub struct Procedure {
     pub public: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Lambda {
     pub param_list: Parameters,
     pub body: LambdaBody,

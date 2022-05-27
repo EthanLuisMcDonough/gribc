@@ -14,6 +14,17 @@ pub enum HashPropertyValue {
     Value(GribValue),
 }
 
+impl From<GribValue> for HashPropertyValue {
+    fn from(prop: GribValue) -> Self {
+        HashPropertyValue::Value(prop)
+    }
+}
+
+enum RawValue {
+    Prop(AccessFunc),
+    Value(GribValue),
+}
+
 #[derive(Clone, PartialEq, Eq)]
 struct GribKey {
     hash: u64,
@@ -49,18 +60,14 @@ pub struct HashValue {
     values: HashMap<GribKey, HashPropertyValue>,
 }
 
-impl From<GribValue> for HashPropertyValue {
-    fn from(prop: GribValue) -> Self {
-        HashPropertyValue::Value(prop)
-    }
-}
-
-enum RawValue {
-    Prop(AccessFunc),
-    Value(GribValue),
-}
-
 impl HashValue {
+    pub fn new(mutable: bool) -> Self {
+        Self {
+            mutable,
+            values: HashMap::new(),
+        }
+    }
+
     /// Sets the grib hash's raw value
     /// Getters and setters can be assigned values
     pub fn init_value(
@@ -70,7 +77,7 @@ impl HashValue {
         program: &Program,
         gc: &Gc,
     ) {
-        let mut hasher = self.get_hasher();
+        let hasher = self.get_hasher();
 
         if let Some(key) = GribKey::new(string, hasher, program, gc) {
             self.values.insert(key, value.into());
@@ -95,7 +102,7 @@ impl HashValue {
         program: &Program,
         gc: &mut Gc,
     ) -> Option<HashPropertyValue> {
-        let mut hasher = self.get_hasher();
+        let hasher = self.get_hasher();
         GribKey::new(string, hasher, program, gc)
             .and_then(|key| self.values.get(&key))
             .cloned()
@@ -119,27 +126,28 @@ impl HashValue {
         self.values.is_empty()
     }
 
-    pub fn values(
-        &self,
+    pub fn into_values(
+        self,
         runtime: &mut Runtime,
         program: &Program,
         self_ptr: usize,
-    ) -> HashMap<String, GribValue> {
-        let mut values = HashMap::new();
-
-        for (raw_key, raw_value) in &self.values {
-            if let Some(key) = raw_key.string.as_ref(program, &runtime.gc) {
-                let val = eval_raw_get_property(raw_value.clone(), runtime, program, self_ptr);
-                if let Some(v) = val {
-                    values.insert(key.to_string(), v);
-                }
-            }
-        }
-
-        values
+    ) -> Vec<(String, GribValue)> {
+        self.values
+            .into_iter()
+            .flat_map(|(raw_key, raw_value)| {
+                raw_key
+                    .string
+                    .as_ref(program, &runtime.gc)
+                    .map(|r| r.to_string())
+                    .and_then(|s| {
+                        eval_raw_get_property(raw_value, runtime, program, self_ptr)
+                            .map(|val| (s, val))
+                    })
+            })
+            .collect()
     }
 
-    pub fn to_str(&self, runtime: &mut Runtime, program: &Program, self_ptr: usize) -> String {
+    /*pub fn to_str(&self, runtime: &mut Runtime, program: &Program, self_ptr: usize) -> String {
         let mut joined = if self.is_mutable() { '$' } else { '#' }.to_string();
 
         joined.push('{');
@@ -157,7 +165,7 @@ impl HashValue {
         joined.push('}');
 
         joined
-    }
+    }*/
 }
 
 fn eval_raw_get_property(

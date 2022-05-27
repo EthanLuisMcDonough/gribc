@@ -3,7 +3,6 @@ use location::Located;
 use runtime::memory::*;
 use runtime::operator::*;
 use runtime::values::*;
-use std::collections::HashMap;
 
 fn scope_imports<'a>(
     scope: &mut Scope,
@@ -51,10 +50,10 @@ pub fn execute(program: &Program, config: RuntimeConfig) {
         );
     }
 
-    run_block(&program.body, &mut scope, &mut runtime, program);
+    run_block(&program.body, scope, &mut runtime, program);
 }
 
-enum ControlFlow {
+pub enum ControlFlow {
     Return(GribValue),
     Break,
     Continue,
@@ -77,9 +76,25 @@ impl From<ControlFlow> for GribValue {
 }
 
 macro_rules! control_guard {
-    ($control:expr) => {
+    ($name:ident, $control:expr) => {
         if $control.is_some() {
-            return $control;
+            $name = $control;
+            break;
+        }
+    };
+}
+macro_rules! return_break {
+    ($name:ident, $control:expr) => {{
+        $name = $control.into();
+        break;
+    }};
+}
+macro_rules! check_flow {
+    ($name:ident, $control:expr) => {
+        match &($control) {
+            Some(ControlFlow::Return(_)) => return_break!($name, $control),
+            Some(ControlFlow::Break) => break,
+            Some(ControlFlow::Continue) | None => {}
         }
     };
 }
@@ -98,61 +113,71 @@ fn declare(decl: &Declaration, scope: &mut Scope, runtime: &mut Runtime, program
 
 pub fn run_block(
     block: &Block,
-    scope: &mut Scope,
+    mut scope: Scope,
     runtime: &mut Runtime,
     program: &Program,
 ) -> Option<ControlFlow> {
+    let mut result = None;
     for node in block.iter() {
-        match node {
+        match &node {
             Node::Block(block) => {
-                control_guard!(run_block(block, scope, runtime, program));
+                control_guard!(result, run_block(block, scope.clone(), runtime, program));
             }
-            Node::Break => return Some(ControlFlow::Break),
-            Node::Continue => return Some(ControlFlow::Continue),
+            Node::Break => return_break!(result, ControlFlow::Break),
+            Node::Continue => return_break!(result, ControlFlow::Continue),
             Node::Return(expr) => {
-                return ControlFlow::Return(evaluate_expression(expr, scope, runtime, program))
-                    .into()
+                return_break!(
+                    result,
+                    ControlFlow::Return(evaluate_expression(expr, &mut scope, runtime, program))
+                );
             }
-            Node::Declaration(decl) => declare(decl, scope, runtime, program),
+            Node::Declaration(decl) => declare(decl, &mut scope, runtime, program),
             Node::Expression(expression) => {
-                evaluate_expression(expression, scope, runtime, program);
+                evaluate_expression(expression, &mut scope, runtime, program);
             }
             Node::LogicChain {
                 if_block,
                 elseifs,
                 else_block,
             } => {
-                let first_cond = evaluate_expression(&if_block.condition, scope, runtime, program);
+                let first_cond =
+                    evaluate_expression(&if_block.condition, &mut scope, runtime, program);
                 if truthy(&first_cond, program, &runtime.gc) {
-                    control_guard!(run_block(&if_block.block, scope, runtime, program));
+                    control_guard!(
+                        result,
+                        run_block(&if_block.block, scope.clone(), runtime, program)
+                    );
                 } else {
                     let mut run_else = true;
                     for ConditionBodyPair { condition, block } in elseifs {
-                        let cond = evaluate_expression(&condition, scope, runtime, program);
+                        let cond = evaluate_expression(&condition, &mut scope, runtime, program);
                         if truthy(&cond, program, &runtime.gc) {
                             run_else = false;
-                            control_guard!(run_block(&block, scope, runtime, program));
+                            control_guard!(
+                                result,
+                                run_block(&block, scope.clone(), runtime, program)
+                            );
                             break;
                         }
                     }
 
-                    if let Some(block) = else_block.filter(|_| run_else) {
-                        control_guard!(run_block(&block, scope, runtime, program));
+                    if let Some(block) = else_block.as_ref().filter(|_| run_else) {
+                        control_guard!(result, run_block(&block, scope.clone(), runtime, program));
                     }
                 }
             }
             Node::While(pair) => {
+                let mut local_result = None;
+
                 while {
-                    let cond = evaluate_expression(&pair.condition, scope, runtime, program);
+                    let cond = evaluate_expression(&pair.condition, &mut scope, runtime, program);
                     truthy(&cond, program, &runtime.gc)
                 } {
-                    let val = run_block(&pair.block, scope, runtime, program);
-                    match &val {
-                        Some(ControlFlow::Return(_)) => return val,
-                        Some(ControlFlow::Break) => break,
-                        _ => {}
-                    };
+                    let val = run_block(&pair.block, scope.clone(), runtime, program);
+                    check_flow!(local_result, val);
                 }
+
+                control_guard!(result, local_result);
             }
             Node::For {
                 declaration,
@@ -161,33 +186,35 @@ pub fn run_block(
                 body,
             } => {
                 if let Some(d) = declaration {
-                    declare(d, scope, runtime, program);
+                    declare(d, &mut scope, runtime, program);
                 }
 
+                let mut local_result = None;
+
                 while condition
-                    .map(|c| evaluate_expression(&c, scope, runtime, program))
+                    .as_ref()
+                    .map(|c| evaluate_expression(&c, &mut scope, runtime, program))
                     .map(|g| truthy(&g, program, &runtime.gc))
                     .unwrap_or(true)
                 {
-                    control_guard!(run_block(body, scope, runtime, program));
+                    check_flow!(
+                        local_result,
+                        run_block(body, scope.clone(), runtime, program)
+                    );
 
                     if let Some(incr_expr) = increment {
-                        evaluate_expression(incr_expr, scope, runtime, program);
+                        evaluate_expression(incr_expr, &mut scope, runtime, program);
                     }
                 }
+
+                control_guard!(result, local_result);
             }
         }
     }
 
-    None
-}
+    scope.cleanup(&mut runtime.stack);
 
-//fn hash_create_prop(hash: &mut Hash, )
-///@TODO remove if necessary unimplemented!
-fn bind_value(val: &mut GribValue, bind_target: usize) {
-    if let GribValue::Callable(Callable::Lambda { binding, .. }) = val {
-        *binding = Some(bind_target);
-    }
+    result
 }
 
 fn evaluate_hash(
@@ -197,20 +224,15 @@ fn evaluate_hash(
     runtime: &mut Runtime,
     program: &Program,
 ) -> GribValue {
-    let ptr = runtime.alloc_heap(HeapValue::Hash(HashValue {
-        mutable,
-        values: HashMap::new(),
-    }));
-    let mut values = HashMap::new();
+    let ptr = runtime.reserve_slot();
+    let mut values = HashValue::new(mutable);
 
     for (label, val) in hash.iter() {
-        values.insert(
-            label.to_string(),
+        values.init_value(
+            GribString::Stored(*label),
             match val {
                 ObjectValue::Expression(e) => {
-                    let mut evaluated = evaluate_expression(e, scope, runtime, program);
-                    bind_value(&mut evaluated, ptr);
-                    evaluated.into()
+                    evaluate_expression(e, scope, runtime, program).into()
                 }
                 ObjectValue::AutoProp(prop) => {
                     let get = prop.get.as_ref().and_then(|p| match p {
@@ -238,12 +260,12 @@ fn evaluate_hash(
                     HashPropertyValue::AutoProp { get, set }
                 }
             },
-        );
+            program,
+            &runtime.gc,
+        )
     }
 
-    if let Some(HeapValue::Hash(hash)) = runtime.gc.heap_val_mut(ptr) {
-        unimplemented!()
-    }
+    runtime.gc.set_heap_val_at(HeapValue::Hash(values), ptr);
 
     GribValue::HeapValue(ptr)
 }
@@ -260,16 +282,16 @@ pub fn evaluate_lambda(
     }
 
     let res = match body {
-        LambdaBody::Block(block) => match run_block(block, &mut scope, runtime, program) {
+        LambdaBody::Block(block) => match run_block(block, scope, runtime, program) {
             Some(ControlFlow::Return(val)) => val,
             _ => GribValue::Nil,
         },
         LambdaBody::ImplicitReturn(expr) => {
-            evaluate_expression(&expr, &mut scope, runtime, program)
+            let result = evaluate_expression(&expr, &mut scope, runtime, program);
+            scope.cleanup(&mut runtime.stack);
+            result
         }
     };
-
-    scope.cleanup(&mut runtime.stack);
 
     res
 }
@@ -289,10 +311,8 @@ fn evaluate_access_func_get(
         } => {
             let mut new_scope = scope.clone();
 
-            if let Some(captures) = stack_index.and_then(|i| runtime.gc.get_captured_stack(i)) {
-                for (key, index) in captures {
-                    new_scope.add_existing_captured(&mut runtime.stack, *key, *index);
-                }
+            if let Some(ind) = stack_index {
+                new_scope.add_captured_stack(runtime, *ind);
             }
 
             evaluate_lambda(

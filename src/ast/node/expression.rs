@@ -2,7 +2,7 @@ use super::Hash;
 use location::Located;
 use operators::{Assignment, Binary, Unary};
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Assignable {
     Identifier(Located<usize>),
     IndexAccess {
@@ -15,7 +15,7 @@ pub enum Assignable {
     },
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Expression {
     Binary {
         op: Binary,

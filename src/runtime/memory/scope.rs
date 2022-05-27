@@ -69,7 +69,7 @@ impl Scope {
         self.scope
             .get(&label)
             .cloned()
-            .and_then(|index| runtime.get_stack_mut(index))
+            .and_then(move |index| runtime.get_stack_mut(index))
     }
 
     pub fn capture_var(&mut self, runtime: &mut Runtime, label: usize) -> Option<usize> {
@@ -102,10 +102,10 @@ impl Scope {
     pub fn add_params(&mut self, params: &Parameters, runtime: &mut Runtime, args: Vec<GribValue>) {
         let mut arg_iter = args.into_iter();
 
-        for ident in params.params {
+        for ident in &params.params {
             self.declare_stack(
                 &mut runtime.stack,
-                ident,
+                *ident,
                 arg_iter.next().unwrap_or_default(),
             );
         }

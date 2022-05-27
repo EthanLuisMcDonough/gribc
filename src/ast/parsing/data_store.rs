@@ -125,7 +125,7 @@ impl From<Store> for Program {
 
         rewrite_imports(&mut p.imports, &s.str_map);
 
-        for (_, data) in s.mod_map {
+        for (_, mut data) in s.mod_map {
             rewrite_imports(&mut data.module.imports, &s.str_map);
             p.modules[data.index] = data.module;
         }

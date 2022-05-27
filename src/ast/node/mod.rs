@@ -1,7 +1,6 @@
 pub mod expression;
 pub mod function;
 pub mod module;
-pub mod native;
 pub mod object;
 pub mod statement;
 
@@ -10,97 +9,14 @@ use std::path::Path;
 pub use self::expression::*;
 pub use self::function::*;
 pub use self::module::*;
-pub use self::native::*;
 pub use self::object::*;
 pub use self::statement::*;
 
 pub use runtime::native_fn::{NativeFunction, NativePackage};
 
 pub type ModuleStore = Vec<CustomModule>;
-/*pub trait Package {
-    fn has_function(&self, name: &str) -> bool;
-    fn get_functions<'a>(&'a self) -> HashSet<&'a str>;
-}
 
-crate::keyword_map!(NativeConsolePackage {
-    Println -> "println",
-    Readline -> "readline",
-});
-
-crate::keyword_map!(NativeFmtPackage {
-    Atof -> "atof",
-    Atoi -> "atoi",
-});
-
-crate::keyword_map!(NativeMathPackage {
-    Sin -> "sin",
-    Cos -> "cos",
-    Tan -> "tan",
-    Asin -> "asin",
-    Acos -> "acos",
-    Atan -> "atan",
-    Sqrt -> "sqrt",
-    Pow -> "pow",
-    Ln -> "ln",
-    Log -> "log",
-    Round -> "round",
-    Floor -> "floor",
-    Ceil -> "ceil",
-    MathConst -> "mathConst",
-});
-
-crate::keyword_map!(NativePackage {
-    Fmt -> "fmt",
-    Math -> "math",
-    Console -> "console",
-});
-
-impl NativePackage {
-    pub fn raw_names(&self) -> &'static [&'static str] {
-        match self {
-            Self::Console => NativeConsolePackage::MEMBERS,
-            Self::Fmt => NativeFmtPackage::MEMBERS,
-            Self::Math => NativeMathPackage::MEMBERS,
-        }
-    }
-}
-*//*
-impl Package for NativePackage {
-    fn get_functions<'a>(&'a self) -> HashSet<&'a str> {
-        self.raw_names().iter().map(|f| *f).collect()
-    }
-
-    fn has_function(&self, name: &str) -> bool {
-        self.get_functions().contains(&name)
-    }
-}
-*/
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct Block {
-    pub nodes: Vec<Node>,
-    pub alloced: usize,
-}
-
-impl Block {
-    pub fn new(nodes: Vec<Node>) -> Self {
-        Self { nodes, alloced: 0 }
-    }
-
-    pub fn push(&mut self, node: Node) {
-        self.nodes.push(node);
-    }
-
-    pub fn iter(&self) -> std::slice::Iter<'_, Node> {
-        self.nodes.iter()
-    }
-}
-
-impl Default for Block {
-    fn default() -> Self {
-        Self::new(vec![])
-    }
-}
+pub type Block = Vec<Node>;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Program {
@@ -145,7 +61,7 @@ impl Program {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Node {
     Expression(Expression),
     Block(Block),
