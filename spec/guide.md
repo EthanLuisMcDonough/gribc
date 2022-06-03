@@ -162,7 +162,7 @@ In most cases, values will be converted to numbers when the binary operators `+`
 
 `~` and unary `-` are both unary digit negation.  They operate in the exact same way and coerce their operand into a number.  `!` is the logical negation operator.  It coerces the value into a boolean and returns that boolean's logical opposite.
 
-`&&` and `||` don't coerce values, but they do test whether values are "truthy".  A value that isn't zero, `nil`, or `false` is truthy.  `&&` returns either the first false value or the last truthy value if both are truthy.  Likewise, `||` returns the first truthy value or the second false value if both operands are false.
+`&&` and `||` don't coerce values, but they do test whether values are "truthy".  A value that isn't zero, `nil`, an error, an empty string, or `false` is truthy.  `&&` returns either the first false value or the last truthy value if both are truthy.  Likewise, `||` returns the first truthy value or the second false value if both operands are false.
 
 `!=`, and `==` never coerce values.  If two values don't have matching types, they aren't equal.
 ### Functions
