@@ -5,7 +5,7 @@
 Anything behind the `@` symbol is a comment. Comments are portions of code that are ignored by the interpreter:
 ```
 @ I’m a comment
-2 + 3 + 4; @ Everything left of “@” is NOT a comment
+2 + 3 + 4; @ Everything left of "@" is NOT a comment
 ```
 ### Expressions
 Expressions are portions of code that yield a result. For example, `abc[i].age + 3`, `myFunction(3)`, and `["Hello"]` are all expressions. They are instructions that the interpreter follows to generate values. In Grib, expressions consist of operations (like addition and multiplication), function calls, variable references, and literal values (numbers, lambdas, hashes, arrays, etc).
@@ -105,7 +105,7 @@ The right hand key values can be written either raw strings or identifiers. You 
 ```
 im e = err("my message"); @ create an error
 isErr(e) @ check if value is an error
-e.message @ get message stored in the error
+errVal(e) @ get value stored in the error
 ```
 ### Control Flow
 Loops and conditionals allow code to be executed only when certain conditions are met. `if`/`else if`/`else` statements can control whether a block of code is run:
@@ -150,9 +150,13 @@ Because Grib is loosely typed, operators can be used on values that don't make s
 | Number | `+`, `-`, `*`, `/`, `%`, `>(=)`, `<(=)`, `+=`, `-=`, `*=`, `/=`, `%=` | Anything | = | Second value will be coerced into a number. |
 | Anything | `+`, `-`, `*`, `/`, `%`, `>(=)`, `<(=)` | Number | = | The first value will be coerced into a number. |
 | String | `+`, `+=` | Anything | = | Second value will be converted into a string. |
-| String | `*`, `*=` | Anything | = | Second value will be converted into a positive, whole number.  The string will be repeated that many times if possible. |
+| String | `*`, `*=` | Anything | = | Second value will be converted into a whole number >= 0.  The string will be repeated that many times if possible. |
 | Array | `+` | Anything | = | A new array with the second value added to the end will be returned. |
 | Array | `+=` | Anything | = | The right value will be pushed into the array on the left hand side.  Said array will be returned by the expression. |
+| Array | `*` | Anything | = | Second value will be converted into a whole number >= 0.  A new array will be created containing elements in the left-hand array repeated N times (shallow copy) |
+| Array | `*=` | Anything | = | Same as previous, but a new array will not be created.  Repeating elements will be appeneded to the end of the existing array.  If the array is multiplied by zero, the array will be emptied. |
+| Error | any | Anything | = | The left-hand error will be returned |
+| Anything but an error | any | Error | = | The right-hand error will be returned |
 
 In most cases, values will be converted to numbers when the binary operators `+`, `-`, `*`, `/`, `%`, `>(=)`, or `<(=)` are used.
 
@@ -219,6 +223,7 @@ im person = # {
 	print: lam || { println(this.age)  } @ prints 13
 };
 ```
+If a value that isn't a lambda or function is invoked, the expression will return an error.  The arguments will still be evaluated.
 ### Auto-properties
 Auto-properties are special lambdas that can only be defined inside hashes. They’re like lambdas, but they are executed when their property is accessed or assigned. In other languages, they’re called “getters” and “setters”. Here’s an example of how one might implement a Vector object:
 ```
