@@ -1,9 +1,9 @@
 use super::slot::*;
 use super::*;
-use runtime::values::{AccessFunc, Callable, GribValue, HeapValue};
+use runtime::values::{AccessFunc, Callable, GribValue, HashPropertyValue, HeapValue};
 
-pub fn mark(runtime: &mut Runtime, ind: usize) {
-    let Markable { marked, ref value } = &mut runtime.gc.heap[ind];
+pub fn mark_heap(gc: &mut Gc, ind: usize) {
+    let Markable { marked, ref value } = &mut gc.heap[ind];
 
     if *marked {
         return;
@@ -29,18 +29,20 @@ pub fn mark(runtime: &mut Runtime, ind: usize) {
                 }
             }
             HeapValue::Hash(hash) => {
-                unimplemented!()
-                /*for (_, value) in &hash.values {
+                for (key, value) in hash.iter() {
+                    marked_stack.push(key.clone().into());
                     match value {
                         HashPropertyValue::Value(val) => marked_stack.push(val.clone()),
-                        /*HashPropertyValue::AutoProp(prop) => {
-                            for f in prop.functions() {
-                                marked_func.push(f.clone());
+                        HashPropertyValue::AutoProp { get, set } => {
+                            if let Some(f1) = get {
+                                marked_func.push(f1.clone());
                             }
-                        }*/
-                        _ => unimplemented!(),
+                            if let Some(f2) = set {
+                                marked_func.push(f2.clone());
+                            }
+                        }
                     }
-                }*/
+                }
             }
         },
         _ => to_mark = false,
@@ -49,41 +51,43 @@ pub fn mark(runtime: &mut Runtime, ind: usize) {
     *marked = to_mark;
 
     for value in marked_stack {
-        mark_stack(runtime, value);
+        mark_stack(gc, &value);
     }
 
     for value in marked_heap {
-        mark(runtime, value);
+        mark_heap(gc, value);
     }
 
     for value in marked_func {
         match value {
-            AccessFunc::Captured(ind) => mark(runtime, ind),
+            AccessFunc::Captured(ind) => mark_heap(gc, ind),
             AccessFunc::Callable { stack, .. } => {
                 if let Some(ind) = stack {
-                    mark(runtime, ind);
+                    mark_heap(gc, ind);
                 }
             }
         }
     }
 }
 
-fn mark_stack(runtime: &mut Runtime, obj: GribValue) {
+pub fn mark_stack(gc: &mut Gc, obj: &GribValue) {
     match obj {
-        GribValue::HeapValue(heap) => mark(runtime, heap),
-        GribValue::Callable(callable) => mark_function(runtime, callable),
+        GribValue::HeapValue(heap) | GribValue::String(GribString::Heap(heap)) => {
+            mark_heap(gc, *heap)
+        }
+        GribValue::Callable(callable) => mark_function(gc, callable),
         _ => {}
     }
 }
 
-fn mark_function(runtime: &mut Runtime, fnc: Callable) {
+fn mark_function(gc: &mut Gc, fnc: &Callable) {
     match fnc {
         Callable::Lambda { binding, stack, .. } => {
             if let Some(ind) = binding {
-                mark(runtime, ind);
+                mark_heap(gc, *ind);
             }
             if let Some(ind) = stack {
-                mark(runtime, ind);
+                mark_heap(gc, *ind);
             }
         }
         _ => {}

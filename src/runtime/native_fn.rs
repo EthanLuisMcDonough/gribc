@@ -146,7 +146,7 @@ native_package!(NativeConsolePackage[program gc] {
         println!("{}", str.as_str(program, gc));
         GribValue::Nil
     }
-    Error["error"](str) {
+    Error["printError"](str) {
         eprintln!("{}", str.as_str(program, gc));
         GribValue::Nil
     }
@@ -164,10 +164,26 @@ native_package!(NativeConsolePackage[program gc] {
 
 native_package!(NativeFmtPackage[program runtime] {
     ToString["toString"](obj) {
-        GribValue::String(obj.to_str(runtime, program))
+        GribValue::String(obj.to_str(runtime))
     }
     ToNumber["toNumber"](obj) {
         GribValue::Number(obj.cast_num(program, &runtime.gc))
+    }
+});
+
+native_package!(NativeErrPackage[_program _runtime] {
+    Err["err"](obj) {
+        if obj.is_err() { obj } else { GribValue::Error(obj.into()) }
+    }
+    IsErr["isErr"](obj) {
+        GribValue::Bool(obj.is_err())
+    }
+    ErrVal["errVal"](obj) {
+        if let GribValue::Error(val) = obj {
+            *val
+        } else {
+            GribValue::Nil
+        }
     }
 });
 
@@ -202,35 +218,81 @@ native_package!(NativeMathPackage[program runtime] {
     }
 });
 
-fn get_array<'a>(arr_ref: GribValue, gc: &'a mut Gc, fn_name: &str) -> &'a mut Vec<GribValue> {
-    if let Some(HeapValue::Array(ref mut arr)) =
-        arr_ref.ptr().and_then(move |ptr| gc.heap_val_mut(ptr))
-    {
-        arr
-    } else {
-        eprintln!(
-            "Invalid first argument supplied to array {} function",
-            fn_name
-        );
-        panic!();
-    }
+macro_rules! match_or_err {
+    ( $v:expr, $p:pat => $e:expr, $s:expr ) => {
+        match $v {
+            $p => $e,
+            _ => return GribValue::Error(GribString::Static($s)),
+        }
+    };
 }
+
+const NO_ARRAY: &'static str = "Functon provided non-array value";
 
 native_package!(NativeArrayPackage[program runtime] {
     Push["push"](arr_ref, s) {
-        let arr = get_array(arr_ref, &mut runtime.gc, "push");
-        arr.push(s);
-        GribValue::Number(arr.len() as f64)
+        if let Some(arr) = runtime.gc.try_get_array_mut(arr_ref) {
+            arr.push(s);
+            GribValue::Number(arr.len() as f64)
+        } else {
+            GribValue::err(NO_ARRAY)
+        }
     }
     Pop["pop"](arr_ref) {
-        let arr = get_array(arr_ref, &mut runtime.gc, "pop");
-        arr.pop().unwrap_or_default()
+        if let Some(arr) = runtime.gc.try_get_array_mut(arr_ref) {
+            arr.pop().unwrap_or_default()
+        } else {
+            GribValue::err(NO_ARRAY)
+        }
     }
-    Len["len"](arr_ref) {
-        let arr = get_array(arr_ref, &mut runtime.gc, "len");
-        GribValue::Number(arr.len() as f64)
+    Len["arrlen"](arr_ref) {
+        if let Some(arr) = runtime.gc.try_get_array(arr_ref) {
+            GribValue::Number(arr.len() as f64)
+        } else {
+            GribValue::err(NO_ARRAY)
+        }
     }
-    //RemoveAt["removeAt"](arr_ref, index) {}
+    RemoveAt["removeAt"](arr_ref, index) {
+        let ind = index.cast_ind(program, &runtime.gc);
+        if let Some(arr) = runtime.gc.try_get_array_mut(arr_ref) {
+            if let Some(i) = ind.filter(|i| i < &arr.len()) {
+                arr.remove(i)
+            } else {
+                GribValue::Nil
+            }
+        } else {
+            GribValue::err(NO_ARRAY)
+        }
+    }
+    CopyArr["copyArr"](arr) {
+        if let Some(arr) = runtime.gc.try_get_array(arr).cloned() {
+            runtime.alloc_heap(HeapValue::Array(arr)).into()
+        } else {
+            GribValue::err(NO_ARRAY)
+        }
+    }
+    Slice["slice"](arr, start_val, end_val) {
+        let mut start = start_val.cast_num(program, &runtime.gc) as i64;
+        let mut end = end_val.cast_num(program, &runtime.gc) as i64;
+
+        if let Some(arr) = runtime.gc.try_get_array(arr).cloned() {
+            let l = arr.len() as i64;
+            start = start.clamp(0, l);
+            end = if end_val.is_nil() {
+                l
+            } else { end.clamp(0, l) };
+
+            let top = start.max(end) as usize;
+            let bottom = start.min(end) as usize;
+
+            let new_arr = arr[bottom..top].to_vec();
+            let ptr = runtime.alloc_heap(HeapValue::Array(new_arr));
+
+            GribValue::HeapValue(ptr)
+        } else {
+            GribValue::err(NO_ARRAY)
+        }
+    }
 });
 
 native_obj!(NativeFunction | NativePackage {
@@ -238,4 +300,5 @@ native_obj!(NativeFunction | NativePackage {
     NativeFmtPackage -> "fmt",
     NativeConsolePackage -> "console",
     NativeArrayPackage -> "array",
+    NativeErrPackage -> "err",
 });

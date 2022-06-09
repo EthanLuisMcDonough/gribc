@@ -12,7 +12,7 @@ pub struct LambdaRef {
     pub stack: usize,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Callable {
     Native(NativeFunction),
     Procedure {
@@ -62,6 +62,7 @@ impl Callable {
                 }
                 scope.add_params(&lambda.param_list, runtime, args);
 
+                println!("{:?}", scope);
                 evaluate_lambda(&lambda.body, scope, binding.clone(), runtime, program)
             }
         }

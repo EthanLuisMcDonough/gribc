@@ -2,9 +2,10 @@ use super::HeapValue;
 use ast::node::Program;
 use runtime::memory::Gc;
 use std::borrow::Cow;
+use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum GribString {
     Stored(usize),
     Heap(usize),
@@ -97,6 +98,26 @@ impl PartialEq for GribStringRef<'_> {
     }
 }
 
+impl PartialOrd for GribStringRef<'_> {
+    fn partial_cmp(&self, other: &GribStringRef) -> Option<Ordering> {
+        use self::GribStringRef::*;
+        match (self, other) {
+            (Ref(r1), Ref(r2)) => r1.partial_cmp(r2),
+            (Char(c1), Char(c2)) => c1.partial_cmp(c2),
+            (Char(c1), Ref(r2)) => {
+                let mut bytes = [0u8; 4];
+                let char_ref = &*c1.encode_utf8(&mut bytes);
+                char_ref.partial_cmp(r2)
+            }
+            (Ref(r1), Char(c2)) => {
+                let mut bytes = [0u8; 4];
+                let char_ref = &*c2.encode_utf8(&mut bytes);
+                r1.partial_cmp(&char_ref)
+            }
+        }
+    }
+}
+
 impl GribStringRef<'_> {
     pub fn cast_num(&self) -> Option<f64> {
         match self {
@@ -126,6 +147,13 @@ impl GribStringRef<'_> {
         }
     }
 
+    pub fn char_at(&self, ind: usize) -> Option<char> {
+        match self {
+            Self::Char(c) => Some(*c).filter(|_| ind == 0),
+            Self::Ref(r) => r.chars().nth(ind),
+        }
+    }
+
     pub fn stringify(&self) -> String {
         match self {
             Self::Ref(r) => format!("{:?}", r),
@@ -133,6 +161,13 @@ impl GribStringRef<'_> {
                 let mut bytes = [0u8; 4];
                 format!("{:?}", c.encode_utf8(&mut bytes))
             }
+        }
+    }
+
+    pub fn borrow(&'_ self) -> Cow<'_, str> {
+        match self {
+            Self::Ref(r) => (*r).into(),
+            Self::Char(c) => c.to_string().into(),
         }
     }
 }

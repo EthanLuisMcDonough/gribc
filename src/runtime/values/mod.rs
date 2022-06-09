@@ -1,47 +1,17 @@
 mod callable;
 mod hash;
+mod heap;
 mod string;
 
 use ast::node::*;
 use runtime::memory::{Gc, Runtime};
 use std::borrow::Cow;
 use std::cmp::Ordering;
-use std::collections::HashMap;
 
 pub use self::callable::*;
 pub use self::hash::*;
+pub use self::heap::*;
 pub use self::string::*;
-
-/*pub trait Callable {
-    //fn call(&self, gc: &mut Gc, args: Vec<GribValue>) -> GribValue;
-    fn call(&self, args: Vec<GribValue>) -> GribValue;
-}
-
-pub enum CallableType {
-    Lambda,
-    Native,
-    Procedure,
-}*/
-
-/*impl AutoPropValue {
-    pub fn functions<'a>(&'a self) -> impl Iterator<Item = &'a AccessFunc> {
-        self.get.iter().chain(self.set.iter())
-    }
-}*/
-
-#[derive(Clone)]
-pub enum HeapValue {
-    Array(Vec<GribValue>),
-    Hash(HashValue),
-    String(String),
-    CapturedStack(HashMap<usize, usize>),
-}
-
-#[derive(Clone)]
-pub enum ModuleObject {
-    Native(NativePackage),
-    Custom(usize),
-}
 
 pub fn float_to_ind(f: f64) -> Option<usize> {
     Some(f.trunc())
@@ -92,15 +62,16 @@ fn values_to_string(
     joined
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum GribValue {
     Nil,
     Number(f64),
     String(GribString),
     Callable(Callable),
-    ModuleObject(Module),
+    ModuleObject(NativePackage),
     HeapValue(usize),
     Bool(bool),
+    Error(Box<GribValue>),
 }
 
 impl GribValue {
@@ -111,77 +82,102 @@ impl GribValue {
         }
     }
 
-    pub fn partial_cmp(&self, val: &GribValue, program: &Program, gc: &Gc) -> Option<Ordering> {
-        if let Some(string) = gc.try_get_string(self, program) {
-            unimplemented!()
+    pub fn is_nil(&self) -> bool {
+        self == &Self::Nil
+    }
+
+    fn is_number(&self) -> bool {
+        if let Self::Number(_) = self {
+            true
         } else {
-            self.cast_num(program, gc)
-                .partial_cmp(&val.cast_num(program, gc))
+            false
         }
     }
 
-    pub fn to_str(&self, runtime: &mut Runtime, program: &Program) -> GribString {
+    fn is_string(&self) -> bool {
+        if let Self::String(_) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn err(s: &'static str) -> Self {
+        Self::Error(Self::String(GribString::Static(s)).into())
+    }
+
+    pub fn is_err(&self) -> bool {
+        if let Self::Error(_) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn exact_equals(&self, val: &GribValue, program: &Program, gc: &Gc) -> bool {
+        if let (Self::String(s1), Self::String(s2)) = (self, val) {
+            s1.as_ref(program, gc) == s2.as_ref(program, gc)
+        } else {
+            self == val
+        }
+    }
+
+    pub fn coerced_cmp(
+        &self,
+        val: &GribValue,
+        program: &Program,
+        runtime: &Runtime,
+    ) -> Option<Ordering> {
+        if self.is_number() || val.is_number() {
+            self.cast_num(program, &runtime.gc)
+                .partial_cmp(&val.cast_num(program, &runtime.gc))
+        } else {
+            self.as_str(program, runtime)
+                .partial_cmp(&val.as_str(program, runtime))
+        }
+    }
+
+    pub fn to_str(&self, runtime: &mut Runtime) -> GribString {
         match self {
             Self::Nil => GribString::Static("nil"),
-            Self::Callable(fnc) => match fnc {
-                Callable::Native(n) => runtime.alloc_str(format!("[native {}()]", n.fn_name())),
-                Callable::Procedure { .. } => GribString::Static("[proc]"),
-                Callable::Lambda { .. } => GribString::Static("[lambda]"),
-            },
+            Self::Callable(fnc) => GribString::Static(match fnc {
+                Callable::Native(_) => "[native]",
+                Callable::Procedure { .. } => "[proc]",
+                Callable::Lambda { .. } => "[lambda]",
+            }),
             Self::Bool(b) => GribString::Static(if *b { "true" } else { "false" }),
-            Self::HeapValue(ind) => match runtime.gc.heap_val(*ind) {
-                Some(HeapValue::Array(v)) => {
-                    let array = v.clone();
-                    let s = array_to_string(&array, program, runtime);
-                    runtime.alloc_str(s)
-                }
-                Some(HeapValue::Hash(h)) => {
-                    let mutable = h.is_mutable();
-                    let s = values_to_string(
-                        h.clone().into_values(runtime, program, *ind),
-                        mutable,
-                        program,
-                        runtime,
-                    );
-                    runtime.alloc_str(s)
-                }
-                _ => GribString::Static("[stack object]"),
-            },
+            Self::HeapValue(ind) => GribString::Static(match runtime.gc.heap_val(*ind) {
+                Some(HeapValue::Array(_)) => "[array]",
+                Some(HeapValue::Hash(_)) => "[hash]",
+                _ => "[stack object]",
+            }),
             Self::String(s) => s.clone(),
             Self::Number(n) => runtime.alloc_str(n.to_string()),
             Self::ModuleObject(_) => GribString::Static("[module]"),
+            Self::Error(_) => GribString::Static("[error]"),
         }
     }
 
-    pub fn as_str<'a>(&'a self, program: &'a Program, runtime: &'a mut Runtime) -> Cow<'a, str> {
+    pub fn as_str<'a>(&'a self, program: &'a Program, runtime: &'a Runtime) -> Cow<'a, str> {
         match self {
             Self::Nil => "nil".into(),
             Self::Callable(fnc) => match fnc {
-                Callable::Native(n) => format!("[native {}()]", n.fn_name()).into(),
-                Callable::Procedure { .. } => "[proc]".into(),
-                Callable::Lambda { .. } => "[lambda]".into(),
-            },
+                Callable::Native(_) => "[native]",
+                Callable::Procedure { .. } => "[proc]",
+                Callable::Lambda { .. } => "[lambda]",
+            }
+            .into(),
             Self::Bool(b) => if *b { "true" } else { "false" }.into(),
             Self::HeapValue(ind) => match runtime.gc.heap_val(*ind) {
-                Some(HeapValue::Array(v)) => {
-                    let array = v.clone();
-                    array_to_string(&array, program, runtime).into()
-                }
-                Some(HeapValue::Hash(h)) => {
-                    let mutable = h.is_mutable();
-                    values_to_string(
-                        h.clone().into_values(runtime, program, *ind),
-                        mutable,
-                        program,
-                        runtime,
-                    )
-                    .into()
-                }
-                _ => "[stack object]".into(),
-            },
+                Some(HeapValue::Array(_)) => "[array]",
+                Some(HeapValue::Hash(_)) => "[hash]",
+                _ => "[stack object]",
+            }
+            .into(),
             Self::String(s) => s.as_ref(program, &runtime.gc).unwrap_or_default().into(),
             Self::Number(n) => n.to_string().into(),
             Self::ModuleObject(_) => "[module]".into(),
+            Self::Error(_) => "[error]".into(),
         }
     }
 
@@ -195,7 +191,7 @@ impl GribValue {
         match self {
             GribValue::Callable(_) | GribValue::ModuleObject(_) => true,
             GribValue::Number(n) => *n != 0.0,
-            GribValue::Nil => false,
+            GribValue::Nil | GribValue::Error(_) => false,
             GribValue::HeapValue(_) => true,
             GribValue::Bool(b) => *b,
             GribValue::String(s) => s.as_ref(program, gc).filter(|r| r.is_empty()).is_some(),
@@ -205,7 +201,10 @@ impl GribValue {
     pub fn cast_num(&self, program: &Program, gc: &Gc) -> f64 {
         match self {
             Self::Nil => 0.0,
-            Self::Callable(_) | Self::ModuleObject(_) | Self::HeapValue(_) => f64::NAN,
+            Self::Callable(_)
+            | Self::ModuleObject(_)
+            | Self::HeapValue(_)
+            | GribValue::Error(_) => f64::NAN,
             Self::Number(n) => *n,
             Self::String(s) => s
                 .as_ref(program, gc)
@@ -243,5 +242,11 @@ impl From<Callable> for GribValue {
 impl From<GribString> for GribValue {
     fn from(s: GribString) -> Self {
         GribValue::String(s)
+    }
+}
+
+impl From<bool> for GribValue {
+    fn from(b: bool) -> Self {
+        GribValue::Bool(b)
     }
 }

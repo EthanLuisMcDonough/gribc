@@ -66,7 +66,6 @@ impl Binary {
 pub enum Unary {
     Negation,
     LogicalNegation,
-    TypeOf,
 }
 
 pub fn op_precedence(op: &Binary) -> Precedence {

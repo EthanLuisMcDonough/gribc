@@ -32,6 +32,7 @@ macro_rules! err_guard {
 }
 
 fn main() {
+    std::env::set_var("RUST_BACKTRACE", "1");
     let path = env::args()
         .last()
         .expect("Error: File not found in cli arguments");
@@ -42,13 +43,21 @@ fn main() {
     let tokens = err_guard!(lex::lex(source.as_str()));
     let mut tree = err_guard!(ast::ast(tokens.into_iter(), &path));
 
-    println!(
+    /*println!(
         "{}",
         serde_json::to_string_pretty(&tree).unwrap_or_default()
-    );
+    );*/
 
     err_guard!(ast::ref_check(&mut tree));
+
+    runtime::execute(
+        &tree,
+        runtime::RuntimeConfig {
+            cleanup_after: 1000,
+        },
+    );
 }
 
 #[cfg(test)]
 mod tests;
+//cargo rustc -- -C link-args=-Wl,-zstack-size=144016

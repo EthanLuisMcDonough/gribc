@@ -210,7 +210,15 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
 
     let module = next_guard!({ tokens.next() } (start, end) {
         Token::String(s) => match NativePackage::from_str(&s) {
-            Some(package) => Module::Native { package, indices: HashSet::new() },
+            Some(package) => {
+                let mut indices = HashSet::new();
+
+                for name in package.raw_names() {
+                    indices.insert(store.ins_str(*name));
+                }
+
+                Module::Native { package, indices }
+            },
             None => {
                 let new_buf = path.join(&s);
                 let new_path = new_buf.as_path()

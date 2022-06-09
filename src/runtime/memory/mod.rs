@@ -8,13 +8,13 @@ pub use self::heap::Gc;
 pub use self::scope::Scope;
 pub use self::stack::Stack;
 
-use self::mark::mark;
+use self::mark::*;
 use runtime::memory::slot::*;
 use runtime::values::{GribString, GribValue, HeapValue};
 use std::collections::{HashMap, HashSet};
 
 pub struct RuntimeConfig {
-    cleanup_after: usize,
+    pub cleanup_after: usize,
 }
 
 pub struct Runtime {
@@ -37,8 +37,12 @@ impl Runtime {
     }
 
     pub fn clean(&mut self) {
-        for pointer in self.stack.iter().flat_map(get_heap_ref).collect::<Vec<_>>() {
-            mark(self, pointer);
+        for slot in self.stack.iter() {
+            match slot {
+                StackSlot::Captured(ind) => mark_heap(&mut self.gc, *ind),
+                StackSlot::Value(val) => mark_stack(&mut self.gc, val),
+                StackSlot::Empty => {}
+            }
         }
 
         let len = self.gc.heap.len();
@@ -54,13 +58,7 @@ impl Runtime {
     pub fn get_stack(&'_ self, index: usize) -> Option<&'_ GribValue> {
         match self.stack.stack.get(index) {
             Some(StackSlot::Value(value)) => Some(value),
-            Some(StackSlot::Captured(index)) => {
-                if let Some(HeapSlot::Captured(value)) = self.gc.heap_slot(*index) {
-                    Some(value)
-                } else {
-                    None
-                }
-            }
+            Some(StackSlot::Captured(index)) => self.gc.get_captured(*index),
             _ => None,
         }
     }
@@ -68,13 +66,7 @@ impl Runtime {
     pub fn get_stack_mut(&'_ mut self, index: usize) -> Option<&'_ mut GribValue> {
         match self.stack.stack.get_mut(index) {
             Some(StackSlot::Value(ref mut value)) => Some(value),
-            Some(StackSlot::Captured(index)) => {
-                if let Some(HeapSlot::Captured(ref mut value)) = self.gc.heap_slot_mut(*index) {
-                    Some(value)
-                } else {
-                    None
-                }
-            }
+            Some(StackSlot::Captured(index)) => self.gc.get_captured_mut(*index),
             _ => None,
         }
     }
@@ -154,12 +146,5 @@ impl Runtime {
         }
 
         self.alloc_heap(HeapValue::CapturedStack(heap_stack)).into()
-    }
-}
-
-fn get_heap_ref<'a>(value: &StackSlot) -> Option<usize> {
-    match value {
-        StackSlot::Captured(ptr) | StackSlot::Value(GribValue::HeapValue(ptr)) => Some(*ptr),
-        _ => None,
     }
 }

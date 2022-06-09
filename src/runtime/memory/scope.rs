@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 const STACK_OVERFLOW_MSG: &str = "Grib stack overflow";
 
+#[derive(Debug)]
 pub struct Scope {
     scope: HashMap<usize, usize>,
     local_count: usize,

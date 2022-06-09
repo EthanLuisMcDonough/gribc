@@ -2,8 +2,6 @@ use super::{Block, Expression};
 use location::Located;
 use std::collections::HashSet;
 
-pub type CaptureData = HashSet<String>;
-
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Parameters {
     pub params: Vec<usize>,

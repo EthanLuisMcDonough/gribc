@@ -35,7 +35,7 @@ impl Module {
         }
     }
 
-    pub fn callables<'a>(&'a self, program: &'a Program) -> Vec<(Callable, usize)> {
+    pub fn callables(&self, program: &Program) -> Vec<(Callable, usize)> {
         match self {
             Module::Custom(i) => program.modules[*i]
                 .functions

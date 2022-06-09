@@ -120,6 +120,7 @@ impl From<Store> for Program {
         p.getters = s.getters;
         p.setters = s.setters;
         p.imports = s.imports;
+        p.lambdas = s.lambdas;
 
         p.modules = vec![CustomModule::default(); s.mod_map.len()];
 

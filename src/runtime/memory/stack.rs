@@ -1,5 +1,5 @@
 use runtime::memory::slot::*;
-const STACK_SIZE: usize = 10000;
+const STACK_SIZE: usize = 5000;
 
 pub struct Stack {
     stack_size: usize,
@@ -23,8 +23,9 @@ impl Stack {
     pub fn add(&mut self, value: StackSlot) -> Option<usize> {
         if self.stack_size < STACK_SIZE {
             self.stack[self.stack_size] = value;
+            let ptr = self.stack_size;
             self.stack_size += 1;
-            Some(self.stack_size)
+            Some(ptr)
         } else {
             None
         }

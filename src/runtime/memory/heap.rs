@@ -1,6 +1,6 @@
 use ast::node::Program;
 use runtime::memory::slot::*;
-use runtime::values::{GribStringRef, GribValue, HeapValue};
+use runtime::values::*;
 use std::collections::HashMap;
 
 pub struct Gc {
@@ -19,9 +19,9 @@ impl Gc {
         })
     }
 
-    pub fn get_captured(&self, index: usize) -> Option<GribValue> {
+    pub fn get_captured(&'_ self, index: usize) -> Option<&'_ GribValue> {
         self.heap_slot(index).and_then(|slot| match slot {
-            HeapSlot::Captured(val) => Some(val.clone()),
+            HeapSlot::Captured(val) => Some(val),
             _ => None,
         })
     }
@@ -72,7 +72,15 @@ impl Gc {
         }
     }
 
-    pub fn try_get_array(&'_ self, val: GribValue) -> Option<&'_ Vec<GribValue>> {
+    pub fn get_captured_mut(&'_ mut self, index: usize) -> Option<&'_ mut GribValue> {
+        self.heap_slot_mut(index).and_then(|slot| match slot {
+            HeapSlot::Captured(val) => Some(val),
+            _ => None,
+        })
+    }
+
+    pub fn try_get_array(&'_ self, val: impl Into<GribValue>) -> Option<&'_ Vec<GribValue>> {
+        let val = val.into();
         if let Some(HeapValue::Array(arr)) = val.ptr().and_then(|ptr| self.heap_val(ptr)) {
             Some(arr)
         } else {
@@ -80,9 +88,29 @@ impl Gc {
         }
     }
 
-    pub fn try_get_array_mut(&'_ mut self, val: GribValue) -> Option<&'_ mut Vec<GribValue>> {
+    pub fn try_get_array_mut(
+        &'_ mut self,
+        val: impl Into<GribValue>,
+    ) -> Option<&'_ mut Vec<GribValue>> {
+        let val = val.into();
         if let Some(HeapValue::Array(arr)) = val.ptr().and_then(move |ptr| self.heap_val_mut(ptr)) {
             Some(arr)
+        } else {
+            None
+        }
+    }
+
+    pub fn try_get_hash(&'_ self, ptr: usize) -> Option<&'_ HashValue> {
+        if let Some(HeapValue::Hash(h)) = self.heap_val(ptr) {
+            Some(h)
+        } else {
+            None
+        }
+    }
+
+    pub fn try_get_hash_mut(&'_ mut self, ptr: usize) -> Option<&'_ mut HashValue> {
+        if let Some(HeapValue::Hash(h)) = self.heap_val_mut(ptr) {
+            Some(h)
         } else {
             None
         }
@@ -98,5 +126,14 @@ impl Gc {
         } else {
             None
         }
+    }
+
+    pub fn typed_index(&self, ptr: usize) -> Option<KnownIndex> {
+        self.heap_val(ptr).and_then(|v| match v {
+            HeapValue::Array(_) => KnownIndex::Array(ArrayRef(ptr)).into(),
+            HeapValue::Hash(_) => KnownIndex::Hash(HashRef(ptr)).into(),
+            HeapValue::String(_) => KnownIndex::String(StringRef(ptr)).into(),
+            _ => None,
+        })
     }
 }

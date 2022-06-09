@@ -58,8 +58,7 @@ pub enum Expression {
 
     Nil,
     This,
-
-    StackRef(usize),
+    /* TBA StackRef(usize), */
 }
 impl Expression {
     pub fn is_statement(&self) -> bool {
