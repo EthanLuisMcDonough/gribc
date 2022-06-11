@@ -32,7 +32,7 @@ impl LiveProperty {
             Self::Hash { key, ptr } => runtime
                 .gc
                 .try_get_hash(*ptr)
-                .and_then(|hash| hash.get_property(key).cloned())
+                .and_then(|hash| hash.get_property(&key).cloned())
                 .map(|prop| prop.get(runtime, program, *ptr)),
             Self::Module { key, module } => module
                 .fn_from_str(&program.strings[*key])

@@ -74,9 +74,13 @@ impl Scope {
     }
 
     pub fn capture_var(&mut self, runtime: &mut Runtime, label: usize) -> Option<usize> {
-        self.scope
-            .get(&label)
-            .and_then(|&ind| runtime.capture_at_ind(ind))
+        self.scope.get(&label).and_then(|&ind| {
+            if let Some(StackSlot::Captured(new_ind)) = runtime.stack.stack.get(ind) {
+                Some(*new_ind)
+            } else {
+                runtime.capture_at_ind(ind)
+            }
+        })
     }
 
     pub fn set(&self, runtime: &mut Runtime, label: usize, value: GribValue) {

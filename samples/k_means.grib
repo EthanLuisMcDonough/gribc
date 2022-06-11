@@ -1,0 +1,13 @@
+import |readText writeText| from "syncio";
+import |println| from "console";
+import |errVal| from "err";
+
+im text = readText("./samples/resources/iris_data.csv");
+
+println(errVal(writeText("./samples/bin/copy.grib", text, true)));
+
+println(!false);
+
+for decl i = 10; i < 100000; i += 1 {
+    decl m = # {};
+}

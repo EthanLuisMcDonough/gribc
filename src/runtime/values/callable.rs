@@ -58,18 +58,19 @@ impl Callable {
                 let mut scope = Scope::new();
 
                 if let Some(stack_ptr) = stack {
+                    //println!("ptr: {}", stack_ptr);
+                    //println!("heap: {:#?}", runtime.gc);
                     scope.add_captured_stack(runtime, *stack_ptr);
                 }
                 scope.add_params(&lambda.param_list, runtime, args);
 
-                println!("{:?}", scope);
                 evaluate_lambda(&lambda.body, scope, binding.clone(), runtime, program)
             }
         }
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum AccessFunc {
     Callable { index: usize, stack: Option<usize> },
     Captured(usize),

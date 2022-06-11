@@ -49,6 +49,7 @@ impl Runtime {
         for index in 0..len {
             if !self.gc.heap[index].marked {
                 self.gc.remove(index);
+                self.free_pointers.push(index);
             }
 
             self.gc.heap[index].marked = false;
@@ -107,7 +108,13 @@ impl Runtime {
     }
 
     pub fn alloc_str(&mut self, s: String) -> GribString {
-        GribString::Heap(self.alloc_heap(HeapValue::String(s)))
+        if s.is_empty() {
+            GribString::Static("")
+        } else if s.len() == 1 {
+            GribString::Char(s.chars().next().unwrap())
+        } else {
+            GribString::Heap(self.alloc_heap(HeapValue::String(s)))
+        }
     }
 
     pub(in runtime::memory) fn capture_at_ind(&mut self, i: usize) -> Option<usize> {
@@ -138,7 +145,6 @@ impl Runtime {
         }
 
         let mut heap_stack = HashMap::new();
-
         for name in to_capture {
             if let Some(ind) = scope.capture_var(self, *name) {
                 heap_stack.insert(*name, ind);

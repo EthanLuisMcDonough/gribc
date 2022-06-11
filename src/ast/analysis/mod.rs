@@ -1,4 +1,5 @@
 mod scope;
+mod walk;
 
 use self::scope::*;
 use ast::node::*;
@@ -265,10 +266,11 @@ fn walk_expression<'a>(
                     ObjectValue::AutoProp(auto) => {
                         match auto.get.as_ref() {
                             Some(AutoPropValue::Lambda(ind)) => {
+                                let scope = scope.sub();
                                 cap.add(scope.level);
 
                                 let mut get = mem::take(&mut lams.getters[*ind]);
-                                walk_lambda_block(&get.block, scope.sub(), lams, cap)?;
+                                walk_lambda_block(&get.block, scope, lams, cap)?;
                                 get.capture = cap.pop();
 
                                 lams.getters[*ind] = get;
@@ -314,10 +316,10 @@ fn walk_expression<'a>(
             }
         }
         Expression::Lambda(ind) => {
-            cap.add(scope.level);
-
             let mut lambda = mem::take(&mut lams.lambdas[*ind]);
             let mut scope = scope.sub();
+
+            cap.add(scope.level);
 
             for param in lambda.param_list.all_params() {
                 scope.insert_mut(*param);

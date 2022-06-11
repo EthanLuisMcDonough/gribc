@@ -119,8 +119,8 @@ pub fn binary_expr(
 
 pub fn unary_expr(op: &Unary, val: &GribValue, gc: &Gc, program: &Program) -> GribValue {
     match op {
-        Unary::LogicalNegation => val.truthy(program, gc).into(),
-        Unary::Negation => val.cast_num(program, gc).into(),
+        Unary::LogicalNegation => (!val.truthy(program, gc)).into(),
+        Unary::Negation => (-val.cast_num(program, gc)).into(),
     }
 }
 

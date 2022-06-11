@@ -1,23 +1,20 @@
 use std::collections::{HashMap, HashSet};
 
+#[derive(Debug)]
 struct Capture {
     level: usize,
     identifiers: HashSet<usize>,
 }
 
+#[derive(Debug)]
 pub struct CaptureStack {
     // Stack of captured stacks (for lambda metadata)
     stack: Vec<Capture>,
-    // map of captured identifier names and the scopes in which they're declared
-    markers: HashMap<usize, HashSet<usize>>,
 }
 
 impl CaptureStack {
     pub fn new() -> Self {
-        Self {
-            stack: vec![],
-            markers: HashMap::new(),
-        }
+        Self { stack: vec![] }
     }
 
     pub fn add(&mut self, level: usize) {
@@ -31,9 +28,9 @@ impl CaptureStack {
         self.stack.pop().map(|e| e.identifiers).unwrap_or_default()
     }
 
-    fn check_ref(&mut self, ident: usize, def: usize) {
+    fn check_ref(&mut self, ident: usize, current: usize) {
         for Capture { level, identifiers } in &mut self.stack {
-            if *level > def {
+            if *level > current {
                 identifiers.insert(ident);
             }
         }
@@ -108,20 +105,17 @@ impl Scope {
     }
 
     pub fn has(&self, name: usize, s: &mut CaptureStack) -> bool {
-        if self.scope.contains_key(&name) {
-            s.check_ref(name, self.level);
+        if let Some(data) = self.scope.get(&name) {
+            s.check_ref(name, data.level);
             return true;
         }
         false
     }
     pub fn has_editable(&self, name: usize, s: &mut CaptureStack) -> bool {
-        if self
-            .scope
-            .get(&name)
-            .filter(|d| d.kind == DefType::Mutable)
-            .is_some()
+        if let Some(DefData { level, .. }) =
+            self.scope.get(&name).filter(|d| d.kind == DefType::Mutable)
         {
-            s.check_ref(name, self.level);
+            s.check_ref(name, *level);
             return true;
         }
         false

@@ -47,9 +47,8 @@ fn main() {
         "{}",
         serde_json::to_string_pretty(&tree).unwrap_or_default()
     );*/
-
+    //println!("{:?}", tree.strings);
     err_guard!(ast::ref_check(&mut tree));
-
     runtime::execute(
         &tree,
         runtime::RuntimeConfig {

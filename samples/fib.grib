@@ -4,10 +4,10 @@ proc fibIter || {
     decl current = 1, prev = 0;
     return # {
         next -> lam || {
-            im result = current + prev, temp = current;
+            im result = current + prev, temp = prev;
+            prev = current;
             current = result;
-            prev = temp;
-            return result;
+            return temp;
         }
     };
 }

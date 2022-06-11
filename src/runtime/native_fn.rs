@@ -1,9 +1,12 @@
 use ast::node::Program;
 use runtime::memory::{Gc, Runtime};
-use runtime::values::{GribValue, HeapValue};
+use runtime::values::{GribKey, GribValue, HeapValue};
 use std::collections::HashSet;
-use std::io;
-use std::io::Read;
+use std::{
+    fs,
+    io::{self, Read, Write},
+    path::Path,
+};
 
 macro_rules! native_obj {
     ($name:ident | $pkg:ident {
@@ -142,12 +145,28 @@ macro_rules! native_package {
 }
 
 native_package!(NativeConsolePackage[program gc] {
-    Println["println"](str) {
-        println!("{}", str.as_str(program, gc));
+    Print["print"](s) {
+        if let GribValue::Error(err) = s {
+            print!("[ERR: {}]", err.as_str(program, gc));
+        } else {
+            print!("{}", s.as_str(program, gc));
+        }
         GribValue::Nil
     }
-    Error["printError"](str) {
-        eprintln!("{}", str.as_str(program, gc));
+    Println["println"](s) {
+        if let GribValue::Error(err) = s {
+            println!("[ERR: {}]", err.as_str(program, gc));
+        } else {
+            println!("{}", s.as_str(program, gc));
+        }
+        GribValue::Nil
+    }
+    PrintError["printError"](s) {
+        if let GribValue::Error(err) = s {
+            eprintln!("[ERR: {}]", err.as_str(program, gc));
+        } else {
+            eprintln!("{}", s.as_str(program, gc));
+        }
         GribValue::Nil
     }
     Readline["readline"]() {
@@ -171,6 +190,54 @@ native_package!(NativeFmtPackage[program runtime] {
     }
 });
 
+fn try_hash_key(
+    hash: GribValue,
+    key: GribValue,
+    runtime: &mut Runtime,
+    program: &Program,
+) -> Option<GribKey> {
+    let key_str = key.to_str(runtime);
+    runtime
+        .gc
+        .try_get_hash(hash)
+        .map(|hash| hash.key(key_str, program, &runtime.gc))
+}
+
+native_package!(NativeHashPackage[program runtime] {
+    DeleteKey["deleteKey"](hash, key) {
+        GribValue::Bool(try_hash_key(hash.clone(), key, runtime, program)
+            .and_then(|key| {
+                runtime.gc.try_get_hash_mut(hash)
+                    .map(|hash| hash.delete_key(&key))
+            }).is_some())
+    }
+    HashMutable["hashMutable"](hash) {
+        GribValue::Bool(runtime
+            .gc
+            .try_get_hash(hash)
+            .map(|hash| hash.is_mutable())
+            .unwrap_or(false))
+    }
+    HasKey["hasKey"](hash, key) {
+        let key_str = key.to_str(runtime);
+        GribValue::Bool(runtime
+            .gc
+            .try_get_hash(hash)
+            .map(|hash| {
+                let key = hash.key(key_str, program, &runtime.gc);
+                hash.get_property(&key).is_some()
+            }).unwrap_or(false))
+    }
+    Keys["keys"](hash_val) {
+        runtime.gc.try_get_hash(hash_val)
+            .map(|hash| hash.keys())
+            .map(HeapValue::Array)
+            .map(|keys| runtime.alloc_heap(keys))
+            .map(GribValue::HeapValue)
+            .unwrap_or_default()
+    }
+});
+
 native_package!(NativeErrPackage[_program _runtime] {
     Err["err"](obj) {
         if obj.is_err() { obj } else { GribValue::Error(obj.into()) }
@@ -184,6 +251,126 @@ native_package!(NativeErrPackage[_program _runtime] {
         } else {
             GribValue::Nil
         }
+    }
+});
+
+native_package!(NativeStrPackage[program runtime] {
+    Split["split"](content, delim) {
+        let delim = delim.as_str(program, runtime);
+        let str_arr = content.as_str(program, runtime)
+            .split(delim.as_ref())
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
+        let grib_arr = str_arr.into_iter()
+            .map(|s| runtime.alloc_str(s))
+            .map(GribValue::String)
+            .collect::<Vec<_>>();
+        let ptr = runtime.alloc_heap(HeapValue::Array(grib_arr));
+        GribValue::HeapValue(ptr)
+    }
+    Strlen["strlen"](obj) {
+        let string = obj.as_str(program, runtime);
+        GribValue::Number(string.len() as f64)
+    }
+    IndexOfStr["indexOf"](string, search) {
+        let string = string.as_str(program, runtime);
+        let search = search.as_str(program, runtime);
+
+        GribValue::Number(string.find(search.as_ref())
+            .map(|ind| ind as f64).unwrap_or(-1.0))
+    }
+});
+
+macro_rules! guard {
+    ($e:expr, $s:expr) => {
+        match $e {
+            Ok(val) => val,
+            Err(_) => return GribValue::err($s),
+        }
+    };
+}
+
+fn write_bytes(path: &Path, contents: &[u8], append: bool) -> GribValue {
+    if let Some(parent) = path.parent() {
+        guard!(
+            fs::create_dir_all(parent),
+            "Could not create subdirectories"
+        );
+    }
+
+    let mut file = guard!(
+        fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .append(append)
+            .open(path),
+        "Failed to open file provided"
+    );
+
+    file.write(contents)
+        .map(|_| GribValue::Nil)
+        .unwrap_or(GribValue::err("Failed to write to file"))
+}
+
+native_package!(NativeSyncIoPackage[program runtime] {
+    ReadText["readText"](obj) {
+        let path_str = obj.as_str(program, runtime).into_owned();
+        let path = Path::new(&path_str);
+
+        fs::read_to_string(path)
+            .map(|s| runtime.alloc_str(s))
+            .map(GribValue::String)
+            .unwrap_or(GribValue::err("Error reading provided file provided to readText"))
+    }
+    WriteText["writeText"](path_val, contents_val, append) {
+        let path_str = path_val.as_str(program, runtime).into_owned();
+        let path = Path::new(&path_str);
+
+        let append = append.truthy(program, &runtime.gc);
+        let contents = contents_val.as_str(program, runtime);
+
+        write_bytes(&path, contents.as_bytes(), append)
+    }
+    ReadBytes["readBytes"](obj) {
+        let path_str = obj.as_str(program, runtime).into_owned();
+        let path = Path::new(&path_str);
+
+        fs::read(path)
+            .map(|arr| {
+                arr.into_iter().map(|byte| byte as f64).map(GribValue::Number).collect::<Vec<_>>()
+            })
+            .map(HeapValue::Array)
+            .map(|arr| runtime.alloc_heap(arr))
+            .map(GribValue::HeapValue)
+            .unwrap_or(GribValue::err("Error reading provided file provided to readText"))
+    }
+    WriteBytes["writeBytes"](path_val, contents_val, append) {
+        let path_str = path_val.as_str(program, runtime).into_owned();
+        let path = Path::new(&path_str);
+        let append = append.truthy(program, &runtime.gc);
+
+        runtime.gc.try_get_array(contents_val).map(|contents| {
+            let converted = contents.iter().map(|val| {
+                val.cast_ind(program, &runtime.gc).unwrap_or(0).min(255) as u8
+            }).collect::<Vec<u8>>();
+
+            write_bytes(&path, &converted[..], append)
+        }).unwrap_or_default()
+    }
+    IsFile["isFile"](path_val) {
+        let path_str = path_val.as_str(program, runtime).into_owned();
+        let path = Path::new(&path_str);
+        GribValue::Bool(path.is_file())
+    }
+    IsDir["isDir"](path_val) {
+        let path_str = path_val.as_str(program, runtime).into_owned();
+        let path = Path::new(&path_str);
+        GribValue::Bool(path.is_dir())
+    }
+    PathContents["pathContents"](path_val) {
+        let path_str = path_val.as_str(program, runtime).into_owned();
+        let path = Path::new(&path_str);
+        GribValue::Bool(path.is_dir())
     }
 });
 
@@ -301,4 +488,7 @@ native_obj!(NativeFunction | NativePackage {
     NativeConsolePackage -> "console",
     NativeArrayPackage -> "array",
     NativeErrPackage -> "err",
+    NativeSyncIoPackage -> "syncio",
+    NativeStrPackage -> "str",
+    NativeHashPackage -> "hash",
 });

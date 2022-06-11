@@ -64,6 +64,7 @@ pub fn execute(program: &Program, config: RuntimeConfig) {
     run_block(&program.body, scope, &mut runtime, program);
 }
 
+#[derive(Debug)]
 pub enum ControlFlow {
     Return(GribValue),
     Break,
@@ -115,9 +116,9 @@ fn declare(decl: &Declaration, scope: &mut Scope, runtime: &mut Runtime, program
         let value = evaluate_expression(&declaration.value, scope, runtime, program);
         let label = declaration.identifier.data;
         if declaration.captured {
-            scope.declare_stack(&mut runtime.stack, label, value);
-        } else {
             scope.declare_captured(runtime, label, value);
+        } else {
+            scope.declare_stack(&mut runtime.stack, label, value);
         }
     }
 }

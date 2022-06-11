@@ -1,4 +1,5 @@
 use runtime::memory::slot::*;
+use std::fmt::{Debug, Error as DebugError, Formatter};
 const STACK_SIZE: usize = 5000;
 
 pub struct Stack {
@@ -68,5 +69,11 @@ impl<'a> Iterator for StackIter<'a> {
         } else {
             None
         }
+    }
+}
+
+impl Debug for Stack {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), DebugError> {
+        f.debug_list().entries(self.iter()).finish()
     }
 }

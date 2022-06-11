@@ -5,7 +5,7 @@ use runtime::memory::{Gc, Runtime, Scope};
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash, Hasher};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum HashPropertyValue {
     AutoProp {
         get: Option<AccessFunc>,
@@ -51,7 +51,7 @@ impl HashPropertyValue {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct GribKey {
     hash: u64,
     string: GribString,
@@ -76,7 +76,7 @@ impl Hash for GribKey {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HashValue {
     mutable: bool,
     values: HashMap<GribKey, HashPropertyValue>,
@@ -148,6 +148,10 @@ impl HashValue {
         }
     }
 
+    pub fn delete_key(&mut self, key: &GribKey) {
+        self.values.remove(key);
+    }
+
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
@@ -156,6 +160,14 @@ impl HashValue {
         self.values
             .iter()
             .map(|(raw_key, val)| (&raw_key.string, val))
+    }
+
+    pub fn keys(&self) -> Vec<GribValue> {
+        self.values
+            .keys()
+            .map(|key| key.string.clone())
+            .map(GribValue::String)
+            .collect()
     }
 
     pub fn into_values(

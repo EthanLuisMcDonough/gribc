@@ -3,8 +3,10 @@ use runtime::memory::slot::*;
 use runtime::values::*;
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct Gc {
-    pub(in runtime::memory) heap: Vec<MarkedSlot>,
+    //(in runtime::memory)
+    pub heap: Vec<MarkedSlot>,
 }
 
 impl Gc {
@@ -100,16 +102,18 @@ impl Gc {
         }
     }
 
-    pub fn try_get_hash(&'_ self, ptr: usize) -> Option<&'_ HashValue> {
-        if let Some(HeapValue::Hash(h)) = self.heap_val(ptr) {
+    pub fn try_get_hash(&'_ self, val: impl Into<GribValue>) -> Option<&'_ HashValue> {
+        if let Some(HeapValue::Hash(h)) = val.into().ptr().and_then(|ptr| self.heap_val(ptr)) {
             Some(h)
         } else {
             None
         }
     }
 
-    pub fn try_get_hash_mut(&'_ mut self, ptr: usize) -> Option<&'_ mut HashValue> {
-        if let Some(HeapValue::Hash(h)) = self.heap_val_mut(ptr) {
+    pub fn try_get_hash_mut(&'_ mut self, val: impl Into<GribValue>) -> Option<&'_ mut HashValue> {
+        if let Some(HeapValue::Hash(h)) =
+            val.into().ptr().and_then(move |ptr| self.heap_val_mut(ptr))
+        {
             Some(h)
         } else {
             None

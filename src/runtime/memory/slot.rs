@@ -1,11 +1,12 @@
 use runtime::values::{GribValue, HeapValue};
 
+#[derive(Debug)]
 pub struct Markable<T> {
     pub value: T,
     pub marked: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum MemSlot<C, V> {
     Captured(C),
     Value(V),

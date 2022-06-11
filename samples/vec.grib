@@ -1,0 +1,20 @@
+import |sqrt ceil| from "math";
+import |println| from "console";
+
+proc newVec |x y z| {
+    return # {
+        x { get x, set x },
+        y { get y, set y },
+        z { get z, set z },
+        len {
+            get || { 
+                println(this.x);
+                println(x);
+                return (x + y + z); 
+            }
+        }
+    };
+}
+println(sqrt(9));
+im v = newVec(1, 2, 6);
+println(v.len);
