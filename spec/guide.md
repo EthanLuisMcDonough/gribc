@@ -84,12 +84,12 @@ Array values can be accessed using the index access notation: `item[index]`. Ind
 Hashes: In other languages, these are sometimes called “records”, “objects”, “maps”, “associative arrays”, or “dictionaries”. Hashes are a collection of unique keys that are each associated with a value. Immutable hashes are defined using `# {...}` syntax and mutable hashes are created using `$ {...}` syntax.
 ```
 # {
-	description: "collection of values",
-	"string key": nil,
-	nested: $ {
-		sub: true,
-		count: 1,
-		message: "this *nested* hash is mutable"
+	description -> "collection of values",
+	"string key" -> nil,
+	nested -> $ {
+		sub -> true,
+		count -> 1,
+		message -> "this *nested* hash is mutable"
 	}, @ trailing commas are optional
 }
 ```
@@ -215,12 +215,12 @@ fig1(0, 1); @ evaluates to 3 because outer is set to 3 now
 ```
 *Note:* lambdas are treated as any other expression value and cannot be exported.
 
-When defined in hashes, lambdas bind the this keyword to the current hash:
+Whenever a lambda is accessed from a hash, it is bound to the object it was accessed from unless it already has a pre-existing binding:
 ```
 im person = # {
-	age: 13,
+	age -> 13,
 	@ this refers to the “person” hash
-	print: lam || { println(this.age)  } @ prints 13
+	print -> lam || { println(this.age)  } @ prints 13
 };
 ```
 If a value that isn't a lambda or function is invoked, the expression will return an error.  The arguments will still be evaluated.
@@ -228,11 +228,11 @@ If a value that isn't a lambda or function is invoked, the expression will retur
 Auto-properties are special lambdas that can only be defined inside hashes. They’re like lambdas, but they are executed when their property is accessed or assigned. In other languages, they’re called “getters” and “setters”. Here’s an example of how one might implement a Vector object:
 ```
 im vector = $ {
-	x: 1, y: 2, z: 3,
-	len { @ note the lack of colon
+	x -> 1, y -> 2, z -> 3,
+	len { @ note the lack of arrow
 		@ the getters and setters have bodies and params
 		@ just like lambdas
-		get  ||  { sqrt(this.x * this.y * this.z) },
+		get  ||  { sqrt(this.x*this.x + this.y*this.y + this.z*this.z) },
 		set |newLen| {
 			@ calls the lambda defined in get
 			im old = this.len; @ calls the lambda defined in get  
@@ -308,7 +308,7 @@ public proc newVec |x y z| {
 		y { get y, set y },
 		z { get z, set z },
 		len {
-			get || { sqrt(x + y + z) },
+			get || { sqrt(x*x + y*y + z*z) },
 			set |newLen| {
 				im old = this.len;
 				x = (x / old) * newLen;
@@ -316,11 +316,11 @@ public proc newVec |x y z| {
 				z = (z / old) * newLen;
 			}
 		},
-		unit: lam || {
+		unit -> lam || {
 			im old = this.len;
 			return newVec(x / old, y / old, z / old);
 		},
-		scale: lam |scalar| {
+		scale -> lam |scalar| {
 			x *= scalar;
 			y *= scalar;
 			z *= scalar;
