@@ -143,13 +143,14 @@ Much like operators in a math expression, Grib operators have precedence. Here i
 | Logical OR | `\|\|` |
 | Assignment | `=`, `+=`, `-=`, `*=`, `/=`, `%=` |
 
-Because Grib is loosely typed, operators can be used on values that don't make sense.  For example, `#{ } + 23` is a valid expression, but it evaluates to `NaN` because the hash is converted into `NaN`.   This process of automatic type conversion is called type coercion.  Here's a table describing how different binary operators behave with operands of different types: 
+Because Grib is loosely typed, operators can be used on values that don't make sense.  For example, `#{ } + 23` is a valid expression, but it evaluates to `NaN` because the hash is converted into `NaN`.   This process of automatic type conversion is called type coercion.  Here's a table describing how different binary operators behave with operands of different types (rules lower on the list take precedence over rules closer to the top): 
 
 | First | Operator | Second |  | Result |
 |--|--|--|--|--|
 | Number | `+`, `-`, `*`, `/`, `%`, `>(=)`, `<(=)`, `+=`, `-=`, `*=`, `/=`, `%=` | Anything | = | Second value will be coerced into a number. |
 | Anything | `+`, `-`, `*`, `/`, `%`, `>(=)`, `<(=)` | Number | = | The first value will be coerced into a number. |
 | String | `+`, `+=` | Anything | = | Second value will be converted into a string. |
+| Anything | `+`, `+=` | String | = | First value will be converted into a string. |
 | String | `*`, `*=` | Anything | = | Second value will be converted into a whole number >= 0.  The string will be repeated that many times if possible. |
 | Array | `+` | Anything | = | A new array with the second value added to the end will be returned. |
 | Array | `+=` | Anything | = | The right value will be pushed into the array on the left hand side.  Said array will be returned by the expression. |
