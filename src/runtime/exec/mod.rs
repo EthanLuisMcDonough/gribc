@@ -20,22 +20,23 @@ fn scope_imports<'a>(
     match &import.kind {
         ImportKind::All => {
             for (callable, name) in imports {
-                scope.declare_stack(&mut runtime.stack, name, callable);
+                scope.declare_stack_slot(&mut runtime.stack, name, true, callable);
             }
         }
         ImportKind::List(hash) => {
             for (callable, name) in imports.filter(|(_, key)| hash.contains_key(key)) {
-                scope.declare_stack(&mut runtime.stack, name, callable);
+                scope.declare_stack_slot(&mut runtime.stack, name, true, callable);
             }
         }
         ImportKind::ModuleObject(name) => match &import.module {
             Module::Custom(ind) => {
                 let hash = HashValue::custom_module(*ind, program, &runtime.gc);
-                scope.declare_heap(runtime, name.data, HeapValue::Hash(hash));
+                scope.declare_heap_slot(runtime, name.data, true, HeapValue::Hash(hash));
             }
-            Module::Native { package, .. } => scope.declare_stack(
+            Module::Native { package, .. } => scope.declare_stack_slot(
                 &mut runtime.stack,
                 name.data,
+                true,
                 GribValue::ModuleObject(package.clone()),
             ),
         },
@@ -51,9 +52,10 @@ pub fn execute(program: &Program, config: RuntimeConfig) {
     }
 
     for (index, fnc) in program.functions.iter().enumerate() {
-        scope.declare_stack(
+        scope.declare_stack_slot(
             &mut runtime.stack,
             fnc.identifier.data,
+            true,
             Callable::Procedure {
                 module: None,
                 index,
@@ -88,12 +90,13 @@ impl From<ControlFlow> for GribValue {
 }
 
 macro_rules! control_guard {
-    ($name:ident, $control:expr) => {
-        if $control.is_some() {
-            $name = $control;
+    ($name:ident, $control:expr) => {{
+        let _t = $control;
+        if _t.is_some() {
+            $name = _t;
             break;
         }
-    };
+    }};
 }
 macro_rules! return_break {
     ($name:ident, $control:expr) => {{
@@ -102,13 +105,16 @@ macro_rules! return_break {
     }};
 }
 macro_rules! check_flow {
-    ($name:ident, $control:expr) => {
-        match &($control) {
-            Some(ControlFlow::Return(_)) => return_break!($name, $control),
-            Some(ControlFlow::Break) => break,
+    ($name:ident, $control:expr) => {{
+        let _t = $control;
+        match &_t {
+            Some(ControlFlow::Return(_)) => return_break!($name, _t),
+            Some(ControlFlow::Break) => {
+                break;
+            }
             Some(ControlFlow::Continue) | None => {}
         }
-    };
+    }};
 }
 
 fn declare(decl: &Declaration, scope: &mut Scope, runtime: &mut Runtime, program: &Program) {
@@ -135,7 +141,9 @@ pub fn run_block(
             Node::Block(block) => {
                 control_guard!(result, run_block(block, scope.clone(), runtime, program));
             }
-            Node::Break => return_break!(result, ControlFlow::Break),
+            Node::Break => {
+                return_break!(result, ControlFlow::Break)
+            }
             Node::Continue => return_break!(result, ControlFlow::Continue),
             Node::Return(expr) => {
                 return_break!(
@@ -155,10 +163,8 @@ pub fn run_block(
                 let first_cond =
                     evaluate_expression(&if_block.condition, &mut scope, runtime, program);
                 if first_cond.truthy(program, &runtime.gc) {
-                    control_guard!(
-                        result,
-                        run_block(&if_block.block, scope.clone(), runtime, program)
-                    );
+                    let res = run_block(&if_block.block, scope.clone(), runtime, program);
+                    control_guard!(result, res);
                 } else {
                     let mut run_else = true;
                     for ConditionBodyPair { condition, block } in elseifs {
@@ -208,16 +214,17 @@ pub fn run_block(
                     .map(|g| g.truthy(program, &runtime.gc))
                     .unwrap_or(true)
                 {
-                    check_flow!(
-                        local_result,
-                        run_block(body, scope.clone(), runtime, program)
-                    );
+                    //println!("INTERNAL RUN");
+                    let flow = run_block(body, scope.clone(), runtime, program);
+                    //println!("FLOW: {:?}", flow);
+                    check_flow!(local_result, flow);
 
                     if let Some(incr_expr) = increment {
                         evaluate_expression(incr_expr, &mut scope, runtime, program);
                     }
                 }
 
+                //println!("{:?}", local_result);
                 control_guard!(result, local_result);
             }
         }
@@ -367,7 +374,7 @@ pub fn evaluate_expression(
             let values = eval_list(args, scope, runtime, program);
             let fn_val = evaluate_expression(function, scope, runtime, program);
             if let GribValue::Callable(f) = fn_val {
-                f.call(program, runtime, values)
+                f.call(program, runtime, scope, values)
             } else {
                 GribValue::Nil
             }

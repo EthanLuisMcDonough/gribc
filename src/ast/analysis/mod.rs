@@ -1,5 +1,4 @@
 mod scope;
-mod walk;
 
 use self::scope::*;
 use ast::node::*;
@@ -285,8 +284,9 @@ fn walk_expression<'a>(
                         }
                         match auto.set.as_ref() {
                             Some(AutoPropValue::Lambda(ind)) => {
+                                let mut scope = scope.sub();
                                 cap.add(scope.level);
-                                let mut scope = scope.clone();
+
                                 let mut set = mem::take(&mut lams.setters[*ind]);
                                 scope.insert_mut(set.param);
 

@@ -1,5 +1,5 @@
 use super::{AccessFunc, Callable, GribString, GribValue};
-use ast::node::{CustomModule, Program};
+use ast::node::Program;
 use runtime::exec::evaluate_lambda;
 use runtime::memory::{Gc, Runtime, Scope};
 use std::collections::HashMap;
@@ -211,7 +211,6 @@ pub fn eval_setter(
                 scope.add_captured_stack(runtime, *i);
             }
             scope.declare_stack(&mut runtime.stack, setter.param, val);
-
             evaluate_lambda(&setter.block, scope, self_ptr.into(), runtime, program)
         }
     }

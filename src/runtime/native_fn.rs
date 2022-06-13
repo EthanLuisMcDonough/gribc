@@ -91,7 +91,12 @@ macro_rules! native_obj {
 }
 
 macro_rules! native_package {
-    (@branch $_:ident $rt:ident $program:ident [args] $b:block) => { $b };
+    (@branch $args:ident $rt:ident $program:ident [READ_ARGS, $a:ident] $b:block) => {
+        {
+            fn closure( $rt: &mut Runtime, $program: &Program, $a: Vec<GribValue> ) -> GribValue $b
+            closure( $rt, $program, $args )
+        }
+    };
     (@branch $args:ident $rt:ident $program:ident [$($param:ident),*] $b:block) => {
         {
             fn closure( $rt: &mut Runtime, $program: &Program, $( $param: GribValue ),* ) -> GribValue $b
@@ -144,28 +149,35 @@ macro_rules! native_package {
     };
 }
 
-native_package!(NativeConsolePackage[program gc] {
-    Print["print"](s) {
-        if let GribValue::Error(err) = s {
-            print!("[ERR: {}]", err.as_str(program, gc));
+fn print_values(values: Vec<GribValue>, program: &Program, runtime: &Runtime) {
+    for val in values {
+        if let GribValue::Error(err) = val {
+            print!("[ERR: {}]", err.as_str(program, runtime));
         } else {
-            print!("{}", s.as_str(program, gc));
+            print!("{}", val.as_str(program, runtime));
         }
-        GribValue::Nil
     }
-    Println["println"](s) {
-        if let GribValue::Error(err) = s {
-            println!("[ERR: {}]", err.as_str(program, gc));
+}
+
+native_package!(NativeConsolePackage[program runtime] {
+    Print["print"](READ_ARGS, args) {
+        print_values(args, program, runtime);
+        if io::stdout().flush().is_err() {
+            GribValue::err("Error flushing STDOUT")
         } else {
-            println!("{}", s.as_str(program, gc));
+            GribValue::Nil
         }
+    }
+    Println["println"](READ_ARGS, args) {
+        print_values(args, program, runtime);
+        println!();
         GribValue::Nil
     }
     PrintError["printError"](s) {
         if let GribValue::Error(err) = s {
-            eprintln!("[ERR: {}]", err.as_str(program, gc));
+            eprintln!("[ERR: {}]", err.as_str(program, runtime));
         } else {
-            eprintln!("{}", s.as_str(program, gc));
+            eprintln!("{}", s.as_str(program, runtime));
         }
         GribValue::Nil
     }
@@ -177,7 +189,7 @@ native_package!(NativeConsolePackage[program gc] {
             return GribValue::Nil
         }
 
-        GribValue::String(gc.alloc_str(buf))
+        GribValue::String(runtime.alloc_str(buf))
     }
 });
 
@@ -187,6 +199,11 @@ native_package!(NativeFmtPackage[program runtime] {
     }
     ToNumber["toNumber"](obj) {
         GribValue::Number(obj.cast_num(program, &runtime.gc))
+    }
+    Trim["trim"](string) {
+        let string = string.as_str(program, runtime);
+        let trimmed = string.trim().to_string();
+        GribValue::String(runtime.alloc_str(trimmed))
     }
 });
 
@@ -394,6 +411,10 @@ native_package!(NativeMathPackage[program runtime] {
     Floor["floor"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).floor()) }
     Ceil["ceil"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).ceil()) }
     Trunc["trunc"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).trunc()) }
+
+    Random["random"]() {
+        GribValue::Number(rand::random())
+    }
 
     MathConst["mathConst"](s) {
         use std::f64::consts::*;

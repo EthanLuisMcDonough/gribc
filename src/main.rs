@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate serde_derive;
+extern crate rand;
 extern crate serde;
 extern crate serde_json;
 
@@ -47,8 +48,9 @@ fn main() {
         "{}",
         serde_json::to_string_pretty(&tree).unwrap_or_default()
     );*/
-    //println!("{:?}", tree.strings);
+
     err_guard!(ast::ref_check(&mut tree));
+
     runtime::execute(
         &tree,
         runtime::RuntimeConfig {

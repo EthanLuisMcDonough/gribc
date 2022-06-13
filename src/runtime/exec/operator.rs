@@ -13,16 +13,14 @@ fn add_values(
         let mut new_arr = arr.clone();
         new_arr.push(right.clone());
         GribValue::HeapValue(runtime.alloc_heap(HeapValue::Array(new_arr)))
+    } else if left.is_string() || right.is_string() {
+        let mut new_str = left.as_str(program, runtime).into_owned();
+        new_str.push_str(right.as_str(program, runtime).as_ref());
+        runtime.alloc_str(new_str).into()
     } else {
-        if let Some(string) = runtime.gc.try_get_string(left, program) {
-            let mut new_str = string.to_string();
-            new_str.push_str(right.as_str(program, runtime).as_ref());
-            runtime.alloc_str(new_str).into()
-        } else {
-            GribValue::Number(
-                left.cast_num(program, &runtime.gc) + right.cast_num(program, &runtime.gc),
-            )
-        }
+        GribValue::Number(
+            left.cast_num(program, &runtime.gc) + right.cast_num(program, &runtime.gc),
+        )
     }
 }
 
@@ -58,7 +56,7 @@ fn mult_values(
                 .into()
         } else {
             GribValue::Number(
-                left.cast_num(program, &runtime.gc) + right.cast_num(program, &runtime.gc),
+                left.cast_num(program, &runtime.gc) * right.cast_num(program, &runtime.gc),
             )
         }
     }

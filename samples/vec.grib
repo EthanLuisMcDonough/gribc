@@ -1,20 +1,34 @@
-import |sqrt ceil| from "math";
+import |sqrt| from "math";
 import |println| from "console";
 
 proc newVec |x y z| {
-    return # {
-        x { get x, set x },
-        y { get y, set y },
-        z { get z, set z },
-        len {
-            get || { 
-                println(this.x);
-                println(x);
-                return (x + y + z); 
-            }
-        }
-    };
+	return # {
+		x { get x, set x },
+		y { get y, set y },
+		z { get z, set z },
+		len {
+			get { sqrt(x*x + y*y + z*z) },
+			set |newLen| {
+				im old = this.len;
+				x = (x / old) * newLen;
+				y = (y / old) * newLen;
+				z = (z / old) * newLen;
+			}
+		},
+		unit -> lam || {
+			im old = this.len;
+			return newVec(x / old, y / old, z / old);
+		},
+		scale -> lam |scalar| {
+			x *= scalar;
+			y *= scalar;
+			z *= scalar;
+		}
+	};
 }
-println(sqrt(9));
-im v = newVec(1, 2, 6);
-println(v.len);
+
+im v = newVec(3, 4, 5);
+
+println("Before: " + v.len);
+v.len = 14;
+println("After: |<" + v.x + ", " + v.y + ", " + v.z + ">| = " + v.len);

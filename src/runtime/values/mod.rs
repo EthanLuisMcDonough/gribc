@@ -94,7 +94,7 @@ impl GribValue {
         }
     }
 
-    fn is_string(&self) -> bool {
+    pub fn is_string(&self) -> bool {
         if let Self::String(_) = self {
             true
         } else {

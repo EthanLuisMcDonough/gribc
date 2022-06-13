@@ -5,9 +5,15 @@ use std::collections::HashMap;
 
 const STACK_OVERFLOW_MSG: &str = "Grib stack overflow";
 
+#[derive(Debug, Clone)]
+struct ScopeValue {
+    stack_ptr: usize,
+    global: bool,
+}
+
 #[derive(Debug)]
 pub struct Scope {
-    scope: HashMap<usize, usize>,
+    scope: HashMap<usize, ScopeValue>,
     local_count: usize,
     this: GribValue,
 }
@@ -29,30 +35,38 @@ impl Scope {
         self.this = this.into();
     }
 
-    fn declare(&mut self, label: usize, ptr: usize) {
-        self.scope.insert(label, ptr);
+    fn declare(&mut self, label: usize, ptr: usize, global: bool) {
+        self.scope.insert(label, ScopeValue { stack_ptr: ptr, global });
         self.local_count += 1;
     }
 
-    pub fn declare_stack(&mut self, stack: &mut Stack, label: usize, value: impl Into<GribValue>) {
+    pub fn declare_stack_slot(&mut self, stack: &mut Stack, label: usize, global: bool, value: impl Into<GribValue>) {
         let ptr = stack
             .add(StackSlot::Value(value.into()))
             .expect(STACK_OVERFLOW_MSG);
-        self.declare(label, ptr);
+        self.declare(label, ptr, global);
     }
 
-    pub fn declare_heap(&mut self, runtime: &mut Runtime, label: usize, value: HeapValue) {
+    pub fn declare_stack(&mut self, stack: &mut Stack, label: usize, value: impl Into<GribValue>) {
+        self.declare_stack_slot(stack, label, false, value)
+    }
+
+    pub fn declare_heap_slot(&mut self, runtime: &mut Runtime, label: usize, global: bool, value: HeapValue) {
         let heap_ptr = runtime.alloc_heap(value);
         let val = StackSlot::Value(GribValue::HeapValue(heap_ptr));
         let ptr = runtime.stack.add(val).expect(STACK_OVERFLOW_MSG);
-        self.declare(label, ptr);
+        self.declare(label, ptr, global);
+    }
+
+    pub fn declare_heap(&mut self, runtime: &mut Runtime, label: usize, value: HeapValue) {
+        self.declare_heap_slot(runtime, label, false, value);
     }
 
     pub fn declare_captured(&mut self, runtime: &mut Runtime, label: usize, value: GribValue) {
         let heap_ptr = runtime.alloc_captured(value);
         let val = StackSlot::Captured(heap_ptr);
         let ptr = runtime.stack.add(val).expect(STACK_OVERFLOW_MSG);
-        self.declare(label, ptr);
+        self.declare(label, ptr, false);
     }
 
     pub fn cleanup(self, stack: &mut Stack) {
@@ -63,18 +77,19 @@ impl Scope {
         self.scope
             .get(&label)
             .cloned()
-            .and_then(|index| runtime.get_stack(index))
+            .and_then(|slot| runtime.get_stack(slot.stack_ptr))
     }
 
     fn get_mut<'a>(&self, runtime: &'a mut Runtime, label: usize) -> Option<&'a mut GribValue> {
         self.scope
             .get(&label)
             .cloned()
-            .and_then(move |index| runtime.get_stack_mut(index))
+            .and_then(move |slot| runtime.get_stack_mut(slot.stack_ptr))
     }
 
     pub fn capture_var(&mut self, runtime: &mut Runtime, label: usize) -> Option<usize> {
-        self.scope.get(&label).and_then(|&ind| {
+        self.scope.get(&label).and_then(|slot| {
+            let ind = slot.stack_ptr;
             if let Some(StackSlot::Captured(new_ind)) = runtime.stack.stack.get(ind) {
                 Some(*new_ind)
             } else {
@@ -93,7 +108,7 @@ impl Scope {
         let ptr = stack
             .add(StackSlot::Captured(index))
             .expect(STACK_OVERFLOW_MSG);
-        self.declare(label, ptr);
+        self.declare(label, ptr, false);
     }
 
     pub fn add_captured_stack(&mut self, runtime: &mut Runtime, ptr: usize) {
@@ -101,6 +116,16 @@ impl Scope {
             for (key, index) in stack_ref {
                 self.add_existing_captured(&mut runtime.stack, *key, *index);
             }
+        }
+    }
+
+    pub fn proc_scope(&self) -> Self {
+        Self {
+            local_count: 0,
+            scope: self.scope.clone().into_iter()
+                .filter(|(_name, slot)| slot.global)
+                .collect(),
+            this: GribValue::Nil,
         }
     }
 

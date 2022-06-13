@@ -31,6 +31,7 @@ impl Callable {
         &self,
         program: &Program,
         runtime: &mut Runtime,
+        scope: &Scope,
         args: Vec<GribValue>,
     ) -> GribValue {
         match self {
@@ -42,7 +43,7 @@ impl Callable {
                     &program.functions[*index]
                 };
 
-                let mut scope = Scope::new();
+                let mut scope = scope.proc_scope();
                 scope.add_params(&fnc.param_list, runtime, args);
 
                 run_block(&fnc.body, scope, runtime, program)
@@ -58,8 +59,6 @@ impl Callable {
                 let mut scope = Scope::new();
 
                 if let Some(stack_ptr) = stack {
-                    //println!("ptr: {}", stack_ptr);
-                    //println!("heap: {:#?}", runtime.gc);
                     scope.add_captured_stack(runtime, *stack_ptr);
                 }
                 scope.add_params(&lambda.param_list, runtime, args);
