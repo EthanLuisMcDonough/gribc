@@ -194,7 +194,7 @@ impl GribValue {
             GribValue::Nil | GribValue::Error(_) => false,
             GribValue::HeapValue(_) => true,
             GribValue::Bool(b) => *b,
-            GribValue::String(s) => s.as_ref(program, gc).filter(|r| r.is_empty()).is_some(),
+            GribValue::String(s) => s.as_ref(program, gc).filter(|r| !r.is_empty()).is_some(),
         }
     }
 

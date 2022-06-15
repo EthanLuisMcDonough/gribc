@@ -1,6 +1,7 @@
 use ast::node::Program;
 use runtime::memory::{Gc, Runtime};
-use runtime::values::{GribKey, GribValue, HeapValue};
+use runtime::values::{Callable, GribKey, GribString, GribValue, HeapValue, KnownIndex};
+use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::{
     fs,
@@ -84,8 +85,6 @@ macro_rules! native_obj {
             pub fn get_functions(&self) -> HashSet<&'static str> {
                 self.raw_names().iter().map(|f| *f).collect()
             }
-
-            //pub fn
         }
     };
 }
@@ -181,7 +180,7 @@ native_package!(NativeConsolePackage[program runtime] {
         }
         GribValue::Nil
     }
-    Readline["readline"]() {
+    Readline["readlineSync"]() {
         let mut buf = String::new();
         let mut stdin = io::stdin();
 
@@ -204,6 +203,16 @@ native_package!(NativeFmtPackage[program runtime] {
         let string = string.as_str(program, runtime);
         let trimmed = string.trim().to_string();
         GribValue::String(runtime.alloc_str(trimmed))
+    }
+    Lowercase["lowercase"](string) {
+        let string = string.as_str(program, runtime);
+        let lower = string.to_lowercase();
+        GribValue::String(runtime.alloc_str(lower))
+    }
+    Uppercase["uppercase"](string) {
+        let string = string.as_str(program, runtime);
+        let upper = string.to_uppercase();
+        GribValue::String(runtime.alloc_str(upper))
     }
 });
 
@@ -271,6 +280,37 @@ native_package!(NativeErrPackage[_program _runtime] {
     }
 });
 
+native_package!(NativeMetaPackage[_program runtime] {
+    TypeOf["typeOf"](val) {
+        use self::GribValue::*;
+        String(GribString::Static(match val {
+            Bool(_) => "boolean",
+            String(_) => "string",
+            Nil => "nil",
+            Number(_) => "number",
+            Callable(_) => "callable",
+            ModuleObject(_) => "module object",
+            Error(_) => "error",
+            HeapValue(ptr) => match runtime.gc.typed_index(ptr) {
+                Some(KnownIndex::Array(_)) => "array",
+                Some(KnownIndex::Hash(_)) => "hash",
+                _ => "heap object",
+            },
+        }))
+    }
+    ClearGc["clearGc"]() {
+        runtime.clean();
+        GribValue::Nil
+    }
+    BindFn["bindFn"](fnc_val, target) {
+        let mut fnc = fnc_val;
+        if let GribValue::Callable(Callable::Lambda { binding, .. }) = &mut fnc {
+            *binding = target.ptr();
+        }
+        fnc
+    }
+});
+
 native_package!(NativeStrPackage[program runtime] {
     Split["split"](content, delim) {
         let delim = delim.as_str(program, runtime);
@@ -289,12 +329,39 @@ native_package!(NativeStrPackage[program runtime] {
         let string = obj.as_str(program, runtime);
         GribValue::Number(string.len() as f64)
     }
+    Substr["substr"](string, start_val, end_val) {
+        let string = string.as_str(program, &runtime);
+        let l = string.len() as i64;
+
+        let mut start = start_val.cast_num(program, &runtime.gc) as i64;
+        let mut end = end_val.cast_num(program, &runtime.gc) as i64;
+
+        if start < 0 { start = l - start; }
+        if end < 0 { end = l - end; }
+
+        start = start.clamp(0, l);
+        end = if end_val.is_nil() { l } else { end.clamp(0, l) };
+
+        let top = start.max(end) as usize;
+        let bottom = start.min(end) as usize;
+
+        let new_str = string[bottom..top].to_string();
+        runtime.alloc_str(new_str).into()
+    }
     IndexOfStr["indexOf"](string, search) {
         let string = string.as_str(program, runtime);
         let search = search.as_str(program, runtime);
 
         GribValue::Number(string.find(search.as_ref())
             .map(|ind| ind as f64).unwrap_or(-1.0))
+    }
+    Replace["replace"](string, find, replacement) {
+        let string = string.as_str(program, runtime);
+        let find = find.as_str(program, runtime);
+        let replacement = replacement.as_str(program, runtime);
+        let rf: &str = find.borrow();
+        let result = string.replace(rf, &replacement);
+        GribValue::String(runtime.alloc_str(result))
     }
 });
 
@@ -412,6 +479,23 @@ native_package!(NativeMathPackage[program runtime] {
     Ceil["ceil"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).ceil()) }
     Trunc["trunc"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).trunc()) }
 
+    Min["min"](READ_ARGS, args) {
+        let mut smallest = f64::INFINITY;
+        for val in args {
+            let n = val.cast_num(program, &runtime.gc);
+            smallest = n.min(smallest);
+        }
+        GribValue::Number(smallest)
+    }
+    Max["max"](READ_ARGS, args) {
+        let mut largest = -f64::INFINITY;
+        for val in args {
+            let n = val.cast_num(program, &runtime.gc);
+            largest = n.max(largest);
+        }
+        GribValue::Number(largest)
+    }
+
     Random["random"]() {
         GribValue::Number(rand::random())
     }
@@ -426,17 +510,7 @@ native_package!(NativeMathPackage[program runtime] {
     }
 });
 
-macro_rules! match_or_err {
-    ( $v:expr, $p:pat => $e:expr, $s:expr ) => {
-        match $v {
-            $p => $e,
-            _ => return GribValue::Error(GribString::Static($s)),
-        }
-    };
-}
-
 const NO_ARRAY: &'static str = "Functon provided non-array value";
-
 native_package!(NativeArrayPackage[program runtime] {
     Push["push"](arr_ref, s) {
         if let Some(arr) = runtime.gc.try_get_array_mut(arr_ref) {
@@ -453,7 +527,7 @@ native_package!(NativeArrayPackage[program runtime] {
             GribValue::err(NO_ARRAY)
         }
     }
-    Len["arrlen"](arr_ref) {
+    ArrLen["arrlen"](arr_ref) {
         if let Some(arr) = runtime.gc.try_get_array(arr_ref) {
             GribValue::Number(arr.len() as f64)
         } else {
@@ -472,12 +546,45 @@ native_package!(NativeArrayPackage[program runtime] {
             GribValue::err(NO_ARRAY)
         }
     }
+    InsertAt["insertAt"](arr_ref, index, value) {
+        let ind = index.cast_ind(program, &runtime.gc);
+        if let Some(arr) = runtime.gc.try_get_array_mut(arr_ref) {
+            if let Some(i) = ind.filter(|i| i < &arr.len()) {
+                arr.insert(i, value);
+            }
+            GribValue::Nil
+        } else {
+            GribValue::err(NO_ARRAY)
+        }
+    }
     CopyArr["copyArr"](arr) {
         if let Some(arr) = runtime.gc.try_get_array(arr).cloned() {
             runtime.alloc_heap(HeapValue::Array(arr)).into()
         } else {
             GribValue::err(NO_ARRAY)
         }
+    }
+    Append["append"](target, source) {
+        let source_op = runtime.gc.try_get_array(source).cloned();
+        let target_op = runtime.gc.try_get_array_mut(target.clone());
+        if let (Some(mut source), Some(target_arr)) = (source_op, target_op) {
+            target_arr.append(&mut source);
+            target
+        } else {
+            GribValue::err(NO_ARRAY)
+        }
+    }
+    Concat["concat"](READ_ARGS, args) {
+        let mut new_arr = Vec::new();
+        for arr_ref in args {
+            let arr_op = runtime.gc.try_get_array(arr_ref).cloned();
+            if let Some(mut array) = arr_op {
+                new_arr.append(&mut array);
+            } else {
+                return GribValue::err(NO_ARRAY);
+            }
+        }
+        runtime.alloc_heap(HeapValue::Array(new_arr)).into()
     }
     Slice["slice"](arr, start_val, end_val) {
         let mut start = start_val.cast_num(program, &runtime.gc) as i64;
@@ -486,9 +593,8 @@ native_package!(NativeArrayPackage[program runtime] {
         if let Some(arr) = runtime.gc.try_get_array(arr).cloned() {
             let l = arr.len() as i64;
             start = start.clamp(0, l);
-            end = if end_val.is_nil() {
-                l
-            } else { end.clamp(0, l) };
+            end = if end_val.is_nil() { l }
+                else { end.clamp(0, l) };
 
             let top = start.max(end) as usize;
             let bottom = start.min(end) as usize;

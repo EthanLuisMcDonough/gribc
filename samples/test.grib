@@ -1,0 +1,11 @@
+import |println| from"console";
+import |keys| from "hash";
+import |arrlen| from "array";
+import |random floor| from "math";
+
+
+proc randomEl |array| {
+    return array[floor(random() * arrlen(array))];
+}
+
+println(randomEl([1, 2, 3, 4]));

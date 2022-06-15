@@ -107,6 +107,15 @@ pub fn parse_hash(
     Ok(map)
 }
 
+fn leading_stmt(v: &Vec<Located<Token>>) -> bool {
+    v.first()
+        .filter(|Located { data, .. }| match data {
+            Token::Keyword(Keyword::If | Keyword::While | Keyword::For) => true,
+            _ => false,
+        })
+        .is_some()
+}
+
 pub fn lam_body(body: Vec<Located<Token>>, store: &mut Store) -> ParseResult<LambdaBody> {
     let mut level = 0;
     let mut semicolons = 0;
@@ -119,14 +128,12 @@ pub fn lam_body(body: Vec<Located<Token>>, store: &mut Store) -> ParseResult<Lam
         }
     }
 
-    if semicolons == 0 {
-        if body.is_empty() {
-            Ok(LambdaBody::Block(vec![]))
-        } else {
-            parse_expr(body, true, store)
-                .map(Box::from)
-                .map(LambdaBody::ImplicitReturn)
-        }
+    if body.is_empty() {
+        Ok(LambdaBody::Block(vec![]))
+    } else if semicolons == 0 && !leading_stmt(&body) {
+        parse_expr(body, true, store)
+            .map(Box::from)
+            .map(LambdaBody::ImplicitReturn)
     } else {
         ast_level(body, Scope::fn_lam(), store).map(LambdaBody::Block)
     }

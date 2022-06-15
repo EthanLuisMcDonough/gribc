@@ -26,7 +26,7 @@ impl HashPropertyValue {
             HashPropertyValue::Value(val) => {
                 let mut grib_val = val.clone();
                 if let GribValue::Callable(Callable::Lambda { binding, .. }) = &mut grib_val {
-                    *binding = Some(self_ptr);
+                    *binding = binding.or(Some(self_ptr));
                 }
                 grib_val
             }
@@ -51,7 +51,7 @@ impl HashPropertyValue {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Eq, Debug)]
 pub struct GribKey {
     hash: u64,
     string: GribString,
@@ -73,6 +73,12 @@ impl GribKey {
 impl Hash for GribKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.hash.hash(state);
+    }
+}
+
+impl PartialEq for GribKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash
     }
 }
 
@@ -138,13 +144,19 @@ impl HashValue {
     pub fn try_set(&mut self, key: &GribKey, val: GribValue) -> Option<AccessFunc> {
         use self::HashPropertyValue::*;
         let mutable = self.mutable;
-        match self.values.get_mut(key) {
-            Some(Value(r)) if mutable => {
-                *r = val;
-                None
+
+        if self.is_mutable() && !self.values.contains_key(key) {
+            self.init_value(key.clone(), val);
+            None
+        } else {
+            match self.values.get_mut(key) {
+                Some(Value(r)) if mutable => {
+                    *r = val;
+                    None
+                }
+                Some(AutoProp { set, .. }) => set.clone(),
+                _ => None,
             }
-            Some(AutoProp { set, .. }) => set.clone(),
-            _ => None,
         }
     }
 

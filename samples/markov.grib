@@ -1,0 +1,93 @@
+import |push arrlen| from "array";
+import |println print| from "console";
+import |replace split| from "str";
+import |keys| from "hash";
+import |lowercase trim| from "fmt";
+import |random floor| from "math";
+import |readText| from "syncio";
+
+proc removeAll |str ...items| {
+    for decl i = 0; i < arrlen(items); i += 1 {
+        str = replace(str, items[i], "");
+    }
+    return str;
+}
+
+proc randomEl |arr| {
+    return removeAll;
+    im ind = floor(random() * arrlen(arr));
+    println("AAAAAAAAAAAAAAA", ind);
+    return arr[ind];
+}
+
+proc constructFSM |text| {
+    im cleaned = removeAll(text, ".", ",", "\"", "'", "?", "!"), 
+       lines = split(cleaned, "\n");
+    im first = [], fsm = ${};
+
+    for decl i = 0; i < arrlen(lines); i += 1 {
+        im words = split(lines[i], " ");
+        for decl prev = nil, j = 0; j < arrlen(words); j += 1 {
+            im word = lowercase(trim(words[j]));
+            if word == "" { continue; }
+            @println(word, ", ", prev);
+            if prev != nil {
+                if fsm[prev] {
+                    fsm[prev] += word;
+                } else {
+                    fsm[prev] = [word];
+                }
+            } else {
+                push(first, word);
+            }
+
+            prev = word;
+        }
+    }
+
+    im state = #{
+        first -> first,
+        fsm -> fsm,
+    };
+
+    im k = fsm.i;
+    @println(arrlen(k));
+    for decl i = 0; i < arrlen(k); i += 1 {
+        @println(k[i], ": ", arrlen(state.fsm[k[i]]));
+        @println(k[i]);
+    }
+
+
+    return lam || {
+        decl prev = nil;
+        return #{
+            hasNext { 
+                get || { prev == nil || state.fsm[prev] != nil }
+            },
+            next -> lam {
+                if this.hasNext {
+                    @for decl i = 0; i < arrlen(state.first); i += 1 {println(state.first[i]);}
+                    decl arr;
+                    if prev {
+                        arr = state.fsm[prev];
+                    } else {
+                        arr = state.first;
+                    }
+                    prev = randomEl(arr);
+                    @prev = arr[floor(random() * arrlen(arr))];
+                    return prev;
+                }
+            }
+        };
+    };
+} 
+
+im rawText = readText("./samples/resources/tweets.txt");
+im state = constructFSM(rawText);
+for decl trial = 0; trial < 5; trial += 1 {
+    im iter = state();
+    for decl i = 0; i < 10 && iter.hasNext; i += 1 {
+        print(iter.next(), " ");
+    }
+    println();
+}
