@@ -1,9 +1,10 @@
 import |readText| from "syncio";
-import |println print| from "console";
+import |println print printError| from "console";
 import |split| from "str";
 import |toNumber| from "fmt";
-import |arrlen push| from "array";
+import |arrlen push findWhere| from "array";
 import |random floor sqrt| from "math";
+import |exit| from "meta";
 
 im K = 3, TRIAL_COUNT = 5, TRIALS_PER_ITER = 100;
 im text = readText("./samples/resources/iris_data.csv");
@@ -12,11 +13,11 @@ im lines = split(text, "\n"), flowers = [];
 proc PROP_LEN || { return 4; }
 
 proc roundCompare |n1 n2| {
-    im digits = 100000; 
+    im digits = 100000;
     return floor(n1 * digits) == floor(n2 * digits);
 }
 
-proc flowerSqDist |f1 f2| { 
+proc flowerSqDist |f1 f2| {
     decl sum = 0;
     for decl i = 0; i < PROP_LEN(); i += 1 {
         im dx = f1[i] - f2[i];
@@ -67,12 +68,23 @@ for decl i = 1; i < arrlen(lines); i += 1 {
 im trials = [], flowerCount = arrlen(flowers);
 im rndInd = lam || { floor(random() * flowerCount) };
 
+if flowerCount < K {
+    printError("Not enough flowers");
+    exit(true);
+}
+
 for decl trial = 0; trial < TRIAL_COUNT; trial += 1 {
     decl chosen = [], groups = [], prev = nil;
+    im initInd = [];
 
-    for decl i = 0; i < K; i += 1 {
-        chosen += flowers[rndInd()];
-        groups += [];
+    while arrlen(chosen) < K {
+        im ind = rndInd();
+
+        if findWhere(initInd, ind) == -1 {
+            chosen += flowers[ind];
+            groups += [];
+            push(initInd, ind);
+        }
     }
 
     for decl it = 0; it < TRIALS_PER_ITER; it += 1 {
@@ -107,7 +119,7 @@ for decl trial = 0; trial < TRIAL_COUNT; trial += 1 {
             }
         }
 
-        if finished { 
+        if finished {
             push(trials, #{
                 groups -> groups,
                 centroids -> chosen,
@@ -137,7 +149,7 @@ for decl i = 0; i < arrlen(trials); i += 1 {
         for decl k = 0; k < items; k += 1 {
             variation += flowerSqDist(trial.centroids[j], trial.groups[j][k]);
         }
-        
+
         variation /= items;
         totalVariation += variation;
     }

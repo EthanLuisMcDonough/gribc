@@ -14,13 +14,6 @@ impl Gc {
         Gc { heap: Vec::new() }
     }
 
-    pub fn get_captured_stack(&self, index: usize) -> Option<&HashMap<usize, usize>> {
-        self.heap_slot(index).and_then(|slot| match slot {
-            HeapSlot::Value(HeapValue::CapturedStack(stack)) => Some(stack),
-            _ => None,
-        })
-    }
-
     pub fn get_captured(&'_ self, index: usize) -> Option<&'_ GribValue> {
         self.heap_slot(index).and_then(|slot| match slot {
             HeapSlot::Captured(val) => Some(val),

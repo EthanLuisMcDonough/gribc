@@ -280,7 +280,7 @@ native_package!(NativeErrPackage[_program _runtime] {
     }
 });
 
-native_package!(NativeMetaPackage[_program runtime] {
+native_package!(NativeMetaPackage[program runtime] {
     TypeOf["typeOf"](val) {
         use self::GribValue::*;
         String(GribString::Static(match val {
@@ -301,6 +301,9 @@ native_package!(NativeMetaPackage[_program runtime] {
     ClearGc["clearGc"]() {
         runtime.clean();
         GribValue::Nil
+    }
+    Exit["exit"](has_err) {
+        std::process::exit(if has_err.truthy(program, &runtime.gc) { 1 } else { 0 })
     }
     BindFn["bindFn"](fnc_val, target) {
         let mut fnc = fnc_val;
@@ -534,6 +537,35 @@ native_package!(NativeArrayPackage[program runtime] {
             GribValue::err(NO_ARRAY)
         }
     }
+    FindWhere["findWhere"](arr_ref, predicate) {
+        if let Some(arr) = runtime.gc.try_get_array(arr_ref) {
+            if let GribValue::Callable(fnc) = &predicate {
+                // If value is lambda/function use it as predicate
+                let arr_iter = arr.clone().into_iter();
+                let ind = arr_iter
+                    .enumerate()
+                    .position(|(ind, val)| {
+                        let mut args = Vec::with_capacity(2);
+                        args.push(val);
+                        args.push(GribValue::Number(ind as f64));
+                        let result = fnc.call(program, runtime, args);
+                        result.truthy(program, &runtime.gc)
+                    })
+                    .map(|ind| ind as f64)
+                    .unwrap_or(-1.0);
+                GribValue::Number(ind)
+            } else {
+                // Otherwise, search the array for the given value
+                GribValue::Number(
+                    arr.iter()
+                        .position(|val| val.exact_equals(&predicate, program, &runtime.gc))
+                        .map(|ind| ind as f64)
+                        .unwrap_or(-1.0))
+            }
+        } else {
+            GribValue::err(NO_ARRAY)
+        }
+    }
     RemoveAt["removeAt"](arr_ref, index) {
         let ind = index.cast_ind(program, &runtime.gc);
         if let Some(arr) = runtime.gc.try_get_array_mut(arr_ref) {
@@ -618,4 +650,5 @@ native_obj!(NativeFunction | NativePackage {
     NativeSyncIoPackage -> "syncio",
     NativeStrPackage -> "str",
     NativeHashPackage -> "hash",
+    NativeMetaPackage -> "meta",
 });

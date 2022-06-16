@@ -9,61 +9,21 @@ use location::Located;
 use runtime::memory::*;
 use runtime::values::*;
 
-fn scope_imports<'a>(
-    scope: &mut Scope,
-    runtime: &mut Runtime,
-    program: &'a Program,
-    import: &'a Import,
-) {
-    let imports = import.module.callables(program).into_iter();
-
-    match &import.kind {
-        ImportKind::All => {
-            for (callable, name) in imports {
-                scope.declare_stack_slot(&mut runtime.stack, name, true, callable);
-            }
-        }
-        ImportKind::List(hash) => {
-            for (callable, name) in imports.filter(|(_, key)| hash.contains_key(key)) {
-                scope.declare_stack_slot(&mut runtime.stack, name, true, callable);
-            }
-        }
-        ImportKind::ModuleObject(name) => match &import.module {
-            Module::Custom(ind) => {
-                let hash = HashValue::custom_module(*ind, program, &runtime.gc);
-                scope.declare_heap_slot(runtime, name.data, true, HeapValue::Hash(hash));
-            }
-            Module::Native { package, .. } => scope.declare_stack_slot(
-                &mut runtime.stack,
-                name.data,
-                true,
-                GribValue::ModuleObject(package.clone()),
-            ),
-        },
-    }
-}
-
 pub fn execute(program: &Program, config: RuntimeConfig) {
     let mut runtime = Runtime::new(config);
     let mut scope = Scope::new();
 
-    for import in &program.imports {
-        scope_imports(&mut scope, &mut runtime, program, import);
-    }
+    scope.scope_imports(&mut runtime, program, &program.imports);
+    scope.scope_functions(&mut runtime, &program.functions);
 
-    for (index, fnc) in program.functions.iter().enumerate() {
-        scope.declare_stack_slot(
-            &mut runtime.stack,
-            fnc.identifier.data,
-            true,
-            Callable::Procedure {
-                module: None,
-                index,
-            },
-        );
-    }
+    runtime.base_scope = scope;
 
-    run_block(&program.body, scope, &mut runtime, program);
+    run_block(
+        &program.body,
+        runtime.base_scope.clone(),
+        &mut runtime,
+        program,
+    );
 }
 
 #[derive(Debug)]
@@ -214,9 +174,7 @@ pub fn run_block(
                     .map(|g| g.truthy(program, &runtime.gc))
                     .unwrap_or(true)
                 {
-                    //println!("INTERNAL RUN");
                     let flow = run_block(body, scope.clone(), runtime, program);
-                    //println!("FLOW: {:?}", flow);
                     check_flow!(local_result, flow);
 
                     if let Some(incr_expr) = increment {
@@ -224,7 +182,6 @@ pub fn run_block(
                     }
                 }
 
-                //println!("{:?}", local_result);
                 control_guard!(result, local_result);
             }
         }
@@ -374,7 +331,7 @@ pub fn evaluate_expression(
             let values = eval_list(args, scope, runtime, program);
             let fn_val = evaluate_expression(function, scope, runtime, program);
             if let GribValue::Callable(f) = fn_val {
-                f.call(program, runtime, scope, values)
+                f.call(program, runtime, values)
             } else {
                 GribValue::Nil
             }

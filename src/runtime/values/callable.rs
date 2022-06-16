@@ -31,7 +31,6 @@ impl Callable {
         &self,
         program: &Program,
         runtime: &mut Runtime,
-        scope: &Scope,
         args: Vec<GribValue>,
     ) -> GribValue {
         match self {
@@ -43,7 +42,16 @@ impl Callable {
                     &program.functions[*index]
                 };
 
-                let mut scope = scope.proc_scope();
+                let mut scope = module
+                    .as_ref()
+                    .map(|&ind| {
+                        let module = &program.modules[ind];
+                        let mut sc = Scope::new();
+                        sc.scope_imports(runtime, program, &module.imports);
+                        sc.scope_functions(runtime, &module.functions);
+                        sc
+                    })
+                    .unwrap_or(runtime.base_scope.clone());
                 scope.add_params(&fnc.param_list, runtime, args);
 
                 run_block(&fnc.body, scope, runtime, program)
