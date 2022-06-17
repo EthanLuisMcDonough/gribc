@@ -158,6 +158,9 @@ fn print_values(values: Vec<GribValue>, program: &Program, runtime: &Runtime) {
     }
 }
 
+const NO_ARRAY: &'static str = "Functon provided non-array value";
+const NO_CALLBACK: &'static str = "Function provided non-callable value";
+
 native_package!(NativeConsolePackage[program runtime] {
     Print["print"](READ_ARGS, args) {
         print_values(args, program, runtime);
@@ -311,6 +314,17 @@ native_package!(NativeMetaPackage[program runtime] {
             *binding = target.ptr();
         }
         fnc
+    }
+    CallFn["callFn"](fnc_val, arr_val) {
+        if let GribValue::Callable(fnc) = fnc_val {
+            if let Some(arr) = runtime.gc.try_get_array_mut(arr_val).cloned() {
+                fnc.call(program, runtime, arr)
+            } else {
+                GribValue::err(NO_ARRAY)
+            }
+        } else {
+            GribValue::err(NO_CALLBACK)
+        }
     }
 });
 
@@ -469,6 +483,11 @@ native_package!(NativeMathPackage[program runtime] {
     Asin["asin"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).asin()) }
     Acos["acos"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).acos()) }
     Atan["atan"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).atan()) }
+    Atan2["atan2"](n1, n2) {
+        let n1 = n1.cast_num(program, &runtime.gc);
+        let n2 = n2.cast_num(program, &runtime.gc);
+        GribValue::Number(n1.atan2(n2))
+    }
 
     Sqrt["sqrt"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).sqrt()) }
     Ln["ln"](n) { GribValue::Number(n.cast_num(program, &runtime.gc).ln()) }
@@ -513,11 +532,13 @@ native_package!(NativeMathPackage[program runtime] {
     }
 });
 
-const NO_ARRAY: &'static str = "Functon provided non-array value";
 native_package!(NativeArrayPackage[program runtime] {
-    Push["push"](arr_ref, s) {
-        if let Some(arr) = runtime.gc.try_get_array_mut(arr_ref) {
-            arr.push(s);
+    Push["push"](READ_ARGS, args) {
+        let mut args = args.into_iter();
+        if let Some(arr) = args.next().and_then(|a| runtime.gc.try_get_array_mut(a)) {
+            for val in args {
+                arr.push(val);
+            }
             GribValue::Number(arr.len() as f64)
         } else {
             GribValue::err(NO_ARRAY)
@@ -581,8 +602,12 @@ native_package!(NativeArrayPackage[program runtime] {
     InsertAt["insertAt"](arr_ref, index, value) {
         let ind = index.cast_ind(program, &runtime.gc);
         if let Some(arr) = runtime.gc.try_get_array_mut(arr_ref) {
-            if let Some(i) = ind.filter(|i| i < &arr.len()) {
-                arr.insert(i, value);
+            if let Some(i) = ind {
+                if i < arr.len() {
+                    arr.insert(i, value);
+                } else if i == arr.len() {
+                    arr.push(value);
+                }
             }
             GribValue::Nil
         } else {

@@ -14,7 +14,7 @@ pub fn execute(program: &Program, config: RuntimeConfig) {
     let mut scope = Scope::new();
 
     scope.scope_imports(&mut runtime, program, &program.imports);
-    scope.scope_functions(&mut runtime, &program.functions);
+    scope.scope_functions(&mut runtime, &program.functions, None);
 
     runtime.base_scope = scope;
 

@@ -158,15 +158,17 @@ impl Scope {
         }
     }
 
-    pub fn scope_functions(&mut self, runtime: &mut Runtime, functions: &Vec<Procedure>) {
+    pub fn scope_functions(
+        &mut self,
+        runtime: &mut Runtime,
+        functions: &Vec<Procedure>,
+        module: Option<usize>,
+    ) {
         for (index, fnc) in functions.iter().enumerate() {
             self.declare_stack(
                 &mut runtime.stack,
                 fnc.identifier.data,
-                Callable::Procedure {
-                    module: None,
-                    index,
-                },
+                Callable::Procedure { module, index },
             );
         }
     }

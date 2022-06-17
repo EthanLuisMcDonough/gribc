@@ -48,7 +48,7 @@ impl Callable {
                         let module = &program.modules[ind];
                         let mut sc = Scope::new();
                         sc.scope_imports(runtime, program, &module.imports);
-                        sc.scope_functions(runtime, &module.functions);
+                        sc.scope_functions(runtime, &module.functions, Some(ind));
                         sc
                     })
                     .unwrap_or(runtime.base_scope.clone());
