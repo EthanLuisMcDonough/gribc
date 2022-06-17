@@ -53,11 +53,19 @@ pub enum Binary {
     LogicalOr,
 }
 
+impl Binary {
+    pub fn is_lazy(&self) -> bool {
+        match self {
+            Binary::LogicalAnd | Binary::LogicalOr => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Unary {
     Negation,
     LogicalNegation,
-    TypeOf,
 }
 
 pub fn op_precedence(op: &Binary) -> Precedence {

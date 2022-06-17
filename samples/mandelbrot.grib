@@ -1,0 +1,32 @@
+import |genBmp| from "./lib/bmp.grib";
+import |insertAt push| from "array";
+import |writeBytes| from "syncio";
+import * from "console";
+import |sqrt floor atan2 max min| from "math";
+
+proc size || { return 200; }
+proc maxIter || { return 100; }
+
+proc mandelIterate |x y| {
+    decl i = 0;
+    im ox = x, oy = y;
+    while i < maxIter() && x*x + y*y <= 4 {
+        im tx = x, ty = y;
+        x = tx*tx - ty*ty + ox;
+        y = 2*tx*ty + oy;
+        i += 1;
+    }
+    return i;
+}
+
+im bytes = [], s = size(), c = s / 2;
+for decl x = 0; x < size(); x += 1 {
+    for decl y = 0; y < size(); y += 1 {
+        im it = mandelIterate((x-c*1.25)/(c/2), (y-c)/(c/2));
+        im color = min((3*it / maxIter()) * 255, 255);
+        push(bytes, color, color, color, 255);
+    }
+}
+
+im b = genBmp(bytes, size(), size(), 2500);
+writeBytes("./samples/bin/mandelbrot.bmp", b);
