@@ -1,21 +1,23 @@
+mod constructs;
+pub(in ast::parsing) mod data_store;
+mod expression;
 mod scope;
 mod util;
-mod constructs;
-mod expression;
 
-use ast::node::*;
+use self::constructs::*;
+use self::data_store::Store;
+use self::expression::parse_expr;
 use self::scope::Scope;
 use self::util::*;
-use self::expression::parse_expr;
-use self::constructs::*;
+use ast::node::*;
 use lex::{tokens::*, LexError};
 use location::{Located, Location};
-use util::{next_if, remove_file};
 use std::{
-    convert::AsRef, 
-    path::{Path, PathBuf}, 
-    iter::Peekable
+    convert::AsRef,
+    iter::Peekable,
+    path::{Path, PathBuf},
 };
+use util::{next_if, remove_file};
 
 pub type ParseResult<T> = Result<T, ParseError>;
 
@@ -32,7 +34,7 @@ macro_rules! next_guard {
             )*)*
             Some(t) => return Err(ParseError::UnexpectedToken(t)),
             None => return Err(ParseError::UnexpectedEOF),
-        };
+        }
     };
     ({ $next:expr } { $( $token:tt )* }) => {
         next_guard!({ $next } (_s, _e) { $( $token )* })
@@ -71,7 +73,7 @@ pub enum ModuleErrorBody {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct ModuleError {
     pub path: Located<PathBuf>,
-    pub data: ModuleErrorBody
+    pub data: ModuleErrorBody,
 }
 
 impl ParseError {
@@ -91,18 +93,21 @@ impl std::fmt::Display for ParseError {
 impl std::error::Error for ParseError {}
 
 fn next_construct<T: Iterator<Item = Located<Token>>>(
-    token: Located<Token>, 
-    tokens: &mut Peekable<T>, 
+    token: Located<Token>,
+    tokens: &mut Peekable<T>,
     scope: Scope,
+    store: &mut Store,
 ) -> ParseResult<Node> {
     Ok(match token.data {
-        Token::OpenGroup(Grouper::Bracket) => {
-            Node::Block(take_until(tokens, Grouper::Brace).and_then(|(v, _)| ast_level(v, scope))?)
+        Token::OpenGroup(Grouper::Bracket) => Node::Block(
+            take_until(tokens, Grouper::Brace).and_then(|(v, _)| ast_level(v, scope, store))?,
+        ),
+
+        Token::Keyword(Keyword::While) => {
+            parse_if_block(tokens, scope.with_loop(true), store).map(Node::While)?
         }
-        
-        Token::Keyword(Keyword::While) => parse_if_block(tokens, scope.with_loop(true)).map(Node::While)?,
         Token::Keyword(Keyword::If) => {
-            let if_block = parse_if_block(tokens, scope)?;
+            let if_block = parse_if_block(tokens, scope, store)?;
             let mut elseifs = vec![];
             let mut else_block = None;
 
@@ -111,8 +116,8 @@ fn next_construct<T: Iterator<Item = Located<Token>>>(
             }) {
                 next_guard!({ tokens.next() } {
                     Token::OpenGroup(Grouper::Brace) => else_block = take_until(tokens, Grouper::Brace)
-                        .and_then(|(v, _)| ast_level(v, scope))?.into(),
-                    Token::Keyword(Keyword::If) => elseifs.push(parse_if_block(tokens, scope)?)
+                        .and_then(|(v, _)| ast_level(v, scope, store))?.into(),
+                    Token::Keyword(Keyword::If) => elseifs.push(parse_if_block(tokens, scope, store)?)
                 });
             }
 
@@ -123,44 +128,62 @@ fn next_construct<T: Iterator<Item = Located<Token>>>(
             }
         }
 
-        Token::Keyword(Keyword::Break) if !scope.in_loop => 
-            return Err(ParseError::IllegalBreak(token.start)),
-        Token::Keyword(Keyword::Continue) if !scope.in_loop => 
-            return Err(ParseError::IllegalContinue(token.start)),
+        Token::Keyword(Keyword::Break) if !scope.in_loop => {
+            return Err(ParseError::IllegalBreak(token.start))
+        }
+        Token::Keyword(Keyword::Continue) if !scope.in_loop => {
+            return Err(ParseError::IllegalContinue(token.start))
+        }
 
-        Token::Keyword(Keyword::Break) => next_guard!({ tokens.next() } 
+        Token::Keyword(Keyword::Break) => next_guard!({ tokens.next() }
             { Token::Semicolon => Node::Break }),
-        Token::Keyword(Keyword::Continue) => next_guard!({ tokens.next() } 
+        Token::Keyword(Keyword::Continue) => next_guard!({ tokens.next() }
             { Token::Semicolon => Node::Continue }),
-        Token::Keyword(Keyword::Return) if !scope.in_proc => return Err(ParseError::IllegalReturn(token.start)),
+        Token::Keyword(Keyword::Return) if !scope.in_proc => {
+            return Err(ParseError::IllegalReturn(token.start))
+        }
         Token::Keyword(Keyword::Return) => {
             let (tokens, _) = zero_level(tokens, |t| *t == Token::Semicolon)?;
-            Node::Return(if tokens.is_empty() { Expression::Nil } else { parse_expr(tokens, scope.in_lam)? })
-        },
+            Node::Return(if tokens.is_empty() {
+                Expression::Nil
+            } else {
+                parse_expr(tokens, scope.in_lam, store)?
+            })
+        }
 
-        Token::Keyword(Keyword::Decl) => Node::Declaration(parse_decl(tokens, true, scope)?),
-        Token::Keyword(Keyword::Im) => Node::Declaration(parse_decl(tokens, false, scope)?),
+        Token::Keyword(Keyword::Decl) => Node::Declaration(parse_decl(tokens, true, scope, store)?),
+        Token::Keyword(Keyword::Im) => Node::Declaration(parse_decl(tokens, false, scope, store)?),
 
-        Token::Keyword(Keyword::Proc) | Token::Keyword(Keyword::Public) => 
-            return Err(ParseError::FunctionNotAtTopLevel(token.start.clone())),
-        Token::Keyword(Keyword::Import) => 
-            return Err(ParseError::MisplacedImport(token.start.clone())),
+        Token::Keyword(Keyword::Proc) | Token::Keyword(Keyword::Public) => {
+            return Err(ParseError::FunctionNotAtTopLevel(token.start.clone()))
+        }
+        Token::Keyword(Keyword::Import) => {
+            return Err(ParseError::MisplacedImport(token.start.clone()))
+        }
 
         Token::Keyword(Keyword::For) => {
             let declaration = next_guard!({ tokens.next() } {
-                Token::Keyword(Keyword::Decl) => parse_decl(tokens, true, scope)?.into(),
-                Token::Keyword(Keyword::Im) => parse_decl(tokens, false, scope)?.into(),
+                Token::Keyword(Keyword::Decl) => parse_decl(tokens, true, scope, store)?.into(),
+                Token::Keyword(Keyword::Im) => parse_decl(tokens, false, scope, store)?.into(),
                 Token::Semicolon => None
             });
 
             let (t, _) = zero_level(tokens, |d| *d == Token::Semicolon)?;
-            let condition = if t.is_empty() { None } else { parse_expr(t, scope.in_lam)?.into() };
+            let condition = if t.is_empty() {
+                None
+            } else {
+                parse_expr(t, scope.in_lam, store)?.into()
+            };
 
             let (t, _) = zero_level(tokens, |d| *d == Token::OpenGroup(Grouper::Brace))?;
-            let increment = if t.is_empty() { None } else { parse_expr(t, scope.in_lam)?.into() };
+            let increment = if t.is_empty() {
+                None
+            } else {
+                parse_expr(t, scope.in_lam, store)?.into()
+            };
 
             let body = take_until(tokens, Grouper::Brace)
-                .and_then(|(v, _)| ast_level(v, scope.with_loop(true)))?;
+                .and_then(|(v, _)| ast_level(v, scope.with_loop(true), store))?;
 
             Node::For {
                 declaration,
@@ -170,19 +193,21 @@ fn next_construct<T: Iterator<Item = Located<Token>>>(
             }
         }
 
-        Token::Semicolon => return Err(ParseError::UnexpectedToken(Located {
-            data: Token::Semicolon,
-            start: token.start.clone(),
-            end: token.end.clone(),
-        })),
+        Token::Semicolon => {
+            return Err(ParseError::UnexpectedToken(Located {
+                data: Token::Semicolon,
+                start: token.start.clone(),
+                end: token.end.clone(),
+            }))
+        }
 
         _ => {
             let loc = token.start.clone();
             let (mut tokens, semi) = zero_level(tokens, |t| *t == Token::Semicolon)?;
             tokens.insert(0, token);
 
-            let expr = parse_expr(tokens, scope.in_lam).map_err(|e| 
-                e.neof_or(ParseError::UnexpectedToken(semi)))?;
+            let expr = parse_expr(tokens, scope.in_lam, store)
+                .map_err(|e| e.neof_or(ParseError::UnexpectedToken(semi)))?;
 
             if !expr.is_statement() {
                 return Err(ParseError::IllegalExpression(loc));
@@ -195,40 +220,43 @@ fn next_construct<T: Iterator<Item = Located<Token>>>(
 
 fn top_level(
     tokens: impl IntoIterator<Item = Located<Token>>,
-    path: &Path
+    path: &Path,
 ) -> ParseResult<Program> {
-    fn is_import(t: &Located<Token>) -> bool { 
-        t.data == Token::Keyword(Keyword::Import) 
+    fn is_import(t: &Located<Token>) -> bool {
+        t.data == Token::Keyword(Keyword::Import)
     }
 
-    let mut program = Program::new();
+    let mut store = Store::new();
     let mut tokens = tokens.into_iter().peekable();
+    let mut body = Block::default();
 
     while next_if(&mut tokens, is_import).is_some() {
-        let import = parse_import(&mut tokens, path)?;
-
-        if let Module::Custom(buffer) = &import.module {
-            let path = buffer.data.as_path();
-
-            if !program.has_module(path) {
-                let module = parse_module(buffer)?;
-                program.set_module(buffer.data.clone(), module);
-            }
-        }
-
-        program.body.push(Node::Import(import));
+        let import = parse_import(&mut tokens, path, &mut store)?;
+        store.add_import(import);
     }
 
     while let Some(token) = tokens.next() {
-        let node = match token.data {
-            Token::Keyword(Keyword::Proc) => Node::Procedure(parse_proc(&mut tokens, false)?),
+        match token.data {
+            Token::Keyword(Keyword::Proc) => {
+                let proc = parse_proc(&mut tokens, false, &mut store)?;
+                store.add_fn(proc);
+            }
             Token::Keyword(Keyword::Public) => next_guard!({ tokens.next() } {
-                Token::Keyword(Keyword::Proc) => Node::Procedure(parse_proc(&mut tokens, true)?)
+                Token::Keyword(Keyword::Proc) => {
+                    let proc = parse_proc(&mut tokens, true, &mut store)?;
+                    store.add_fn(proc);
+                }
             }),
-            _ => next_construct(token.clone(), &mut tokens, Scope::new())?,
+            _ => {
+                let construct =
+                    next_construct(token.clone(), &mut tokens, Scope::new(), &mut store)?;
+                body.push(construct);
+            }
         };
-        program.body.push(node);
     }
+
+    let mut program = Program::from(store);
+    program.body = body;
 
     Ok(program)
 }
@@ -236,18 +264,22 @@ fn top_level(
 fn ast_level(
     tokens: impl IntoIterator<Item = Located<Token>>,
     scope: Scope,
+    store: &mut Store,
 ) -> ParseResult<Block> {
     let mut tokens = tokens.into_iter().peekable();
     let mut program = vec![];
 
     while let Some(token) = tokens.next() {
-        program.push(next_construct(token, &mut tokens, scope)?);
+        program.push(next_construct(token, &mut tokens, scope, store)?);
     }
 
     Ok(program)
 }
 
-pub fn ast(tokens: impl IntoIterator<Item = Located<Token>>, p: impl AsRef<Path>) -> ParseResult<Program> {
+pub fn ast(
+    tokens: impl IntoIterator<Item = Located<Token>>,
+    p: impl AsRef<Path>,
+) -> ParseResult<Program> {
     let path = p.as_ref();
     let mut buff = path.to_path_buf();
 

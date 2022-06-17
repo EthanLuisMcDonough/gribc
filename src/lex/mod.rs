@@ -1,9 +1,9 @@
 pub mod tokens;
 
+use self::tokens::*;
 use location::{Located, Location};
 use operators::{Assignment, Binary, Unary};
 use util::next_if;
-use self::tokens::*;
 
 #[macro_export]
 macro_rules! keyword_map {
@@ -14,6 +14,8 @@ macro_rules! keyword_map {
         }
 
         impl $name {
+            const MEMBERS: &'static [&'static str] = &[$( $s ),*];
+
             pub fn str(&self) -> &'static str {
                 use self::$name::*;
                 match self {
@@ -198,7 +200,12 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
                                 .next()
                                 .ok_or(LexErrorData::UnexpectedEOF.with_loc(loc.clone()))?;
                             loc.feed(ch);
-                            ch
+
+                            match ch {
+                                't' => '\t',
+                                'n' => '\n',
+                                _ => ch,
+                            }
                         } else {
                             c
                         });
@@ -222,7 +229,6 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
                         "true" | "false" => Token::Bool(ident == "true"),
                         "NaN" => Token::Number(std::f64::NAN),
                         "Infinity" => Token::Number(std::f64::INFINITY),
-                        "typeof" => Token::UnaryOp(Unary::TypeOf),
                         _ => Keyword::from_str(&*ident)
                             .map(Token::Keyword)
                             .unwrap_or(Token::Identifier(ident)),

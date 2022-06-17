@@ -1,0 +1,162 @@
+import |readText| from "syncio";
+import |println print printError| from "console";
+import |split| from "str";
+import |toNumber| from "fmt";
+import |arrlen push findWhere| from "array";
+import |random floor sqrt| from "math";
+import |exit| from "meta";
+
+im K = 3, TRIAL_COUNT = 5, TRIALS_PER_ITER = 100;
+im text = readText("./samples/resources/iris_data.csv");
+im lines = split(text, "\n"), flowers = [];
+
+proc PROP_LEN || { return 4; }
+
+proc roundCompare |n1 n2| {
+    im digits = 100000;
+    return floor(n1 * digits) == floor(n2 * digits);
+}
+
+proc flowerSqDist |f1 f2| {
+    decl sum = 0;
+    for decl i = 0; i < PROP_LEN(); i += 1 {
+        im dx = f1[i] - f2[i];
+        sum += dx * dx;
+    }
+    return sum;
+}
+
+proc flowerDist |f1 f2| {
+    return sqrt(flowerSqDist(f1, f2));
+}
+
+proc printFlower |flower| {
+    decl i = 0;
+    for; i < PROP_LEN(); i += 1 {
+        print(flower[i], ", ");
+    }
+    println(flower[i]);
+}
+
+proc centroid |flowers| {
+    decl sum = [0, 0, 0, 0];
+
+    for decl i = 0; i < arrlen(flowers); i += 1 {
+        for decl j = 0; j < PROP_LEN(); j += 1 {
+            sum[j] += flowers[i][j];
+        }
+    }
+
+    for decl j = 0; j < PROP_LEN(); j += 1 {
+        sum[j] /= arrlen(flowers);
+    }
+
+    return sum;
+}
+
+for decl i = 1; i < arrlen(lines); i += 1 {
+    im cols = split(lines[i], ",");
+    if arrlen(cols) < PROP_LEN() + 1 { continue; }
+
+    for decl j = 0; j < PROP_LEN(); j += 1 {
+        cols[j] = toNumber(cols[j]);
+    }
+
+    push(flowers, cols);
+}
+
+im trials = [], flowerCount = arrlen(flowers);
+im rndInd = lam || { floor(random() * flowerCount) };
+
+if flowerCount < K {
+    printError("Not enough flowers");
+    exit(true);
+}
+
+for decl trial = 0; trial < TRIAL_COUNT; trial += 1 {
+    decl chosen = [], groups = [], prev = nil;
+    im initInd = [];
+
+    while arrlen(chosen) < K {
+        im ind = rndInd();
+
+        if findWhere(initInd, ind) == -1 {
+            chosen += flowers[ind];
+            groups += [];
+            push(initInd, ind);
+        }
+    }
+
+    for decl it = 0; it < TRIALS_PER_ITER; it += 1 {
+        for decl i = 0; i < flowerCount; i += 1 {
+            im flower = flowers[i];
+            decl closest = nil, dist = Infinity;
+
+            for decl j = 0; j < K; j += 1 {
+                im localDist = flowerDist(chosen[j], flower);
+                if localDist < dist {
+                    dist = localDist;
+                    closest = j;
+                }
+            }
+
+            groups[closest] += flower;
+        }
+
+        prev = chosen;
+        chosen = [];
+        decl finished = true;
+        im nextGroups = [];
+
+        for decl i = 0; i < K; i += 1 {
+            im mean = centroid(groups[i]);
+
+            chosen += mean;
+            push(nextGroups, []);
+
+            for decl j = 0; finished && j < PROP_LEN(); j += 1 {
+                finished = roundCompare(mean[j], prev[i][j]);
+            }
+        }
+
+        if finished {
+            push(trials, #{
+                groups -> groups,
+                centroids -> chosen,
+            });
+            break;
+        }
+
+        groups = nextGroups;
+    }
+
+    println("---- Trial ", trial + 1, " ----");
+    for decl i = 0; i < K; i += 1 {
+        println("Group ", i + 1, ": ", arrlen(groups[i]));
+    }
+    println();
+}
+
+decl variation = Infinity, trialInd = nil;
+for decl i = 0; i < arrlen(trials); i += 1 {
+    im trial = trials[i];
+    decl totalVariation = 0;
+
+    for decl j = 0; j < K; j += 1 {
+        decl variation = 0;
+        im items = arrlen(trial.groups[j]);
+
+        for decl k = 0; k < items; k += 1 {
+            variation += flowerSqDist(trial.centroids[j], trial.groups[j][k]);
+        }
+
+        variation /= items;
+        totalVariation += variation;
+    }
+
+    if totalVariation < variation {
+        variation = totalVariation;
+        trialInd = i;
+    }
+}
+println("Best trial is ", trialInd + 1, " with variation of ", variation);

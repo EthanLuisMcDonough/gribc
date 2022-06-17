@@ -1,0 +1,18 @@
+import |println| from "console";
+
+proc fibIter || {
+    decl current = 1, prev = 0;
+    return # {
+        next -> lam || {
+            im result = current + prev, temp = prev;
+            prev = current;
+            current = result;
+            return temp;
+        }
+    };
+}
+
+im iterator = fibIter();
+for decl i = 0; i < 10; i += 1 {
+    println(iterator.next());
+}

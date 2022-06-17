@@ -1,0 +1,70 @@
+import |floor ceil| from "math";
+import |insertAt append push arrlen| from "array";
+import |err| from "err";
+import * from "console";
+
+import |println| from "console";
+
+public proc numToBytes |number| {
+    im bytes = [], next = lam {
+        im val = number % 16;
+        number = floor(number / 16);
+        return val;
+    };
+
+    while number > 0 {
+        im second = next(), first = next();
+        push(bytes, first * 16 + second);
+    }
+
+    return bytes;
+}
+
+proc appendPadded |target end min| {
+    im dif = min - arrlen(end);
+    append(target, end);
+    for decl i = 0; i < dif; i += 1 {
+        target += 0;
+    }
+}
+
+public proc genBmp |bmp width height ppm| {
+    im byteLen = arrlen(bmp);
+    if byteLen % 4 > 0 {
+        return err("Invalid bytes");
+    }
+    im headerLen = 14, dibLen = 40, @ length of headers
+        mapLen = byteLen, @ length of bitmap
+        fileLen = headerLen + dibLen + mapLen;
+
+    @ BMP header
+    im bytes = [66, 77];
+    im appendInt = lam |num| { appendPadded(bytes, numToBytes(num), 4) };
+
+    appendInt(fileLen); @ file size
+    for decl i = 0; i < 4; i += 1 {
+        push(bytes, 0); @ Reserved bits
+    }
+    appendInt(headerLen + dibLen);
+
+    @ DIB header
+    appendInt(40); @ header length
+    appendInt(width);
+    appendInt(height);
+
+    push(bytes, 1, 0); @ color planes
+
+    appendPadded(bytes, numToBytes(32), 2); @ bits per pixel
+    appendPadded(bytes, [], 4); @ no compression
+    appendInt(mapLen);
+
+    appendInt(ppm); @ width (pixels per meter)
+    appendInt(ppm); @ height (pixels per meter)
+
+    appendPadded(bytes, [], 4); @ empty palette
+    appendPadded(bytes, [], 4); @ all colors are important
+
+    append(bytes, bmp);
+
+    return bytes;
+}
