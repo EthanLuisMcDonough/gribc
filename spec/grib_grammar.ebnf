@@ -1,0 +1,107 @@
+(*Grib v0.1 formal grammar*)
+
+(**SYMBOLS**)
+any_char = ? all supported characters ?;
+nonzero_digit = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+digit = "0" | nonzero_digit;
+alphabetic = "a" | "b" | "c" | "d" | "e" | "f" 
+            | "g" | "h" | "i" | "j" | "k" | "l" 
+            | "m" | "n" | "o" | "p" | "q" | "r" 
+            | "s" | "t" | "u" | "v" | "w" | "x" 
+            | "y" | "z" | "A" | "B" | "C" | "D" 
+            | "E" | "F" | "G" | "H" | "I" | "J" 
+            | "K" | "L" | "M" | "N" | "O" | "P" 
+            | "Q" | "R" | "S" | "T" | "U" | "V" 
+            | "W" | "X" | "Y" | "Z";
+alphanumeric = digit | alphabetic;
+identifier = alphabetic, { alphanumeric };
+
+number = nonzero_digit, { digit }, [ ".", { digit } ];
+
+str_char = ? any_char excluding "\\" and "\"" ?;
+string = "\"", { str_char | "\\", any_char }, "\"";
+nil = "nil";
+
+(*CONSTRUCTS*)
+spread_symbol = "...";
+parameters = "|", { identifier }, [ spread_symbol, identifier ], "|";
+
+procedure = "proc", identifier, parameters, block;
+public_procedure = "public", procedure;
+
+(**EXPRESSIONS**)
+
+(*literal values*)
+getter_body = identifier | "{", ["|", "|"], lambda_body, "}";
+setter_body = identifier | "{", "|", identifier, "|", lambda_body, "}";
+autoprop_body = "{", (getter_body | setter_body | getter_body, ",", setter_body), [","], "}";
+
+hash_pair = (identifier | string), (":", expression | autoprop_body);
+hash_body = "{", { hash_pair, "," }, [ hash_pair, [","] ] "}";
+
+im_hash = "#", hash_body;
+mut_hash = "$", hash_body;
+hash = im_hash | mut_hash;
+
+lambda_body = block | "{", expression, "}";
+lambda = "lam", [ parameters ], lambda_body;
+
+array = "[", [ { expression, "," }, expression, [","] ] "]";
+
+(*highest level of precedence*)
+literal_value = string | number | lambda | hash | nil;
+group = "(", expression, ")";
+ind_access = base_expr, "[", expression, "]";
+prop_access = base_expr, ".", identifier;
+fnc_call = base_expr, "(", [ { expression, "," }, expression ], ")";
+base_expr = group | ind_access | identifier | literal_value | prop_access | fnc_call;
+
+(*standard operators*)
+unary_operator = "!" | "~" | "-";
+scale_operator = "%" | "/" | "*";
+add_sub_operator = "+" | "-";
+cmp_operator = "==" | "!=" | ">" | "<" | ">=" | "<=";
+bool_comb_operator = "&&" | "||";
+assignment_operator = "=" | "+=" | "-=" | "*=" | "/=" | "%="; 
+
+assignable = ind_access | identifier | prop_access;
+
+unary_operation = unary_operator, unary_operation | base_expr;
+scale_operation = scale_operation, scale_operator, unary_operation | unary_operation;
+add_sub_operation = add_sub_operation, add_sub_operator, scale_operation | scale_operation;
+cmp_operation = cmp_operation, cmp_operator, add_sub_operation | add_sub_operation;
+comb_operation = comb_operation, bool_comb_operator, cmp_operation | cmp_operation;
+
+assignment = assignable, assignment_operator, expression;
+
+expression = assignment | comb_operation;
+
+(**STATEMENTS**)
+
+import_list = "|", { identifier }-, "|";
+import = "import", (identifier | import_list | "*"), "from", string, ";";
+
+(* Declaration syntax *)
+declaration_body = identifier, "=", expression, { ",", identifier, "=", expression }, ";"
+mut_declaration = "decl", declaration_body;
+im_declaration = "im", declaration_body;
+declaration = mut_declaration | im_declaration;
+
+(* Control flow *)
+if_block = "if", block;
+else_if_block = "else", if_block;
+else_block = "else", block;
+if_chain = if_block, { else_if_block }, [ else_block ];
+
+while_loop = "while", expression, block;
+for_loop = "for", [ declaration ], ";", [ expression ], ";", [ expression ], block;
+loop = while_loop | for_loop;
+
+statement = expression, ";" | if_chain | loop | declaration;
+block = "{", { statement }, "}";
+
+(*GRIB PROGRAM FILES*)
+program = { import }, { statement | procedure };
+
+(*GRIB MODULE FILE*)
+module = { import }, { procedure | public_procedure };
