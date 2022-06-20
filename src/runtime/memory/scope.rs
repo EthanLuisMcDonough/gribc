@@ -60,6 +60,10 @@ impl Scope {
         stack.pop_stack(self.local_count);
     }
 
+    pub fn get_slot<'a>(&self, stack: &'a Stack, label: usize) -> Option<&'a StackSlot> {
+        self.scope.get(&label).and_then(|ind| stack.stack.get(*ind))
+    }
+
     pub fn get<'a>(&self, runtime: &'a Runtime, label: usize) -> Option<&'a GribValue> {
         self.scope
             .get(&label)
@@ -74,33 +78,17 @@ impl Scope {
             .and_then(move |slot| runtime.get_stack_mut(slot))
     }
 
-    pub fn capture_var(&mut self, runtime: &mut Runtime, label: usize) -> Option<usize> {
-        self.scope.get(&label).and_then(|&ind| {
-            if let Some(StackSlot::Captured(new_ind)) = runtime.stack.stack.get(ind) {
-                Some(*new_ind)
-            } else {
-                runtime.capture_at_ind(ind)
-            }
-        })
-    }
-
     pub fn set(&self, runtime: &mut Runtime, label: usize, value: GribValue) {
         if let Some(r) = self.get_mut(runtime, label) {
             *r = value;
         }
     }
 
-    pub fn add_existing_captured(&mut self, stack: &mut Stack, label: usize, index: usize) {
-        let ptr = stack
-            .add(StackSlot::Captured(index))
-            .expect(STACK_OVERFLOW_MSG);
-        self.declare(label, ptr);
-    }
-
     pub fn add_captured_stack(&mut self, runtime: &mut Runtime, ptr: usize) {
         if let Some(HeapValue::CapturedStack(stack_ref)) = runtime.gc.heap_val(ptr) {
-            for (key, index) in stack_ref {
-                self.add_existing_captured(&mut runtime.stack, *key, *index);
+            for (label, value) in stack_ref {
+                let ptr = runtime.stack.add(value.clone()).expect(STACK_OVERFLOW_MSG);
+                self.declare(*label, ptr);
             }
         }
     }
@@ -108,16 +96,25 @@ impl Scope {
     pub fn add_params(&mut self, params: &Parameters, runtime: &mut Runtime, args: Vec<GribValue>) {
         let mut arg_iter = args.into_iter();
 
-        for ident in &params.params {
-            self.declare_stack(
-                &mut runtime.stack,
-                *ident,
-                arg_iter.next().unwrap_or_default(),
-            );
+        for param in &params.params {
+            let label = param.name;
+            let val = arg_iter.next().unwrap_or_default();
+            if param.captured {
+                self.declare_captured(runtime, label, val);
+            } else {
+                self.declare_stack(&mut runtime.stack, label, val);
+            }
         }
 
-        if let Some(ident) = &params.vardic {
-            self.declare_heap(runtime, *ident, HeapValue::Array(arg_iter.collect()));
+        if let Some(spread) = &params.vardic {
+            let args = HeapValue::Array(arg_iter.collect());
+            let name = spread.name;
+            if spread.captured {
+                let ptr = runtime.alloc_heap(args);
+                self.declare_captured(runtime, name, GribValue::HeapValue(ptr));
+            } else {
+                self.declare_heap(runtime, name, args);
+            }
         }
     }
 

@@ -3,9 +3,15 @@ use location::Located;
 use std::collections::HashSet;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct Param {
+    pub name: usize,
+    pub captured: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Parameters {
-    pub params: Vec<usize>,
-    pub vardic: Option<usize>,
+    pub params: Vec<Param>,
+    pub vardic: Option<Param>,
 }
 
 impl Parameters {
@@ -16,15 +22,28 @@ impl Parameters {
         }
     }
 
-    pub fn all_params(&'_ self) -> impl Iterator<Item = &'_ usize> {
+    pub fn contains(&self, name: usize) -> bool {
+        self.all_params().any(|p| p.name == name)
+    }
+
+    pub fn all_params(&'_ self) -> impl Iterator<Item = &'_ Param> {
         self.params.iter().chain(self.vardic.iter())
     }
 
-    pub fn try_add(&mut self, name: usize) -> bool {
-        if self.params.contains(&name) {
+    pub(in ast) fn all_params_mut(&'_ mut self) -> impl Iterator<Item = &'_ mut Param> {
+        self.params.iter_mut().chain(self.vardic.iter_mut())
+    }
+
+    /// This method should only be called while parsing the initial AST
+    pub(in ast) fn try_add(&mut self, name: usize) -> bool {
+        let param = Param {
+            name,
+            captured: false,
+        };
+        if self.params.contains(&param) {
             false
         } else {
-            self.params.push(name);
+            self.params.push(param);
             true
         }
     }

@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct SetProp {
     pub param: usize,
+    pub param_captured: bool,
     pub block: LambdaBody,
     pub capture: HashSet<usize>,
 }
@@ -19,6 +20,7 @@ impl SetProp {
     pub fn new(param: usize, block: LambdaBody) -> Self {
         Self {
             param,
+            param_captured: false,
             block,
             capture: HashSet::new(),
         }

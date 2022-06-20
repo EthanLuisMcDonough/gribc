@@ -1,3 +1,5 @@
+use super::WalkResult;
+use ast::node::*;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]
@@ -28,16 +30,20 @@ impl CaptureStack {
         self.stack.pop().map(|e| e.identifiers).unwrap_or_default()
     }
 
-    fn check_ref(&mut self, ident: usize, current: usize) {
+    /// Returns true if any captured scopes were edited
+    fn check_ref(&mut self, ident: usize, current: usize) -> bool {
+        let mut changed = false;
         for Capture { level, identifiers } in &mut self.stack {
             if *level > current {
                 identifiers.insert(ident);
+                changed = true;
             }
         }
+        changed
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 enum DefType {
     Mutable,
     Constant,
@@ -45,13 +51,20 @@ enum DefType {
     Import,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 struct DefData {
     kind: DefType,
     level: usize,
+    captured: bool,
 }
 
-#[derive(PartialEq, Clone)]
+impl DefData {
+    fn is_mut(&self) -> bool {
+        self.kind == DefType::Mutable
+    }
+}
+
+#[derive(PartialEq, Debug)]
 pub struct Scope {
     scope: HashMap<usize, DefData>,
     pub level: usize,
@@ -64,10 +77,108 @@ impl Scope {
             level: 0,
         }
     }
-    pub fn sub(&self) -> Self {
-        Self {
+
+    pub fn sub<F: FnOnce(&mut Self) -> WalkResult>(&mut self, fnc: F) -> WalkResult {
+        let mut new_scope = Self {
             scope: self.scope.clone(),
             level: self.level + 1,
+        };
+
+        fnc(&mut new_scope)?;
+        new_scope.migrate(self);
+
+        Ok(())
+    }
+
+    pub fn sub_block<F: FnOnce(&mut Self, &mut Block) -> WalkResult>(
+        &mut self,
+        fnc: F,
+        block: &mut Block,
+    ) -> WalkResult {
+        self.sub(|scope| {
+            fnc(scope, block)?;
+            scope.check_decls(block);
+            Ok(())
+        })
+    }
+
+    pub fn sub_params<F: FnOnce(&mut Self, &mut Parameters) -> WalkResult>(
+        &mut self,
+        fnc: F,
+        params: &mut Parameters,
+    ) -> WalkResult {
+        self.sub(|scope| {
+            scope.add_params(params);
+            fnc(scope, params)?;
+            scope.check_params(params);
+            Ok(())
+        })
+    }
+
+    pub fn sub_fnc<F: FnOnce(&mut Self, &mut Parameters, &mut Block) -> WalkResult>(
+        &mut self,
+        fnc: F,
+        params: &mut Parameters,
+        block: &mut Block,
+    ) -> WalkResult {
+        self.sub(|scope| {
+            scope.add_params(params);
+            fnc(scope, params, block)?;
+            scope.check_params(params);
+            scope.check_decls(block);
+            Ok(())
+        })
+    }
+
+    pub fn check_params(&mut self, params: &mut Parameters) {
+        for param in params.all_params_mut() {
+            if self
+                .scope
+                .remove(&param.name)
+                .filter(|d| d.captured)
+                .is_some()
+            {
+                param.captured = true;
+            }
+        }
+    }
+
+    pub fn check_decls(&mut self, block: &mut Block) {
+        for stmt in block.iter_mut() {
+            if let Node::Declaration(Declaration {
+                mutable: true,
+                declarations,
+            })
+            | Node::For {
+                declaration:
+                    Some(Declaration {
+                        mutable: true,
+                        declarations,
+                    }),
+                ..
+            } = stmt
+            {
+                for decl in declarations.iter_mut() {
+                    let name = decl.identifier.data;
+                    if self.scope.remove(&name).filter(|d| d.captured).is_some() {
+                        decl.captured = true;
+                    }
+                }
+            }
+        }
+    }
+
+    fn add_params(&mut self, params: &Parameters) {
+        for param in params.all_params() {
+            self.insert_mut(param.name);
+        }
+    }
+
+    fn migrate(self, parent: &mut Self) {
+        for (name, data) in self.scope {
+            if data.captured {
+                parent.try_capture(name);
+            }
         }
     }
 
@@ -78,6 +189,7 @@ impl Scope {
                 DefData {
                     level: self.level,
                     kind,
+                    captured: false,
                 },
             )
             .filter(|d| d.level == self.level && d.kind != DefType::Import)
@@ -104,18 +216,47 @@ impl Scope {
         }
     }
 
-    pub fn has(&self, name: usize, s: &mut CaptureStack) -> bool {
-        if let Some(data) = self.scope.get(&name) {
-            s.check_ref(name, data.level);
+    pub fn is_captured(&self, name: usize) -> bool {
+        self.scope.get(&name).filter(|d| d.captured).is_some()
+    }
+    fn try_capture(&mut self, name: usize) {
+        if let Some(data) = self.scope.get_mut(&name) {
+            data.captured = true;
+        }
+    }
+    pub fn prop_check(&mut self, name: usize) -> bool {
+        if let Some(data) = self.scope.get_mut(&name) {
+            if data.is_mut() {
+                data.captured = true;
+            }
             return true;
         }
         false
     }
-    pub fn has_editable(&self, name: usize, s: &mut CaptureStack) -> bool {
-        if let Some(DefData { level, .. }) =
-            self.scope.get(&name).filter(|d| d.kind == DefType::Mutable)
+    pub fn prop_check_mut(&mut self, name: usize) -> bool {
+        if let Some(data) = self.scope.get_mut(&name).filter(|d| d.is_mut()) {
+            data.captured = true;
+            return true;
+        }
+        false
+    }
+    pub fn has(&mut self, name: usize, s: &mut CaptureStack) -> bool {
+        if let Some(data) = self.scope.get_mut(&name) {
+            if s.check_ref(name, data.level) && data.is_mut() {
+                data.captured = true;
+            }
+            return true;
+        }
+        false
+    }
+    pub fn has_editable(&mut self, name: usize, s: &mut CaptureStack) -> bool {
+        if let Some(DefData {
+            level, captured, ..
+        }) = self.scope.get_mut(&name).filter(|d| d.is_mut())
         {
-            s.check_ref(name, *level);
+            if s.check_ref(name, *level) {
+                *captured = true;
+            }
             return true;
         }
         false

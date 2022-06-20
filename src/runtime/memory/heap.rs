@@ -1,7 +1,6 @@
 use ast::node::Program;
 use runtime::memory::slot::*;
 use runtime::values::*;
-use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Gc {

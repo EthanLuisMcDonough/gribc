@@ -1,5 +1,5 @@
 use super::{GribValue, HashValue};
-use runtime::memory::Gc;
+use runtime::memory::{Gc, StackSlot};
 use std::collections::HashMap;
 
 /*macro_rules! try_method {
@@ -17,30 +17,8 @@ pub enum HeapValue {
     Array(Vec<GribValue>),
     Hash(HashValue),
     String(String),
-    CapturedStack(HashMap<usize, usize>),
+    CapturedStack(HashMap<usize, StackSlot>),
 }
-
-/*impl HeapValue {
-    pub fn arr(&'_ self) -> Option<&'_ Vec<GribValue>> {
-        try_method!(Array, self)
-    }
-
-    pub fn arr_mut(&'_ mut self) -> Option<&'_ mut Vec<GribValue>> {
-        try_method!(Array, self)
-    }
-
-    pub fn hash(&'_ self) -> Option<&'_ HashValue> {
-        try_method!(Hash, self)
-    }
-
-    pub fn hash_mut(&'_ mut self) -> Option<&'_ mut HashValue> {
-        try_method!(Hash, self)
-    }
-
-    pub fn str(&'_ self) -> Option<&'_ str> {
-        try_method!(String, self)
-    }
-}*/
 
 macro_rules! type_ref {
     ($name:ident $heap_name:ident $inner_type:ty) => {

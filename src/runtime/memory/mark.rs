@@ -24,8 +24,12 @@ pub fn mark_heap(gc: &mut Gc, ind: usize) {
                 }
             }
             HeapValue::CapturedStack(stack) => {
-                for (_, index) in stack.iter() {
-                    marked_heap.push(*index);
+                for (_, val) in stack.iter() {
+                    match val {
+                        StackSlot::Captured(index) => marked_heap.push(*index),
+                        StackSlot::Value(val) => marked_stack.push(val.clone()),
+                        StackSlot::Empty => {}
+                    }
                 }
             }
             HeapValue::Hash(hash) => {
@@ -66,6 +70,7 @@ pub fn mark_heap(gc: &mut Gc, ind: usize) {
                     mark_heap(gc, ind);
                 }
             }
+            AccessFunc::Static(val) => mark_stack(gc, &val),
         }
     }
 }

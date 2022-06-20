@@ -3,3 +3,4 @@
 .vscode
 /samples/bin
 .idea
+/samples/test.grib

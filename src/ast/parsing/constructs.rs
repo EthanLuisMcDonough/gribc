@@ -99,12 +99,15 @@ pub fn parse_params<T: Iterator<Item = Located<Token>>>(
                             return Err(ParseError::ParamAfterSpread(Located {
                                 data: s, start, end
                             }));
-                        } else if store.get_str(&s).map(|i| params.params.contains(&i)).is_some() {
+                        } else if store.get_str(&s).filter(|&&i| params.contains(i)).is_some() {
                             return Err(ParseError::DuplicateParam(Located {
                                 data: s, start, end
                             }));
                         } else {
-                            params.vardic = store.ins_str(s).into();
+                            params.vardic = Param {
+                                name: store.ins_str(s),
+                                captured: false,
+                            }.into();
                         }
                     })
                 });

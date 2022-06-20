@@ -81,4 +81,5 @@ impl Callable {
 pub enum AccessFunc {
     Callable { index: usize, stack: Option<usize> },
     Captured(usize),
+    Static(GribValue),
 }

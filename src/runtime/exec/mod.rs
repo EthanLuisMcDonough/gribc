@@ -211,26 +211,38 @@ fn evaluate_hash(
                     evaluate_expression(e, scope, runtime, program).into()
                 }
                 ObjectValue::AutoProp(prop) => {
-                    let get = prop.get.as_ref().and_then(|p| match p {
-                        AutoPropValue::String(s) => {
-                            scope.capture_var(runtime, s.data).map(AccessFunc::Captured)
-                        }
+                    let get = prop.get.as_ref().map(|p| match p {
+                        AutoPropValue::String(s) => match scope.get_slot(&runtime.stack, s.data) {
+                            Some(StackSlot::Captured(ind)) => AccessFunc::Captured(*ind),
+                            Some(StackSlot::Value(val)) => AccessFunc::Static(val.clone()),
+                            _ => panic!(
+                                "FAILED TO CAPTURE ACCESS GETTER {}",
+                                program.strings[s.data]
+                            ),
+                        },
                         AutoPropValue::Lambda(ind) => AccessFunc::Callable {
                             index: *ind,
                             stack: runtime.capture_stack(scope, &program.getters[*ind].capture),
-                        }
-                        .into(),
+                        },
                     });
 
-                    let set = prop.set.as_ref().and_then(|p| match p {
+                    let set = prop.set.as_ref().map(|p| match p {
                         AutoPropValue::String(s) => {
-                            scope.capture_var(runtime, s.data).map(AccessFunc::Captured)
+                            if let Some(StackSlot::Captured(ind)) =
+                                scope.get_slot(&runtime.stack, s.data)
+                            {
+                                AccessFunc::Captured(*ind)
+                            } else {
+                                panic!(
+                                    "FAILED TO CAPTURE ACCESS SETTER {}",
+                                    program.strings[s.data]
+                                );
+                            }
                         }
                         AutoPropValue::Lambda(ind) => AccessFunc::Callable {
                             index: *ind,
                             stack: runtime.capture_stack(scope, &program.setters[*ind].capture),
-                        }
-                        .into(),
+                        },
                     });
 
                     HashPropertyValue::AutoProp { get, set }

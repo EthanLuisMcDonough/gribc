@@ -33,6 +33,7 @@ impl HashPropertyValue {
             HashPropertyValue::AutoProp { get, .. } => get
                 .as_ref()
                 .and_then(|f| match f {
+                    AccessFunc::Static(val) => val.clone().into(),
                     AccessFunc::Captured(ptr) => runtime.gc.get_captured(*ptr).cloned(),
                     AccessFunc::Callable {
                         index,
@@ -222,8 +223,15 @@ pub fn eval_setter(
             if let Some(i) = stack {
                 scope.add_captured_stack(runtime, *i);
             }
-            scope.declare_stack(&mut runtime.stack, setter.param, val);
+
+            if setter.param_captured {
+                scope.declare_captured(runtime, setter.param, val);
+            } else {
+                scope.declare_stack(&mut runtime.stack, setter.param, val);
+            }
+
             evaluate_lambda(&setter.block, scope, self_ptr.into(), runtime, program)
         }
+        AccessFunc::Static(_) => panic!("Setters cannot be static values"),
     }
 }

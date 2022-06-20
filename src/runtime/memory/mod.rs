@@ -6,6 +6,7 @@ pub(in runtime::memory) mod stack;
 
 pub use self::heap::Gc;
 pub use self::scope::Scope;
+pub use self::slot::StackSlot;
 pub use self::stack::Stack;
 
 use self::mark::*;
@@ -119,24 +120,6 @@ impl Runtime {
         }
     }
 
-    pub(in runtime::memory) fn capture_at_ind(&mut self, i: usize) -> Option<usize> {
-        let mut heap_ind = None;
-
-        if self.stack.len() > i {
-            let mut slot = std::mem::take(&mut self.stack.stack[i]);
-
-            if let MemSlot::Value(val) = slot {
-                let ind = self.alloc_captured(val);
-                slot = MemSlot::Captured(ind);
-                heap_ind = ind.into();
-            }
-
-            self.stack.stack[i] = slot;
-        }
-
-        heap_ind
-    }
-
     pub fn capture_stack(
         &mut self,
         scope: &mut Scope,
@@ -148,8 +131,8 @@ impl Runtime {
 
         let mut heap_stack = HashMap::new();
         for name in to_capture {
-            if let Some(ind) = scope.capture_var(self, *name) {
-                heap_stack.insert(*name, ind);
+            if let Some(slot) = scope.get_slot(&self.stack, *name) {
+                heap_stack.insert(*name, slot.clone());
             }
         }
 

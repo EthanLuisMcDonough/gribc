@@ -6,7 +6,7 @@ use location::Located;
 use std::collections::HashSet;
 use std::mem;
 
-type WalkResult = Result<(), WalkError>;
+pub type WalkResult = Result<(), WalkError>;
 type Lambdas = Vec<Lambda>;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Copy)]
@@ -76,7 +76,7 @@ fn walk_import<'a>(import: &'a Import, modules: &'a ModuleStore, scope: &mut Sco
 }
 
 fn walk_module(
-    module: &CustomModule,
+    module: &mut CustomModule,
     modules: &ModuleStore,
     lams: &mut Lams,
     cap: &mut CaptureStack,
@@ -96,8 +96,8 @@ fn walk_module(
         }
     }
 
-    for p in &module.functions {
-        walk_procedure(p, &scope, lams, cap)?;
+    for p in &mut module.functions {
+        walk_procedure(p, &mut scope, lams, cap)?;
     }
 
     Ok(())
@@ -110,7 +110,7 @@ fn walk_decl<'a>(
     cap: &mut CaptureStack,
 ) -> Result<(), WalkError> {
     for d in &decl.declarations {
-        walk_expression(&d.value, &scope, lams, cap)?;
+        walk_expression(&d.value, scope, lams, cap)?;
         if !scope.insert_var(d.identifier.data, decl.mutable) {
             return Err(WalkError {
                 identifier: d.identifier.clone(),
@@ -122,22 +122,24 @@ fn walk_decl<'a>(
 }
 
 fn walk_ast<'a>(
-    nodes: impl Iterator<Item = &'a Node> + Clone,
-    mut scope: Scope,
+    nodes: &mut Block,
+    scope: &mut Scope,
     lams: &mut Lams,
     cap: &mut CaptureStack,
 ) -> Result<(), WalkError> {
-    for node in nodes {
+    for node in nodes.iter_mut() {
         match node {
             Node::Expression(expression) | Node::Return(expression) => {
-                walk_expression(expression, &scope, lams, cap)?
+                walk_expression(expression, scope, lams, cap)?
             }
-            Node::Block(nodes) => walk_ast(nodes.iter(), scope.sub(), lams, cap)?,
+            Node::Block(nodes) => {
+                scope.sub_block(|sub, nodes| walk_ast(nodes, sub, lams, cap), nodes)?;
+            }
             Node::While(ConditionBodyPair { condition, block }) => {
-                walk_expression(condition, &scope, lams, cap)?;
-                walk_ast(block.iter(), scope.sub(), lams, cap)?;
+                walk_expression(condition, scope, lams, cap)?;
+                scope.sub_block(|sub, block| walk_ast(block, sub, lams, cap), block)?;
             }
-            Node::Declaration(declaration) => walk_decl(&declaration, &mut scope, lams, cap)?,
+            Node::Declaration(declaration) => walk_decl(&declaration, scope, lams, cap)?,
             Node::LogicChain {
                 if_block,
                 elseifs,
@@ -146,11 +148,11 @@ fn walk_ast<'a>(
                 for ConditionBodyPair { condition, block } in
                     std::iter::once(if_block).chain(elseifs)
                 {
-                    walk_expression(condition, &scope, lams, cap)?;
-                    walk_ast(block.iter(), scope.sub(), lams, cap)?;
+                    walk_expression(condition, scope, lams, cap)?;
+                    scope.sub_block(|scope, block| walk_ast(block, scope, lams, cap), block)?;
                 }
                 if let Some(block) = else_block {
-                    walk_ast(block.iter(), scope.sub(), lams, cap)?;
+                    scope.sub_block(|scope, block| walk_ast(block, scope, lams, cap), block)?;
                 }
             }
             Node::For {
@@ -159,14 +161,21 @@ fn walk_ast<'a>(
                 increment,
                 body,
             } => {
-                let mut new_scope = scope.sub();
-                if let Some(decl) = declaration {
-                    walk_decl(decl, &mut new_scope, lams, cap)?;
-                }
-                for expr in condition.iter().chain(increment) {
-                    walk_expression(expr, &new_scope, lams, cap)?;
-                }
-                walk_ast(body.iter(), new_scope, lams, cap)?;
+                scope.sub_block(
+                    |new_scope, body| {
+                        if let Some(decl) = declaration {
+                            walk_decl(decl, new_scope, lams, cap)?;
+                        }
+                        if let Some(expr) = condition {
+                            walk_expression(expr, new_scope, lams, cap)?;
+                        }
+                        if let Some(expr) = increment {
+                            walk_expression(expr, new_scope, lams, cap)?;
+                        }
+                        walk_ast(body, new_scope, lams, cap)
+                    },
+                    body,
+                )?;
             }
             Node::Break | Node::Continue => {}
         }
@@ -176,40 +185,37 @@ fn walk_ast<'a>(
 }
 
 fn walk_lambda_block<'a>(
-    block: &LambdaBody,
-    scope: Scope,
+    block: &mut LambdaBody,
+    scope: &mut Scope,
     lams: &mut Lams,
     cap: &mut CaptureStack,
 ) -> Result<(), WalkError> {
     match block {
-        LambdaBody::Block(block) => walk_ast(block.iter(), scope, lams, cap),
-        LambdaBody::ImplicitReturn(expr) => walk_expression(expr, &scope, lams, cap),
+        LambdaBody::Block(block) => {
+            let res = walk_ast(block, scope, lams, cap);
+            scope.check_decls(block);
+            res
+        }
+        LambdaBody::ImplicitReturn(expr) => walk_expression(expr, scope, lams, cap),
     }
 }
 
 fn walk_procedure<'a>(
-    procedure: &Procedure,
-    scope: &Scope,
+    procedure: &mut Procedure,
+    scope: &mut Scope,
     lams: &mut Lams,
     cap: &mut CaptureStack,
 ) -> Result<(), WalkError> {
-    walk_ast(
-        procedure.body.iter(),
-        {
-            let mut scope = scope.clone();
-            for param in procedure.param_list.all_params() {
-                scope.insert_mut(*param);
-            }
-            scope
-        },
-        lams,
-        cap,
+    scope.sub_fnc(
+        |scope, _, body| walk_ast(body, scope, lams, cap),
+        &mut procedure.param_list,
+        &mut procedure.body,
     )
 }
 
 fn walk_expression<'a>(
     expression: &Expression,
-    scope: &Scope,
+    scope: &mut Scope,
     lams: &mut Lams,
     cap: &mut CaptureStack,
 ) -> Result<(), WalkError> {
@@ -263,69 +269,70 @@ fn walk_expression<'a>(
                 match value {
                     ObjectValue::Expression(expr) => walk_expression(expr, scope, lams, cap)?,
                     ObjectValue::AutoProp(auto) => {
-                        match auto.get.as_ref() {
+                        scope.sub(|scope| match auto.get.as_ref() {
                             Some(AutoPropValue::Lambda(ind)) => {
-                                let scope = scope.sub();
                                 cap.add(scope.level);
 
                                 let mut get = mem::take(&mut lams.getters[*ind]);
-                                walk_lambda_block(&get.block, scope, lams, cap)?;
+                                walk_lambda_block(&mut get.block, scope, lams, cap)?;
                                 get.capture = cap.pop();
 
                                 lams.getters[*ind] = get;
+                                Ok(())
                             }
-                            Some(AutoPropValue::String(ident)) if !scope.has(ident.data, cap) => {
-                                return Err(WalkError {
+                            Some(AutoPropValue::String(ident)) if !scope.prop_check(ident.data) => {
+                                Err(WalkError {
                                     identifier: ident.clone(),
                                     kind: WalkErrorType::IdentifierNotFound,
                                 })
                             }
-                            _ => {}
-                        }
-                        match auto.set.as_ref() {
+                            Some(AutoPropValue::String(_)) | None => Ok(()),
+                        })?;
+                        scope.sub(|scope| match auto.set.as_ref() {
                             Some(AutoPropValue::Lambda(ind)) => {
-                                let mut scope = scope.sub();
                                 cap.add(scope.level);
 
                                 let mut set = mem::take(&mut lams.setters[*ind]);
                                 scope.insert_mut(set.param);
 
-                                walk_lambda_block(&set.block, scope, lams, cap)?;
+                                walk_lambda_block(&mut set.block, scope, lams, cap)?;
+
                                 set.capture = cap.pop();
+                                set.param_captured = scope.is_captured(set.param);
 
                                 lams.setters[*ind] = set;
+                                Ok(())
                             }
-                            Some(AutoPropValue::String(ident)) if !scope.has(ident.data, cap) => {
-                                return Err(WalkError {
+                            Some(AutoPropValue::String(ident)) if !scope.prop_check(ident.data) => {
+                                Err(WalkError {
                                     identifier: ident.clone(),
                                     kind: WalkErrorType::IdentifierNotFound,
-                                });
+                                })
                             }
                             Some(AutoPropValue::String(ident))
-                                if !scope.has_editable(ident.data, cap) =>
+                                if !scope.prop_check_mut(ident.data) =>
                             {
-                                return Err(WalkError {
+                                Err(WalkError {
                                     identifier: ident.clone(),
                                     kind: WalkErrorType::ImmutableModification,
-                                });
+                                })
                             }
-                            _ => {}
-                        }
+                            _ => Ok(()),
+                        })?;
                     }
                 }
             }
         }
         Expression::Lambda(ind) => {
             let mut lambda = mem::take(&mut lams.lambdas[*ind]);
-            let mut scope = scope.sub();
-
-            cap.add(scope.level);
-
-            for param in lambda.param_list.all_params() {
-                scope.insert_mut(*param);
-            }
-            walk_lambda_block(&lambda.body, scope, lams, cap)?;
-
+            let body = &mut lambda.body;
+            scope.sub_params(
+                |scope, _params| {
+                    cap.add(scope.level);
+                    walk_lambda_block(body, scope, lams, cap)
+                },
+                &mut lambda.param_list,
+            )?;
             lambda.captured = cap.pop();
             lams.lambdas[*ind] = lambda;
         }
@@ -341,8 +348,8 @@ fn walk_expression<'a>(
 }
 
 pub fn ref_check(program: &mut Program) -> Result<(), WalkError> {
-    let body = &program.body;
-    let modules = &program.modules;
+    let body = &mut program.body;
+    let modules = &mut program.modules;
 
     let mut scope = Scope::new();
     let mut stack = CaptureStack::new();
@@ -353,8 +360,10 @@ pub fn ref_check(program: &mut Program) -> Result<(), WalkError> {
         setters: &mut program.setters,
     };
 
-    for module in modules {
-        walk_module(module, modules, &mut lambdas, &mut stack)?;
+    for mod_ind in 0..modules.len() {
+        let mut module = std::mem::take(&mut modules[mod_ind]);
+        walk_module(&mut module, modules, &mut lambdas, &mut stack)?;
+        modules[mod_ind] = module;
     }
 
     for import in &program.imports {
@@ -370,9 +379,12 @@ pub fn ref_check(program: &mut Program) -> Result<(), WalkError> {
         }
     }
 
-    for function in &program.functions {
-        walk_procedure(function, &scope, &mut lambdas, &mut stack)?;
+    for function in &mut program.functions {
+        walk_procedure(function, &mut scope, &mut lambdas, &mut stack)?;
     }
 
-    walk_ast(body.iter(), scope, &mut lambdas, &mut stack)
+    scope.sub_block(
+        |scope, body| walk_ast(body, scope, &mut lambdas, &mut stack),
+        body,
+    )
 }
