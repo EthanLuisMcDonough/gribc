@@ -1,12 +1,21 @@
 {
-  "modules": {},
+  "modules": [],
+  "imports": [],
+  "functions": [],
+  "lambdas": [],
+  "getters": [],
+  "setters": [],
+  "strings": [
+    "test",
+    "bl"
+  ],
   "body": [
     {
       "Declaration": {
         "declarations": [
           {
             "identifier": {
-              "data": "test",
+              "data": 0,
               "start": {
                 "row": 1,
                 "column": 3
@@ -54,7 +63,8 @@
                   }
                 }
               }
-            }
+            },
+            "captured": false
           }
         ],
         "mutable": false
@@ -65,7 +75,7 @@
         "declarations": [
           {
             "identifier": {
-              "data": "bl",
+              "data": 1,
               "start": {
                 "row": 2,
                 "column": 3
@@ -97,7 +107,8 @@
                   }
                 }
               }
-            }
+            },
+            "captured": false
           }
         ],
         "mutable": false

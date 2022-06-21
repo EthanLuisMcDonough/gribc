@@ -1,472 +1,501 @@
 {
-  "modules": {},
-  "body": [
+  "modules": [],
+  "imports": [],
+  "functions": [
     {
-      "Procedure": {
-        "identifier": {
-          "data": "thing",
-          "start": {
-            "row": 1,
-            "column": 5
-          },
-          "end": {
-            "row": 1,
-            "column": 10
-          }
+      "identifier": {
+        "data": 0,
+        "start": {
+          "row": 1,
+          "column": 5
         },
-        "param_list": {
-          "params": [],
-          "vardic": "a"
-        },
-        "body": [
-          {
-            "Expression": {
-              "FunctionCall": {
-                "function": {
-                  "Identifier": {
-                    "data": "e",
-                    "start": {
-                      "row": 2,
-                      "column": 4
-                    },
-                    "end": {
-                      "row": 2,
-                      "column": 5
-                    }
+        "end": {
+          "row": 1,
+          "column": 10
+        }
+      },
+      "param_list": {
+        "params": [],
+        "vardic": {
+          "name": 1,
+          "captured": false
+        }
+      },
+      "body": [
+        {
+          "Expression": {
+            "FunctionCall": {
+              "function": {
+                "Identifier": {
+                  "data": 2,
+                  "start": {
+                    "row": 2,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 2,
+                    "column": 5
                   }
-                },
-                "args": [
-                  {
-                    "IndexAccess": {
-                      "item": {
-                        "Identifier": {
-                          "data": "a",
-                          "start": {
-                            "row": 2,
-                            "column": 6
-                          },
-                          "end": {
-                            "row": 2,
-                            "column": 7
-                          }
+                }
+              },
+              "args": [
+                {
+                  "IndexAccess": {
+                    "item": {
+                      "Identifier": {
+                        "data": 1,
+                        "start": {
+                          "row": 2,
+                          "column": 6
+                        },
+                        "end": {
+                          "row": 2,
+                          "column": 7
                         }
-                      },
-                      "index": {
-                        "Number": 0.0
-                      }
-                    }
-                  },
-                  {
-                    "IndexAccess": {
-                      "item": {
-                        "Identifier": {
-                          "data": "a",
-                          "start": {
-                            "row": 2,
-                            "column": 12
-                          },
-                          "end": {
-                            "row": 2,
-                            "column": 13
-                          }
-                        }
-                      },
-                      "index": {
-                        "Number": 1.0
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ],
-        "public": false
-      }
-    },
-    {
-      "Procedure": {
-        "identifier": {
-          "data": "m",
-          "start": {
-            "row": 5,
-            "column": 5
-          },
-          "end": {
-            "row": 5,
-            "column": 6
-          }
-        },
-        "param_list": {
-          "params": [
-            "e",
-            "m",
-            "c"
-          ],
-          "vardic": null
-        },
-        "body": [
-          {
-            "Expression": {
-              "FunctionCall": {
-                "function": {
-                  "Identifier": {
-                    "data": "jjj",
-                    "start": {
-                      "row": 6,
-                      "column": 4
-                    },
-                    "end": {
-                      "row": 6,
-                      "column": 7
-                    }
-                  }
-                },
-                "args": [
-                  {
-                    "Identifier": {
-                      "data": "e",
-                      "start": {
-                        "row": 6,
-                        "column": 8
-                      },
-                      "end": {
-                        "row": 6,
-                        "column": 9
-                      }
-                    }
-                  },
-                  {
-                    "Identifier": {
-                      "data": "c",
-                      "start": {
-                        "row": 6,
-                        "column": 11
-                      },
-                      "end": {
-                        "row": 6,
-                        "column": 12
-                      }
-                    }
-                  },
-                  {
-                    "Identifier": {
-                      "data": "m",
-                      "start": {
-                        "row": 6,
-                        "column": 14
-                      },
-                      "end": {
-                        "row": 6,
-                        "column": 15
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ],
-        "public": false
-      }
-    },
-    {
-      "Procedure": {
-        "identifier": {
-          "data": "a",
-          "start": {
-            "row": 9,
-            "column": 5
-          },
-          "end": {
-            "row": 9,
-            "column": 6
-          }
-        },
-        "param_list": {
-          "params": [
-            "m"
-          ],
-          "vardic": null
-        },
-        "body": [],
-        "public": false
-      }
-    },
-    {
-      "Procedure": {
-        "identifier": {
-          "data": "e",
-          "start": {
-            "row": 13,
-            "column": 5
-          },
-          "end": {
-            "row": 13,
-            "column": 6
-          }
-        },
-        "param_list": {
-          "params": [],
-          "vardic": null
-        },
-        "body": [],
-        "public": false
-      }
-    },
-    {
-      "Procedure": {
-        "identifier": {
-          "data": "d",
-          "start": {
-            "row": 14,
-            "column": 5
-          },
-          "end": {
-            "row": 14,
-            "column": 6
-          }
-        },
-        "param_list": {
-          "params": [],
-          "vardic": null
-        },
-        "body": [],
-        "public": false
-      }
-    },
-    {
-      "Procedure": {
-        "identifier": {
-          "data": "v",
-          "start": {
-            "row": 15,
-            "column": 5
-          },
-          "end": {
-            "row": 15,
-            "column": 6
-          }
-        },
-        "param_list": {
-          "params": [],
-          "vardic": null
-        },
-        "body": [],
-        "public": false
-      }
-    },
-    {
-      "Procedure": {
-        "identifier": {
-          "data": "jjj",
-          "start": {
-            "row": 17,
-            "column": 5
-          },
-          "end": {
-            "row": 17,
-            "column": 8
-          }
-        },
-        "param_list": {
-          "params": [
-            "m",
-            "e"
-          ],
-          "vardic": "w"
-        },
-        "body": [
-          {
-            "Expression": {
-              "FunctionCall": {
-                "function": {
-                  "Identifier": {
-                    "data": "thing",
-                    "start": {
-                      "row": 19,
-                      "column": 4
-                    },
-                    "end": {
-                      "row": 19,
-                      "column": 9
-                    }
-                  }
-                },
-                "args": [
-                  {
-                    "Identifier": {
-                      "data": "m",
-                      "start": {
-                        "row": 19,
-                        "column": 10
-                      },
-                      "end": {
-                        "row": 19,
-                        "column": 11
-                      }
-                    }
-                  },
-                  {
-                    "Identifier": {
-                      "data": "e",
-                      "start": {
-                        "row": 19,
-                        "column": 13
-                      },
-                      "end": {
-                        "row": 19,
-                        "column": 14
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          },
-          {
-            "For": {
-              "declaration": {
-                "declarations": [
-                  {
-                    "identifier": {
-                      "data": "i",
-                      "start": {
-                        "row": 20,
-                        "column": 13
-                      },
-                      "end": {
-                        "row": 20,
-                        "column": 14
                       }
                     },
-                    "value": {
+                    "index": {
                       "Number": 0.0
                     }
                   }
-                ],
-                "mutable": true
-              },
-              "condition": {
-                "Binary": {
-                  "op": "LessThan",
-                  "left": {
-                    "Identifier": {
-                      "data": "i",
-                      "start": {
-                        "row": 20,
-                        "column": 20
-                      },
-                      "end": {
-                        "row": 20,
-                        "column": 21
-                      }
-                    }
-                  },
-                  "right": {
-                    "FunctionCall": {
-                      "function": {
-                        "PropertyAccess": {
-                          "item": {
-                            "Identifier": {
-                              "data": "w",
-                              "start": {
-                                "row": 20,
-                                "column": 24
-                              },
-                              "end": {
-                                "row": 20,
-                                "column": 25
-                              }
-                            }
-                          },
-                          "property": "len"
-                        }
-                      },
-                      "args": []
-                    }
-                  }
-                }
-              },
-              "increment": {
-                "Assignment": {
-                  "op": "AssignPlus",
-                  "left": {
-                    "Identifier": {
-                      "data": "i",
-                      "start": {
-                        "row": 20,
-                        "column": 33
-                      },
-                      "end": {
-                        "row": 20,
-                        "column": 34
-                      }
-                    }
-                  },
-                  "right": {
-                    "Number": 1.0
-                  }
-                }
-              },
-              "body": [
+                },
                 {
-                  "Expression": {
-                    "FunctionCall": {
-                      "function": {
-                        "Identifier": {
-                          "data": "a",
-                          "start": {
-                            "row": 21,
-                            "column": 8
-                          },
-                          "end": {
-                            "row": 21,
-                            "column": 9
-                          }
+                  "IndexAccess": {
+                    "item": {
+                      "Identifier": {
+                        "data": 1,
+                        "start": {
+                          "row": 2,
+                          "column": 12
+                        },
+                        "end": {
+                          "row": 2,
+                          "column": 13
                         }
-                      },
-                      "args": [
-                        {
-                          "IndexAccess": {
-                            "item": {
-                              "Identifier": {
-                                "data": "w",
-                                "start": {
-                                  "row": 21,
-                                  "column": 10
-                                },
-                                "end": {
-                                  "row": 21,
-                                  "column": 11
-                                }
-                              }
-                            },
-                            "index": {
-                              "Identifier": {
-                                "data": "i",
-                                "start": {
-                                  "row": 21,
-                                  "column": 12
-                                },
-                                "end": {
-                                  "row": 21,
-                                  "column": 13
-                                }
-                              }
-                            }
-                          }
-                        }
-                      ]
+                      }
+                    },
+                    "index": {
+                      "Number": 1.0
                     }
                   }
                 }
               ]
             }
           }
+        }
+      ],
+      "public": false
+    },
+    {
+      "identifier": {
+        "data": 3,
+        "start": {
+          "row": 5,
+          "column": 5
+        },
+        "end": {
+          "row": 5,
+          "column": 6
+        }
+      },
+      "param_list": {
+        "params": [
+          {
+            "name": 2,
+            "captured": false
+          },
+          {
+            "name": 4,
+            "captured": false
+          },
+          {
+            "name": 3,
+            "captured": false
+          }
         ],
-        "public": false
-      }
+        "vardic": null
+      },
+      "body": [
+        {
+          "Expression": {
+            "FunctionCall": {
+              "function": {
+                "Identifier": {
+                  "data": 5,
+                  "start": {
+                    "row": 6,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 6,
+                    "column": 7
+                  }
+                }
+              },
+              "args": [
+                {
+                  "Identifier": {
+                    "data": 2,
+                    "start": {
+                      "row": 6,
+                      "column": 8
+                    },
+                    "end": {
+                      "row": 6,
+                      "column": 9
+                    }
+                  }
+                },
+                {
+                  "Identifier": {
+                    "data": 4,
+                    "start": {
+                      "row": 6,
+                      "column": 11
+                    },
+                    "end": {
+                      "row": 6,
+                      "column": 12
+                    }
+                  }
+                },
+                {
+                  "Identifier": {
+                    "data": 3,
+                    "start": {
+                      "row": 6,
+                      "column": 14
+                    },
+                    "end": {
+                      "row": 6,
+                      "column": 15
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "public": false
+    },
+    {
+      "identifier": {
+        "data": 1,
+        "start": {
+          "row": 9,
+          "column": 5
+        },
+        "end": {
+          "row": 9,
+          "column": 6
+        }
+      },
+      "param_list": {
+        "params": [
+          {
+            "name": 3,
+            "captured": false
+          }
+        ],
+        "vardic": null
+      },
+      "body": [],
+      "public": false
+    },
+    {
+      "identifier": {
+        "data": 2,
+        "start": {
+          "row": 13,
+          "column": 5
+        },
+        "end": {
+          "row": 13,
+          "column": 6
+        }
+      },
+      "param_list": {
+        "params": [],
+        "vardic": null
+      },
+      "body": [],
+      "public": false
+    },
+    {
+      "identifier": {
+        "data": 6,
+        "start": {
+          "row": 14,
+          "column": 5
+        },
+        "end": {
+          "row": 14,
+          "column": 6
+        }
+      },
+      "param_list": {
+        "params": [],
+        "vardic": null
+      },
+      "body": [],
+      "public": false
+    },
+    {
+      "identifier": {
+        "data": 7,
+        "start": {
+          "row": 15,
+          "column": 5
+        },
+        "end": {
+          "row": 15,
+          "column": 6
+        }
+      },
+      "param_list": {
+        "params": [],
+        "vardic": null
+      },
+      "body": [],
+      "public": false
+    },
+    {
+      "identifier": {
+        "data": 5,
+        "start": {
+          "row": 17,
+          "column": 5
+        },
+        "end": {
+          "row": 17,
+          "column": 8
+        }
+      },
+      "param_list": {
+        "params": [
+          {
+            "name": 3,
+            "captured": false
+          },
+          {
+            "name": 2,
+            "captured": false
+          }
+        ],
+        "vardic": {
+          "name": 8,
+          "captured": false
+        }
+      },
+      "body": [
+        {
+          "Expression": {
+            "FunctionCall": {
+              "function": {
+                "Identifier": {
+                  "data": 0,
+                  "start": {
+                    "row": 19,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 19,
+                    "column": 9
+                  }
+                }
+              },
+              "args": [
+                {
+                  "Identifier": {
+                    "data": 3,
+                    "start": {
+                      "row": 19,
+                      "column": 10
+                    },
+                    "end": {
+                      "row": 19,
+                      "column": 11
+                    }
+                  }
+                },
+                {
+                  "Identifier": {
+                    "data": 2,
+                    "start": {
+                      "row": 19,
+                      "column": 13
+                    },
+                    "end": {
+                      "row": 19,
+                      "column": 14
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "For": {
+            "declaration": {
+              "declarations": [
+                {
+                  "identifier": {
+                    "data": 9,
+                    "start": {
+                      "row": 20,
+                      "column": 13
+                    },
+                    "end": {
+                      "row": 20,
+                      "column": 14
+                    }
+                  },
+                  "value": {
+                    "Number": 0.0
+                  },
+                  "captured": false
+                }
+              ],
+              "mutable": true
+            },
+            "condition": {
+              "Binary": {
+                "op": "LessThan",
+                "left": {
+                  "Identifier": {
+                    "data": 9,
+                    "start": {
+                      "row": 20,
+                      "column": 20
+                    },
+                    "end": {
+                      "row": 20,
+                      "column": 21
+                    }
+                  }
+                },
+                "right": {
+                  "FunctionCall": {
+                    "function": {
+                      "PropertyAccess": {
+                        "item": {
+                          "Identifier": {
+                            "data": 8,
+                            "start": {
+                              "row": 20,
+                              "column": 24
+                            },
+                            "end": {
+                              "row": 20,
+                              "column": 25
+                            }
+                          }
+                        },
+                        "property": 10
+                      }
+                    },
+                    "args": []
+                  }
+                }
+              }
+            },
+            "increment": {
+              "Assignment": {
+                "op": "AssignPlus",
+                "left": {
+                  "Identifier": {
+                    "data": 9,
+                    "start": {
+                      "row": 20,
+                      "column": 33
+                    },
+                    "end": {
+                      "row": 20,
+                      "column": 34
+                    }
+                  }
+                },
+                "right": {
+                  "Number": 1.0
+                }
+              }
+            },
+            "body": [
+              {
+                "Expression": {
+                  "FunctionCall": {
+                    "function": {
+                      "Identifier": {
+                        "data": 1,
+                        "start": {
+                          "row": 21,
+                          "column": 8
+                        },
+                        "end": {
+                          "row": 21,
+                          "column": 9
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "IndexAccess": {
+                          "item": {
+                            "Identifier": {
+                              "data": 8,
+                              "start": {
+                                "row": 21,
+                                "column": 10
+                              },
+                              "end": {
+                                "row": 21,
+                                "column": 11
+                              }
+                            }
+                          },
+                          "index": {
+                            "Identifier": {
+                              "data": 9,
+                              "start": {
+                                "row": 21,
+                                "column": 12
+                              },
+                              "end": {
+                                "row": 21,
+                                "column": 13
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "public": false
     }
-  ]
+  ],
+  "lambdas": [],
+  "getters": [],
+  "setters": [],
+  "strings": [
+    "thing",
+    "a",
+    "e",
+    "m",
+    "c",
+    "jjj",
+    "d",
+    "v",
+    "w",
+    "i",
+    "len"
+  ],
+  "body": []
 }

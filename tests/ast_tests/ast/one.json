@@ -1,12 +1,93 @@
 {
-  "modules": {},
+  "modules": [],
+  "imports": [],
+  "functions": [
+    {
+      "identifier": {
+        "data": 8,
+        "start": {
+          "row": 23,
+          "column": 5
+        },
+        "end": {
+          "row": 23,
+          "column": 11
+        }
+      },
+      "param_list": {
+        "params": [],
+        "vardic": null
+      },
+      "body": [
+        {
+          "Expression": {
+            "FunctionCall": {
+              "function": {
+                "Identifier": {
+                  "data": 2,
+                  "start": {
+                    "row": 24,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 24,
+                    "column": 11
+                  }
+                }
+              },
+              "args": [
+                {
+                  "IndexAccess": {
+                    "item": {
+                      "Identifier": {
+                        "data": 9,
+                        "start": {
+                          "row": 24,
+                          "column": 12
+                        },
+                        "end": {
+                          "row": 24,
+                          "column": 16
+                        }
+                      }
+                    },
+                    "index": {
+                      "Number": 0.0
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "public": false
+    }
+  ],
+  "lambdas": [],
+  "getters": [],
+  "setters": [],
+  "strings": [
+    "m",
+    "E",
+    "println",
+    "pow",
+    "It worked!!",
+    "impossible",
+    "no",
+    "aaaaa",
+    "thingy",
+    "args",
+    "i",
+    "ABOVE"
+  ],
   "body": [
     {
       "Declaration": {
         "declarations": [
           {
             "identifier": {
-              "data": "m",
+              "data": 0,
               "start": {
                 "row": 1,
                 "column": 5
@@ -37,7 +118,7 @@
                     "op": "LogicalNegation",
                     "expr": {
                       "Identifier": {
-                        "data": "E",
+                        "data": 1,
                         "start": {
                           "row": 1,
                           "column": 29
@@ -51,7 +132,8 @@
                   }
                 }
               ]
-            }
+            },
+            "captured": false
           }
         ],
         "mutable": true
@@ -62,7 +144,7 @@
         "FunctionCall": {
           "function": {
             "Identifier": {
-              "data": "println",
+              "data": 2,
               "start": {
                 "row": 2,
                 "column": 0
@@ -96,7 +178,7 @@
                         "op": "LogicalNegation",
                         "expr": {
                           "Identifier": {
-                            "data": "m",
+                            "data": 0,
                             "start": {
                               "row": 2,
                               "column": 19
@@ -113,7 +195,7 @@
                       "FunctionCall": {
                         "function": {
                           "Identifier": {
-                            "data": "pow",
+                            "data": 3,
                             "start": {
                               "row": 2,
                               "column": 35
@@ -147,7 +229,7 @@
         "FunctionCall": {
           "function": {
             "Identifier": {
-              "data": "m",
+              "data": 0,
               "start": {
                 "row": 3,
                 "column": 0
@@ -192,7 +274,7 @@
             "IndexAccess": {
               "item": {
                 "Identifier": {
-                  "data": "m",
+                  "data": 0,
                   "start": {
                     "row": 5,
                     "column": 0
@@ -234,7 +316,7 @@
                 "FunctionCall": {
                   "function": {
                     "Identifier": {
-                      "data": "println",
+                      "data": 2,
                       "start": {
                         "row": 8,
                         "column": 4
@@ -247,7 +329,7 @@
                   },
                   "args": [
                     {
-                      "String": "It worked!!"
+                      "String": 4
                     }
                   ]
                 }
@@ -264,7 +346,7 @@
                   "IndexAccess": {
                     "item": {
                       "Identifier": {
-                        "data": "m",
+                        "data": 0,
                         "start": {
                           "row": 9,
                           "column": 10
@@ -291,7 +373,7 @@
                   "FunctionCall": {
                     "function": {
                       "Identifier": {
-                        "data": "println",
+                        "data": 2,
                         "start": {
                           "row": 10,
                           "column": 4
@@ -304,7 +386,7 @@
                     },
                     "args": [
                       {
-                        "String": "impossible"
+                        "String": 5
                       }
                     ]
                   }
@@ -319,7 +401,7 @@
               "FunctionCall": {
                 "function": {
                   "Identifier": {
-                    "data": "println",
+                    "data": 2,
                     "start": {
                       "row": 12,
                       "column": 4
@@ -332,7 +414,7 @@
                 },
                 "args": [
                   {
-                    "String": "no"
+                    "String": 6
                   }
                 ]
               }
@@ -346,7 +428,7 @@
         "declarations": [
           {
             "identifier": {
-              "data": "m",
+              "data": 0,
               "start": {
                 "row": 21,
                 "column": 5
@@ -357,74 +439,12 @@
               }
             },
             "value": {
-              "String": "aaaaa"
-            }
+              "String": 7
+            },
+            "captured": false
           }
         ],
         "mutable": true
-      }
-    },
-    {
-      "Procedure": {
-        "identifier": {
-          "data": "thingy",
-          "start": {
-            "row": 23,
-            "column": 5
-          },
-          "end": {
-            "row": 23,
-            "column": 11
-          }
-        },
-        "param_list": {
-          "params": [],
-          "vardic": null
-        },
-        "body": [
-          {
-            "Expression": {
-              "FunctionCall": {
-                "function": {
-                  "Identifier": {
-                    "data": "println",
-                    "start": {
-                      "row": 24,
-                      "column": 4
-                    },
-                    "end": {
-                      "row": 24,
-                      "column": 11
-                    }
-                  }
-                },
-                "args": [
-                  {
-                    "IndexAccess": {
-                      "item": {
-                        "Identifier": {
-                          "data": "args",
-                          "start": {
-                            "row": 24,
-                            "column": 12
-                          },
-                          "end": {
-                            "row": 24,
-                            "column": 16
-                          }
-                        }
-                      },
-                      "index": {
-                        "Number": 0.0
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ],
-        "public": false
       }
     },
     {
@@ -433,7 +453,7 @@
           "declarations": [
             {
               "identifier": {
-                "data": "i",
+                "data": 10,
                 "start": {
                   "row": 27,
                   "column": 9
@@ -445,7 +465,8 @@
               },
               "value": {
                 "Number": 0.0
-              }
+              },
+              "captured": false
             }
           ],
           "mutable": true
@@ -455,7 +476,7 @@
             "op": "LessThan",
             "left": {
               "Identifier": {
-                "data": "i",
+                "data": 10,
                 "start": {
                   "row": 27,
                   "column": 16
@@ -476,7 +497,7 @@
             "op": "AssignPlus",
             "left": {
               "Identifier": {
-                "data": "i",
+                "data": 10,
                 "start": {
                   "row": 27,
                   "column": 23
@@ -498,7 +519,7 @@
               "FunctionCall": {
                 "function": {
                   "Identifier": {
-                    "data": "println",
+                    "data": 2,
                     "start": {
                       "row": 28,
                       "column": 4
@@ -512,7 +533,7 @@
                 "args": [
                   {
                     "Identifier": {
-                      "data": "i",
+                      "data": 10,
                       "start": {
                         "row": 28,
                         "column": 12
@@ -535,7 +556,7 @@
                     "op": "GreaterThan",
                     "left": {
                       "Identifier": {
-                        "data": "i",
+                        "data": 10,
                         "start": {
                           "row": 29,
                           "column": 7
@@ -557,7 +578,7 @@
                       "FunctionCall": {
                         "function": {
                           "Identifier": {
-                            "data": "println",
+                            "data": 2,
                             "start": {
                               "row": 30,
                               "column": 8
@@ -570,7 +591,7 @@
                         },
                         "args": [
                           {
-                            "String": "ABOVE"
+                            "String": 11
                           }
                         ]
                       }

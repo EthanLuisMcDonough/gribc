@@ -1,12 +1,95 @@
 {
-  "modules": {},
+  "modules": [],
+  "imports": [],
+  "functions": [],
+  "lambdas": [
+    {
+      "param_list": {
+        "params": [],
+        "vardic": null
+      },
+      "body": {
+        "Block": [
+          {
+            "Declaration": {
+              "declarations": [
+                {
+                  "identifier": {
+                    "data": 2,
+                    "start": {
+                      "row": 4,
+                      "column": 13
+                    },
+                    "end": {
+                      "row": 4,
+                      "column": 14
+                    }
+                  },
+                  "value": {
+                    "Number": 3.0
+                  },
+                  "captured": false
+                }
+              ],
+              "mutable": true
+            }
+          },
+          {
+            "Return": {
+              "Binary": {
+                "op": "Mult",
+                "left": {
+                  "Identifier": {
+                    "data": 2,
+                    "start": {
+                      "row": 5,
+                      "column": 15
+                    },
+                    "end": {
+                      "row": 5,
+                      "column": 16
+                    }
+                  }
+                },
+                "right": {
+                  "Identifier": {
+                    "data": 2,
+                    "start": {
+                      "row": 5,
+                      "column": 19
+                    },
+                    "end": {
+                      "row": 5,
+                      "column": 20
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "captured": []
+    }
+  ],
+  "getters": [],
+  "setters": [],
+  "strings": [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+    "aaaaaa"
+  ],
   "body": [
     {
       "Declaration": {
         "declarations": [
           {
             "identifier": {
-              "data": "a",
+              "data": 0,
               "start": {
                 "row": 1,
                 "column": 3
@@ -18,11 +101,12 @@
             },
             "value": {
               "Number": 1.0
-            }
+            },
+            "captured": false
           },
           {
             "identifier": {
-              "data": "b",
+              "data": 1,
               "start": {
                 "row": 2,
                 "column": 4
@@ -42,11 +126,12 @@
                   "Bool": false
                 }
               }
-            }
+            },
+            "captured": false
           },
           {
             "identifier": {
-              "data": "c",
+              "data": 2,
               "start": {
                 "row": 3,
                 "column": 4
@@ -57,73 +142,9 @@
               }
             },
             "value": {
-              "Lambda": {
-                "param_list": {
-                  "params": [],
-                  "vardic": null
-                },
-                "body": {
-                  "Block": [
-                    {
-                      "Declaration": {
-                        "declarations": [
-                          {
-                            "identifier": {
-                              "data": "c",
-                              "start": {
-                                "row": 4,
-                                "column": 13
-                              },
-                              "end": {
-                                "row": 4,
-                                "column": 14
-                              }
-                            },
-                            "value": {
-                              "Number": 3.0
-                            }
-                          }
-                        ],
-                        "mutable": true
-                      }
-                    },
-                    {
-                      "Return": {
-                        "Binary": {
-                          "op": "Mult",
-                          "left": {
-                            "Identifier": {
-                              "data": "c",
-                              "start": {
-                                "row": 5,
-                                "column": 15
-                              },
-                              "end": {
-                                "row": 5,
-                                "column": 16
-                              }
-                            }
-                          },
-                          "right": {
-                            "Identifier": {
-                              "data": "c",
-                              "start": {
-                                "row": 5,
-                                "column": 19
-                              },
-                              "end": {
-                                "row": 5,
-                                "column": 20
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            }
+              "Lambda": 0
+            },
+            "captured": false
           }
         ],
         "mutable": false
@@ -134,7 +155,7 @@
         "declarations": [
           {
             "identifier": {
-              "data": "d",
+              "data": 3,
               "start": {
                 "row": 8,
                 "column": 5
@@ -146,7 +167,8 @@
             },
             "value": {
               "Number": 20.0
-            }
+            },
+            "captured": false
           }
         ],
         "mutable": true
@@ -157,7 +179,7 @@
         "declarations": [
           {
             "identifier": {
-              "data": "e",
+              "data": 4,
               "start": {
                 "row": 9,
                 "column": 5
@@ -174,11 +196,12 @@
                   "Number": 50.2323
                 }
               }
-            }
+            },
+            "captured": false
           },
           {
             "identifier": {
-              "data": "f",
+              "data": 5,
               "start": {
                 "row": 10,
                 "column": 4
@@ -189,8 +212,9 @@
               }
             },
             "value": {
-              "String": "aaaaaa"
-            }
+              "String": 6
+            },
+            "captured": false
           }
         ],
         "mutable": true
