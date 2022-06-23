@@ -145,7 +145,7 @@ impl Scope {
                         let hash = HashValue::custom_module(*ind, program, &runtime.gc);
                         self.declare_heap(runtime, name.data, HeapValue::Hash(hash));
                     }
-                    Module::Native { package, .. } => self.declare_stack(
+                    Module::Native(package) => self.declare_stack(
                         &mut runtime.stack,
                         name.data,
                         GribValue::ModuleObject(package.clone()),

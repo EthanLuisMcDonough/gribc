@@ -43,38 +43,89 @@ impl CaptureStack {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
-enum DefType {
-    Mutable,
-    Constant,
-    Function,
-    Import,
+#[derive(Clone, PartialEq, Debug)]
+enum ImportValue {
+    Module(usize),
+    Function { module: usize, index: usize },
+    NativeFn(NativeFunction),
+    NativeModule(NativePackage),
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
+enum DefType {
+    Mutable {
+        name: usize,
+        captured: bool,
+    },
+    Constant(usize),
+    Function {
+        module: Option<usize>,
+        index: usize,
+        name: usize,
+    },
+    Import(ImportValue),
+}
+
+#[derive(Clone, PartialEq, Debug)]
 struct DefData {
     kind: DefType,
     level: usize,
-    captured: bool,
 }
 
 impl DefData {
     fn is_mut(&self) -> bool {
-        self.kind == DefType::Mutable
+        if let DefType::Mutable { .. } = self.kind {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn is_captured(&self) -> bool {
+        if let DefType::Mutable { captured, .. } = self.kind {
+            captured
+        } else {
+            false
+        }
+    }
+
+    fn try_capture(&mut self) {
+        if let DefType::Mutable { captured, .. } = &mut self.kind {
+            *captured = true;
+        }
+    }
+
+    fn is_import(&self) -> bool {
+        if let DefType::Import { .. } = self.kind {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn try_name(&self) -> Option<usize> {
+        match self.kind {
+            DefType::Mutable { name, .. } => Some(name),
+            DefType::Constant(name) => Some(name),
+            DefType::Function { name, .. } => Some(name),
+            DefType::Import(_) => None,
+        }
     }
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Scope {
-    scope: HashMap<usize, DefData>,
+pub struct Scope<'a> {
+    scope: HashMap<&'a str, DefData>,
     pub level: usize,
+    strings: &'a Vec<String>,
 }
 
-impl Scope {
-    pub fn new() -> Self {
+impl<'a> Scope<'a> {
+    pub fn new(strings: &'a Vec<String>) -> Scope<'a> {
         Self {
             scope: HashMap::new(),
             level: 0,
+            strings,
         }
     }
 
@@ -82,6 +133,7 @@ impl Scope {
         let mut new_scope = Self {
             scope: self.scope.clone(),
             level: self.level + 1,
+            strings: self.strings,
         };
 
         fnc(&mut new_scope)?;
@@ -134,8 +186,8 @@ impl Scope {
         for param in params.all_params_mut() {
             if self
                 .scope
-                .remove(&param.name)
-                .filter(|d| d.captured)
+                .remove(&*self.strings[param.name])
+                .filter(|d| d.is_captured())
                 .is_some()
             {
                 param.captured = true;
@@ -160,7 +212,12 @@ impl Scope {
             {
                 for decl in declarations.iter_mut() {
                     let name = decl.identifier.data;
-                    if self.scope.remove(&name).filter(|d| d.captured).is_some() {
+                    if self
+                        .scope
+                        .remove(&*self.strings[name])
+                        .filter(|d| d.is_captured())
+                        .is_some()
+                    {
                         decl.captured = true;
                     }
                 }
@@ -176,7 +233,7 @@ impl Scope {
 
     fn migrate(self, parent: &mut Self) {
         for (name, data) in self.scope {
-            if data.captured {
+            if data.is_captured() {
                 parent.try_capture(name);
             }
         }
@@ -185,29 +242,69 @@ impl Scope {
     fn insert(&mut self, name: usize, kind: DefType) -> bool {
         self.scope
             .insert(
-                name,
+                &self.strings[name],
                 DefData {
                     level: self.level,
                     kind,
-                    captured: false,
                 },
             )
-            .filter(|d| d.level == self.level && d.kind != DefType::Import)
+            .filter(|d| d.level == self.level && !d.is_import())
             .is_none()
     }
 
     pub fn insert_mut(&mut self, name: usize) -> bool {
-        self.insert(name, DefType::Mutable)
+        self.insert(
+            name,
+            DefType::Mutable {
+                name,
+                captured: false,
+            },
+        )
     }
+
     pub fn insert_const(&mut self, name: usize) -> bool {
-        self.insert(name, DefType::Constant)
+        self.insert(name, DefType::Constant(name))
     }
-    pub fn insert_fn(&mut self, name: usize) -> bool {
-        self.level == 0 && self.insert(name, DefType::Function)
+
+    pub fn insert_fn(&mut self, name: usize, index: usize, module: Option<usize>) -> bool {
+        self.level == 0
+            && self.insert(
+                name,
+                DefType::Function {
+                    index,
+                    module,
+                    name,
+                },
+            )
     }
-    pub fn insert_import(&mut self, name: usize) -> bool {
-        self.insert(name, DefType::Import)
+
+    pub fn insert_import(&mut self, name: usize, module: usize) -> bool {
+        self.insert(name, DefType::Import(ImportValue::Module(module)))
     }
+
+    pub fn import_function(&mut self, name: usize, module: usize, index: usize) -> bool {
+        self.insert(
+            name,
+            DefType::Import(ImportValue::Function { module, index }),
+        )
+    }
+
+    pub fn native_function(&mut self, fnc: NativeFunction) {
+        if self.level == 0 {
+            self.scope.insert(
+                fnc.fn_name(),
+                DefData {
+                    level: self.level,
+                    kind: DefType::Import(ImportValue::NativeFn(fnc)),
+                },
+            );
+        }
+    }
+
+    pub fn native_module(&mut self, name: usize, pkg: NativePackage) -> bool {
+        self.insert(name, DefType::Import(ImportValue::NativeModule(pkg)))
+    }
+
     pub fn insert_var(&mut self, name: usize, is_mut: bool) -> bool {
         if is_mut {
             self.insert_mut(name)
@@ -217,45 +314,56 @@ impl Scope {
     }
 
     pub fn is_captured(&self, name: usize) -> bool {
-        self.scope.get(&name).filter(|d| d.captured).is_some()
+        self.scope
+            .get(&*self.strings[name])
+            .filter(|d| d.is_captured())
+            .is_some()
     }
-    fn try_capture(&mut self, name: usize) {
-        if let Some(data) = self.scope.get_mut(&name) {
-            data.captured = true;
+
+    fn try_capture(&mut self, name: &'a str) {
+        if let Some(data) = self.scope.get_mut(name) {
+            data.try_capture();
         }
     }
+
     pub fn prop_check(&mut self, name: usize) -> bool {
-        if let Some(data) = self.scope.get_mut(&name) {
-            if data.is_mut() {
-                data.captured = true;
-            }
+        if let Some(data) = self.scope.get_mut(&*self.strings[name]) {
+            data.try_capture();
             return true;
         }
         false
     }
+
     pub fn prop_check_mut(&mut self, name: usize) -> bool {
-        if let Some(data) = self.scope.get_mut(&name).filter(|d| d.is_mut()) {
-            data.captured = true;
+        if let Some(data) = self
+            .scope
+            .get_mut(&*self.strings[name])
+            .filter(|d| d.is_mut())
+        {
+            data.try_capture();
             return true;
         }
         false
     }
+
     pub fn has(&mut self, name: usize, s: &mut CaptureStack) -> bool {
-        if let Some(data) = self.scope.get_mut(&name) {
-            if s.check_ref(name, data.level) && data.is_mut() {
-                data.captured = true;
+        if let Some(data) = self.scope.get_mut(&*self.strings[name]) {
+            if s.check_ref(name, data.level) {
+                data.try_capture();
             }
             return true;
         }
         false
     }
+
     pub fn has_editable(&mut self, name: usize, s: &mut CaptureStack) -> bool {
-        if let Some(DefData {
-            level, captured, ..
-        }) = self.scope.get_mut(&name).filter(|d| d.is_mut())
+        if let Some(data) = self
+            .scope
+            .get_mut(&*self.strings[name])
+            .filter(|d| d.is_mut())
         {
-            if s.check_ref(name, *level) {
-                *captured = true;
+            if s.check_ref(name, data.level) {
+                data.try_capture();
             }
             return true;
         }

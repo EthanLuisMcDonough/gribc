@@ -25,7 +25,7 @@ pub struct Declaration {
 pub enum ImportKind {
     All,
     ModuleObject(Located<usize>),
-    List(HashMap<usize, (Location, Location)>),
+    List(Vec<Located<usize>>),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]

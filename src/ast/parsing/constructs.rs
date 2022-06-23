@@ -193,11 +193,15 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
         }),
         Token::Pipe => {
             let (inner, _) = zero_level(tokens, |t| *t == Token::Pipe)?;
-            let mut imports = HashMap::with_capacity(inner.len());
+            let mut imports = Vec::with_capacity(inner.len());
 
             for item in inner {
-                if let Token::Identifier(name) = &item.data {
-                    imports.insert(store.ins_str(name), (start.clone(), end.clone()));
+                let Located { start, end, data } = item;
+                if let Token::Identifier(s) = data {
+                    let data = store.ins_str(s);
+                    imports.push(Located {
+                        data, start, end
+                    });
                 } else {
                     return Err(ParseError::UnexpectedToken(item));
                 }
@@ -214,13 +218,7 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
     let module = next_guard!({ tokens.next() } (start, end) {
         Token::String(s) => match NativePackage::from_str(&s) {
             Some(package) => {
-                let mut indices = HashSet::new();
-
-                for name in package.raw_names() {
-                    indices.insert(store.ins_str(*name));
-                }
-
-                Module::Native { package, indices }
+                Module::Native(package)
             },
             None => {
                 let new_buf = path.join(&s);

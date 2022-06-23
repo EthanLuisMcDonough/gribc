@@ -6,10 +6,7 @@ use std::path::PathBuf;
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Module {
     Custom(usize),
-    Native {
-        package: NativePackage,
-        indices: HashSet<usize>,
-    },
+    Native(NativePackage),
 }
 
 impl Module {
@@ -28,12 +25,12 @@ impl Module {
         }
     }
 
-    pub fn names(&self, program: &Program) -> HashSet<usize> {
+    /*pub fn names(&self, program: &Program) -> HashSet<usize> {
         match self {
             Module::Custom(ind) => program.modules[*ind].get_functions(),
             Module::Native { indices, .. } => indices.clone(),
         }
-    }
+    }*/
 
     pub fn callables(&self, program: &Program) -> Vec<(Callable, usize)> {
         match self {
@@ -52,17 +49,13 @@ impl Module {
                     )
                 })
                 .collect(),
-            Module::Native { package, indices } => indices
-                .iter()
-                .flat_map(|ind| {
-                    program
-                        .strings
-                        .get(*ind)
-                        .and_then(|s| package.fn_from_str(s))
-                        .map(Callable::Native)
-                        .map(|c| (c, *ind))
-                })
-                .collect(),
+            Module::Native(package) => unimplemented!(), //package.functions().map
+                                                         /*program
+                                                         .strings
+                                                         .get(*ind)
+                                                         .and_then(|s| package.fn_from_str(s))
+                                                         .map(Callable::Native)
+                                                         .map(|c| (c, *ind))*/
         }
     }
 }

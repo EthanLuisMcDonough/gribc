@@ -67,6 +67,16 @@ macro_rules! native_obj {
                 }
             }
 
+            pub fn raw_functions(&self) -> Vec<$name> {
+                match self {
+                    $(
+                        Self::$enum => $enum::FUNCTIONS.iter()
+                            .map(|f| $name::$enum(f.clone()))
+                            .collect(),
+                    )*
+                }
+            }
+
             pub fn fn_from_str(&self, s: &str) -> Option<$name> {
                 match self {
                     $(
@@ -121,6 +131,7 @@ macro_rules! native_package {
 
         impl $name {
             const MEMBERS: &'static [&'static str] = &[$( $str ),*];
+            const FUNCTIONS: &'static [$name] = &[$( Self::$fn_name ),*];
 
             pub fn fn_name(&self) -> &'static str {
                 use self::$name::*;
