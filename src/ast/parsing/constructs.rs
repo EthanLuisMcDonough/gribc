@@ -7,7 +7,7 @@ use lex::{lex, tokens::*};
 use location::Located;
 use operators::{Assignment, Binary};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
 };
@@ -174,10 +174,12 @@ pub fn parse_module(path: &Located<PathBuf>, store: &mut Store) -> ParseResult<C
         };
     }
 
+    let fnc_len = functions.len();
     Ok(CustomModule {
         functions,
         imports,
         path: dir,
+        lookup: HashMap::with_capacity(fnc_len),
     })
 }
 
@@ -196,8 +198,7 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
             let mut imports = Vec::with_capacity(inner.len());
 
             for item in inner {
-                let Located { start, end, data } = item;
-                if let Token::Identifier(s) = data {
+                if let Located { start, end, data: Token::Identifier(s) } = item {
                     let data = store.ins_str(s);
                     imports.push(Located {
                         data, start, end

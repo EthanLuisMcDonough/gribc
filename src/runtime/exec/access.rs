@@ -1,15 +1,14 @@
 /// Structures related to getting and setting index and property values
 use super::evaluate_expression;
-use ast::node::{Assignable, Program};
+use ast::node::{Assignable, Module, Program};
 use runtime::{
     memory::{Gc, Runtime, Scope},
-    native_fn::NativePackage,
-    values::{eval_setter, Callable, GribKey, GribString, GribValue, KnownIndex},
+    values::{eval_setter, GribKey, GribString, GribValue, KnownIndex},
 };
 
 pub enum LiveProperty {
     Hash { key: GribKey, ptr: usize },
-    Module { key: usize, module: NativePackage },
+    Module { key: usize, module: Module },
 }
 
 impl LiveProperty {
@@ -35,8 +34,7 @@ impl LiveProperty {
                 .and_then(|hash| hash.get_property(&key).cloned())
                 .map(|prop| prop.get(runtime, program, *ptr)),
             Self::Module { key, module } => module
-                .fn_from_str(&program.strings[*key])
-                .map(Callable::Native)
+                .get_callable(&program.strings[*key], program)
                 .map(GribValue::Callable),
         }
         .unwrap_or_default()
@@ -56,22 +54,10 @@ impl LiveProperty {
 }
 
 pub enum LiveIndex {
-    Hash {
-        ptr: usize,
-        index: GribKey,
-    },
-    Array {
-        ptr: usize,
-        index: usize,
-    },
-    String {
-        string: GribString,
-        index: usize,
-    },
-    Module {
-        module: NativePackage,
-        index: GribString,
-    },
+    Hash { ptr: usize, index: GribKey },
+    Array { ptr: usize, index: usize },
+    String { string: GribString, index: usize },
+    Module { module: Module, index: GribString },
 }
 
 impl LiveIndex {
@@ -125,8 +111,7 @@ impl LiveIndex {
                 .map(GribValue::String),
             Self::Module { module, index } => index
                 .as_ref(program, &runtime.gc)
-                .and_then(|r| module.fn_from_str(r.borrow().as_ref()))
-                .map(Callable::Native)
+                .and_then(|r| r.with_str(|str_val| module.get_callable(str_val, program)))
                 .map(GribValue::Callable),
         }
         .unwrap_or_default()

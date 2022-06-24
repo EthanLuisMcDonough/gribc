@@ -164,6 +164,16 @@ impl GribStringRef<'_> {
         }
     }
 
+    pub fn with_str<R, F: Fn(&str) -> R>(&self, fnc: F) -> R {
+        match self {
+            Self::Ref(r) => fnc(r),
+            Self::Char(c) => {
+                let mut bytes = [0u8; 4];
+                fnc(c.encode_utf8(&mut bytes))
+            }
+        }
+    }
+
     pub fn borrow(&'_ self) -> Cow<'_, str> {
         match self {
             Self::Ref(r) => (*r).into(),

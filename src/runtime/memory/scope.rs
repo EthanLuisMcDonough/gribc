@@ -1,7 +1,6 @@
 use ast::node::Parameters;
-use ast::node::{Import, Procedure, Program};
 use runtime::memory::{slot::*, Gc, Runtime, Stack};
-use runtime::values::{Callable, GribValue, HashValue, HeapValue};
+use runtime::values::{GribValue, HeapValue};
 use std::collections::HashMap;
 
 const STACK_OVERFLOW_MSG: &str = "Grib stack overflow";
@@ -115,58 +114,6 @@ impl Scope {
             } else {
                 self.declare_heap(runtime, name, args);
             }
-        }
-    }
-
-    pub fn scope_imports(
-        &mut self,
-        runtime: &mut Runtime,
-        program: &Program,
-        imports: &Vec<Import>,
-    ) {
-        use ast::node::{ImportKind, Module};
-
-        for import in imports {
-            let imports = import.module.callables(program).into_iter();
-
-            match &import.kind {
-                ImportKind::All => {
-                    for (callable, name) in imports {
-                        self.declare_stack(&mut runtime.stack, name, callable);
-                    }
-                }
-                ImportKind::List(hash) => {
-                    for (callable, name) in imports.filter(|(_, key)| hash.contains_key(key)) {
-                        self.declare_stack(&mut runtime.stack, name, callable);
-                    }
-                }
-                ImportKind::ModuleObject(name) => match &import.module {
-                    Module::Custom(ind) => {
-                        let hash = HashValue::custom_module(*ind, program, &runtime.gc);
-                        self.declare_heap(runtime, name.data, HeapValue::Hash(hash));
-                    }
-                    Module::Native(package) => self.declare_stack(
-                        &mut runtime.stack,
-                        name.data,
-                        GribValue::ModuleObject(package.clone()),
-                    ),
-                },
-            }
-        }
-    }
-
-    pub fn scope_functions(
-        &mut self,
-        runtime: &mut Runtime,
-        functions: &Vec<Procedure>,
-        module: Option<usize>,
-    ) {
-        for (index, fnc) in functions.iter().enumerate() {
-            self.declare_stack(
-                &mut runtime.stack,
-                fnc.identifier.data,
-                Callable::Procedure { module, index },
-            );
         }
     }
 }

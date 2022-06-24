@@ -22,13 +22,13 @@ macro_rules! err_guard {
                 println!("{:?}", e);
                 panic!("{:?}", e);
             }
-        };
+        }
     };
     ($next:expr, $e:ident => $b:expr) => {
         match $next {
             Ok(v) => v,
             Err($e) => $b,
-        };
+        }
     };
 }
 

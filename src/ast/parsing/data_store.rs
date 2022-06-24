@@ -141,6 +141,13 @@ impl From<Store> for Program {
             p.strings[index] = string;
         }
 
+        for module in &mut p.modules {
+            for (ind, function) in module.functions.iter().enumerate() {
+                let key = p.strings[function.identifier.data].clone().into();
+                module.lookup.insert(key, ind);
+            }
+        }
+
         p
     }
 }

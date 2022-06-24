@@ -13,7 +13,7 @@ pub use self::hash::*;
 pub use self::heap::*;
 pub use self::string::*;
 
-pub fn float_to_ind(f: f64) -> Option<usize> {
+/*pub fn float_to_ind(f: f64) -> Option<usize> {
     Some(f.trunc())
         .filter(|&i| i.is_finite() && i >= 0. && i <= (usize::MAX as f64))
         .map(|i| i as usize)
@@ -60,7 +60,7 @@ fn values_to_string(
     joined.push('}');
 
     joined
-}
+}*/
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum GribValue {
@@ -68,7 +68,7 @@ pub enum GribValue {
     Number(f64),
     String(GribString),
     Callable(Callable),
-    ModuleObject(NativePackage),
+    ModuleObject(Module),
     HeapValue(usize),
     Bool(bool),
     Error(Box<GribValue>),

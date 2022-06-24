@@ -1,5 +1,5 @@
 use ast::node::Program;
-use runtime::memory::{Gc, Runtime};
+use runtime::memory::Runtime;
 use runtime::values::{Callable, GribKey, GribString, GribValue, HeapValue, KnownIndex};
 use std::borrow::Borrow;
 use std::collections::HashSet;

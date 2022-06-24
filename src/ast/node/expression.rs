@@ -1,4 +1,4 @@
-use super::Hash;
+use super::{module::Module, Hash, NativeFunction};
 use location::Located;
 use operators::{Assignment, Binary, Unary};
 
@@ -13,6 +13,13 @@ pub enum Assignable {
         item: Box<Expression>,
         property: usize,
     },
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub enum ImportValue {
+    Function { module: Option<usize>, index: usize },
+    Module(Module),
+    NativeFunction(NativeFunction),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -59,6 +66,7 @@ pub enum Expression {
     Nil,
     This,
     /* TBA StackRef(usize), */
+    StaticImport(ImportValue),
 }
 impl Expression {
     pub fn is_statement(&self) -> bool {

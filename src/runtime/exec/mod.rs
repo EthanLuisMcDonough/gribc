@@ -11,19 +11,7 @@ use runtime::values::*;
 
 pub fn execute(program: &Program, config: RuntimeConfig) {
     let mut runtime = Runtime::new(config);
-    let mut scope = Scope::new();
-
-    scope.scope_imports(&mut runtime, program, &program.imports);
-    scope.scope_functions(&mut runtime, &program.functions, None);
-
-    runtime.base_scope = scope;
-
-    run_block(
-        &program.body,
-        runtime.base_scope.clone(),
-        &mut runtime,
-        program,
-    );
+    run_block(&program.body, Scope::new(), &mut runtime, program);
 }
 
 #[derive(Debug)]
@@ -353,5 +341,14 @@ pub fn evaluate_expression(
             stack: runtime.capture_stack(scope, &program.lambdas[*index].captured),
             index: *index,
         }),
+        StaticImport(import) => match import {
+            ImportValue::Function { module, index } => Callable::Procedure {
+                module: module.clone(),
+                index: *index,
+            }
+            .into(),
+            ImportValue::NativeFunction(native) => Callable::Native(native.clone()).into(),
+            ImportValue::Module(module) => GribValue::ModuleObject(module.clone()),
+        },
     }
 }

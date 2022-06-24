@@ -24,7 +24,6 @@ pub struct Runtime {
     free_pointers: Vec<usize>,
     allocations: usize,
     max_allocations: usize,
-    pub base_scope: Scope,
 }
 
 impl Runtime {
@@ -35,7 +34,6 @@ impl Runtime {
             free_pointers: Vec::new(),
             allocations: 0,
             max_allocations: config.cleanup_after,
-            base_scope: Scope::new(),
         }
     }
 

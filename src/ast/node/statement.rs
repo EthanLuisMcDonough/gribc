@@ -1,6 +1,5 @@
 use super::{Block, Expression, Module};
-use location::{Located, Location};
-use std::collections::HashMap;
+use location::Located;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct ConditionBodyPair {
