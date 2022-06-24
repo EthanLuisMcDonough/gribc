@@ -7,6 +7,12 @@ pub struct Location {
     column: usize,
 }
 
+impl Default for Location {
+    fn default() -> Self {
+        Self { row: 0, column: 0 }
+    }
+}
+
 impl Location {
     pub fn new() -> Self {
         Self { row: 1, column: 0 }

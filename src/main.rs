@@ -22,13 +22,13 @@ macro_rules! err_guard {
                 println!("{:?}", e);
                 panic!("{:?}", e);
             }
-        };
+        }
     };
     ($next:expr, $e:ident => $b:expr) => {
         match $next {
             Ok(v) => v,
             Err($e) => $b,
-        };
+        }
     };
 }
 
@@ -43,6 +43,8 @@ fn main() {
 
     let tokens = err_guard!(lex::lex(source.as_str()));
     let mut tree = err_guard!(ast::ast(tokens.into_iter(), &path));
+
+    //println!("{}", serde_json::to_string_pretty(&tree).unwrap());
 
     err_guard!(ast::ref_check(&mut tree));
 

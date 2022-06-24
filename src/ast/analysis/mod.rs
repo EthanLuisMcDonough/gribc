@@ -8,6 +8,7 @@ use std::mem;
 
 pub type WalkResult = Result<(), WalkError>;
 type Lambdas = Vec<Lambda>;
+type Strings<'a> = &'a Vec<String>;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Copy)]
 pub enum WalkErrorType {
@@ -28,35 +29,66 @@ pub struct Lams<'a> {
     setters: &'a mut Vec<SetProp>,
 }
 
-// Inserts import items into scope
-fn module_register<'a>(
-    import: &'a Import,
-    functions: &HashSet<usize>,
+fn walk_import(
+    import: &Import,
+    modules: &ModuleStore,
+    strings: Strings,
     scope: &mut Scope,
 ) -> WalkResult {
     match &import.kind {
         ImportKind::All => {
-            for key in functions {
-                scope.insert_import(*key);
-            }
+            match &import.module {
+                Module::Custom(mod_ind) => {
+                    for (fn_ind, proc) in modules[*mod_ind].pub_functions().enumerate() {
+                        scope.import_function(proc.identifier.data, *mod_ind, fn_ind);
+                    }
+                }
+                Module::Native(_pkg) => {
+                    panic!("Branch should be unreachable.  Native all imports are rewritten");
+                }
+            };
         }
         ImportKind::ModuleObject(Located { data, .. }) => {
-            scope.insert_import(*data);
+            scope.import_module(*data, import.module.clone());
         }
-        ImportKind::List(l) => {
-            for (key, (start, end)) in l {
-                if !functions.contains(key) {
+        ImportKind::List(list) => {
+            let mut inserted = HashSet::with_capacity(list.len());
+
+            for located in list {
+                let name = located.data;
+
+                if inserted.contains(&name) {
                     return Err(WalkError {
-                        identifier: Located {
-                            data: key.clone(),
-                            start: start.clone(),
-                            end: end.clone(),
-                        },
+                        identifier: located.clone(),
+                        kind: WalkErrorType::InvalidRedefinition,
+                    });
+                }
+                inserted.insert(name);
+
+                let contains = match &import.module {
+                    Module::Custom(ind) => modules[*ind].get_function(name).is_some(),
+                    Module::Native(pkg) => pkg.fn_from_str(&*strings[name]).is_some(),
+                };
+
+                if !contains {
+                    return Err(WalkError {
+                        identifier: located.clone(),
                         kind: WalkErrorType::IdentifierNotFound,
                     });
                 }
 
-                scope.insert_import(*key);
+                match &import.module {
+                    Module::Custom(mod_ind) => {
+                        if let Some(fnc_ind) = modules[*mod_ind].get_function(name) {
+                            scope.import_function(name, *mod_ind, fnc_ind);
+                        }
+                    }
+                    Module::Native(pkg) => {
+                        if let Some(fnc) = pkg.fn_from_str(&*strings[name]) {
+                            scope.native_function(name, fnc.clone());
+                        }
+                    }
+                }
             }
         }
     }
@@ -64,31 +96,22 @@ fn module_register<'a>(
     Ok(())
 }
 
-fn walk_import<'a>(import: &'a Import, modules: &'a ModuleStore, scope: &mut Scope) -> WalkResult {
-    let module = &import.module;
-
-    let functions = match module {
-        Module::Native { indices, .. } => indices.iter().map(|e| *e).collect(),
-        Module::Custom(p) => modules[*p].get_functions(),
-    };
-
-    module_register(import, &functions, scope)
-}
-
 fn walk_module(
     module: &mut CustomModule,
+    module_ind: usize,
     modules: &ModuleStore,
     lams: &mut Lams,
     cap: &mut CaptureStack,
+    strings: Strings,
 ) -> WalkResult {
     let mut scope = Scope::new();
 
     for import in &module.imports {
-        walk_import(import, modules, &mut scope)?;
+        walk_import(import, modules, strings, &mut scope)?;
     }
 
-    for Procedure { identifier, .. } in &module.functions {
-        if !scope.insert_fn(identifier.data) {
+    for (ind, Procedure { identifier, .. }) in module.functions.iter().enumerate() {
+        if !scope.insert_fn(identifier.data, ind, Some(module_ind)) {
             return Err(WalkError {
                 identifier: identifier.clone(),
                 kind: WalkErrorType::InvalidRedefinition,
@@ -103,14 +126,14 @@ fn walk_module(
     Ok(())
 }
 
-fn walk_decl<'a>(
-    decl: &'a Declaration,
+fn walk_decl(
+    decl: &mut Declaration,
     scope: &mut Scope,
     lams: &mut Lams,
     cap: &mut CaptureStack,
 ) -> Result<(), WalkError> {
-    for d in &decl.declarations {
-        walk_expression(&d.value, scope, lams, cap)?;
+    for d in decl.declarations.iter_mut() {
+        walk_expression(&mut d.value, scope, lams, cap)?;
         if !scope.insert_var(d.identifier.data, decl.mutable) {
             return Err(WalkError {
                 identifier: d.identifier.clone(),
@@ -121,7 +144,7 @@ fn walk_decl<'a>(
     Ok(())
 }
 
-fn walk_ast<'a>(
+fn walk_ast(
     nodes: &mut Block,
     scope: &mut Scope,
     lams: &mut Lams,
@@ -139,7 +162,7 @@ fn walk_ast<'a>(
                 walk_expression(condition, scope, lams, cap)?;
                 scope.sub_block(|sub, block| walk_ast(block, sub, lams, cap), block)?;
             }
-            Node::Declaration(declaration) => walk_decl(&declaration, scope, lams, cap)?,
+            Node::Declaration(declaration) => walk_decl(declaration, scope, lams, cap)?,
             Node::LogicChain {
                 if_block,
                 elseifs,
@@ -184,7 +207,7 @@ fn walk_ast<'a>(
     Ok(())
 }
 
-fn walk_lambda_block<'a>(
+fn walk_lambda_block(
     block: &mut LambdaBody,
     scope: &mut Scope,
     lams: &mut Lams,
@@ -200,7 +223,7 @@ fn walk_lambda_block<'a>(
     }
 }
 
-fn walk_procedure<'a>(
+fn walk_procedure(
     procedure: &mut Procedure,
     scope: &mut Scope,
     lams: &mut Lams,
@@ -213,8 +236,8 @@ fn walk_procedure<'a>(
     )
 }
 
-fn walk_expression<'a>(
-    expression: &Expression,
+fn walk_expression(
+    expression: &mut Expression,
     scope: &mut Scope,
     lams: &mut Lams,
     cap: &mut CaptureStack,
@@ -265,7 +288,7 @@ fn walk_expression<'a>(
             walk_expression(right, scope, lams, cap)?;
         }
         Expression::Hash(hash) | Expression::MutableHash(hash) => {
-            for (_, value) in hash.iter() {
+            for (_, value) in hash.iter_mut() {
                 match value {
                     ObjectValue::Expression(expr) => walk_expression(expr, scope, lams, cap)?,
                     ObjectValue::AutoProp(auto) => {
@@ -336,11 +359,17 @@ fn walk_expression<'a>(
             lambda.captured = cap.pop();
             lams.lambdas[*ind] = lambda;
         }
-        Expression::Identifier(identifier) if !scope.has(identifier.data, cap) => {
-            return Err(WalkError {
-                identifier: identifier.clone(),
-                kind: WalkErrorType::IdentifierNotFound,
-            });
+        Expression::Identifier(identifier) => {
+            if !scope.has(identifier.data, cap) {
+                return Err(WalkError {
+                    identifier: identifier.clone(),
+                    kind: WalkErrorType::IdentifierNotFound,
+                });
+            } else {
+                if let Some(val) = scope.try_static(identifier.data) {
+                    *expression = Expression::StaticImport(val);
+                }
+            }
         }
         _ => {}
     }
@@ -362,16 +391,23 @@ pub fn ref_check(program: &mut Program) -> Result<(), WalkError> {
 
     for mod_ind in 0..modules.len() {
         let mut module = std::mem::take(&mut modules[mod_ind]);
-        walk_module(&mut module, modules, &mut lambdas, &mut stack)?;
+        walk_module(
+            &mut module,
+            mod_ind,
+            modules,
+            &mut lambdas,
+            &mut stack,
+            &program.strings,
+        )?;
         modules[mod_ind] = module;
     }
 
     for import in &program.imports {
-        walk_import(import, &program.modules, &mut scope)?;
+        walk_import(import, &program.modules, &program.strings, &mut scope)?;
     }
 
-    for Procedure { identifier, .. } in &program.functions {
-        if !scope.insert_fn(identifier.data) {
+    for (ind, Procedure { identifier, .. }) in program.functions.iter().enumerate() {
+        if !scope.insert_fn(identifier.data, ind, None) {
             return Err(WalkError {
                 identifier: identifier.clone(),
                 kind: WalkErrorType::InvalidRedefinition,

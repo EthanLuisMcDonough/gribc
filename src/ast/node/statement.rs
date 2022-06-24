@@ -1,6 +1,5 @@
 use super::{Block, Expression, Module};
-use location::{Located, Location};
-use std::collections::HashMap;
+use location::Located;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct ConditionBodyPair {
@@ -25,7 +24,7 @@ pub struct Declaration {
 pub enum ImportKind {
     All,
     ModuleObject(Located<usize>),
-    List(HashMap<usize, (Location, Location)>),
+    List(Vec<Located<usize>>),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]

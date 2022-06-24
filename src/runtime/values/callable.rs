@@ -5,13 +5,6 @@ use runtime::{
     memory::{Runtime, Scope},
 };
 
-#[derive(Clone)]
-pub struct LambdaRef {
-    pub binding: usize,
-    index: usize,
-    pub stack: usize,
-}
-
 #[derive(Clone, PartialEq, Debug)]
 pub enum Callable {
     Native(NativeFunction),
@@ -42,16 +35,7 @@ impl Callable {
                     &program.functions[*index]
                 };
 
-                let mut scope = module
-                    .as_ref()
-                    .map(|&ind| {
-                        let module = &program.modules[ind];
-                        let mut sc = Scope::new();
-                        sc.scope_imports(runtime, program, &module.imports);
-                        sc.scope_functions(runtime, &module.functions, Some(ind));
-                        sc
-                    })
-                    .unwrap_or(runtime.base_scope.clone());
+                let mut scope = Scope::new();
                 scope.add_params(&fnc.param_list, runtime, args);
 
                 run_block(&fnc.body, scope, runtime, program)

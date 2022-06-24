@@ -1,25 +1,16 @@
 use super::{Import, NativePackage, Procedure, Program};
 use runtime::values::Callable;
-use std::collections::HashSet;
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Module {
     Custom(usize),
-    Native {
-        package: NativePackage,
-        indices: HashSet<usize>,
-    },
+    Native(NativePackage),
 }
 
 impl Module {
-    fn custom_index(&self) -> Option<usize> {
-        match self {
-            Self::Custom(ind) => Some(*ind),
-            _ => None,
-        }
-    }
-
     pub fn is_native(&self) -> bool {
         if let Self::Native { .. } = self {
             true
@@ -28,41 +19,18 @@ impl Module {
         }
     }
 
-    pub fn names(&self, program: &Program) -> HashSet<usize> {
+    pub fn get_callable(&self, string: &str, program: &Program) -> Option<Callable> {
         match self {
-            Module::Custom(ind) => program.modules[*ind].get_functions(),
-            Module::Native { indices, .. } => indices.clone(),
-        }
-    }
-
-    pub fn callables(&self, program: &Program) -> Vec<(Callable, usize)> {
-        match self {
-            Module::Custom(i) => program.modules[*i]
-                .functions
-                .iter()
-                .filter(|f| f.public)
-                .enumerate()
-                .map(|(index, fnc)| {
-                    (
-                        Callable::Procedure {
-                            index,
-                            module: Some(*i),
-                        },
-                        fnc.identifier.data,
-                    )
-                })
-                .collect(),
-            Module::Native { package, indices } => indices
-                .iter()
-                .flat_map(|ind| {
-                    program
-                        .strings
-                        .get(*ind)
-                        .and_then(|s| package.fn_from_str(s))
-                        .map(Callable::Native)
-                        .map(|c| (c, *ind))
-                })
-                .collect(),
+            Self::Native(native) => native.fn_from_str(&string).map(Callable::Native),
+            Self::Custom(mod_ind) => {
+                program.modules[*mod_ind]
+                    .lookup
+                    .get(string)
+                    .map(|&fn_ind| Callable::Procedure {
+                        module: Some(*mod_ind),
+                        index: fn_ind,
+                    })
+            }
         }
     }
 }
@@ -72,6 +40,7 @@ pub struct CustomModule {
     pub imports: Vec<Import>,
     pub functions: Vec<Procedure>,
     pub path: PathBuf,
+    pub lookup: HashMap<Cow<'static, str>, usize>,
 }
 
 impl Default for CustomModule {
@@ -80,23 +49,22 @@ impl Default for CustomModule {
             imports: Vec::new(),
             functions: Vec::new(),
             path: PathBuf::default(),
+            lookup: HashMap::new(),
         }
     }
 }
 
 impl CustomModule {
-    pub fn get_functions(&self) -> HashSet<usize> {
-        self.functions
-            .iter()
-            .filter(|f| f.public)
-            .map(|f| f.identifier.data)
-            .collect()
+    /// Iterator of module's public functions
+    pub fn pub_functions(&self) -> impl Iterator<Item = &Procedure> {
+        self.functions.iter().filter(|f| f.public)
     }
 
-    pub fn has_function(&self, name: usize) -> bool {
+    /// Returns the index of the public function with the given index-name
+    pub fn get_function(&self, name: usize) -> Option<usize> {
         self.functions
             .iter()
             .filter(|f| f.public)
-            .any(|f| f.identifier.data == name)
+            .position(|f| f.identifier.data == name)
     }
 }

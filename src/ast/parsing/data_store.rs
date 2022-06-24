@@ -1,4 +1,5 @@
 use ast::node::*;
+use location::*;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -97,17 +98,21 @@ impl Store {
 fn rewrite_imports(imports: &mut Vec<Import>, str_map: &StrMap) {
     for import in imports {
         if let Import {
-            module:
-                Module::Native {
-                    package,
-                    ref mut indices,
-                },
+            module: Module::Native(package),
             kind: ImportKind::All,
         } = import
         {
-            for index in package.raw_names().iter().filter_map(|n| str_map.get(*n)) {
-                indices.insert(*index);
-            }
+            let items = package
+                .raw_names()
+                .iter()
+                .filter_map(|n| str_map.get(*n))
+                .map(|&data| Located {
+                    data,
+                    start: Location::default(),
+                    end: Location::default(),
+                })
+                .collect();
+            import.kind = ImportKind::List(items);
         }
     }
 }
@@ -134,6 +139,13 @@ impl From<Store> for Program {
         p.strings = vec![String::new(); s.str_map.len()];
         for (string, index) in s.str_map {
             p.strings[index] = string;
+        }
+
+        for module in &mut p.modules {
+            for (ind, function) in module.functions.iter().enumerate() {
+                let key = p.strings[function.identifier.data].clone().into();
+                module.lookup.insert(key, ind);
+            }
         }
 
         p
