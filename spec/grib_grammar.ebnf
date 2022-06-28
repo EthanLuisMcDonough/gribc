@@ -36,7 +36,7 @@ getter_body = identifier | "{", ["|", "|"], lambda_body, "}";
 setter_body = identifier | "{", "|", identifier, "|", lambda_body, "}";
 autoprop_body = "{", (getter_body | setter_body | getter_body, ",", setter_body), [","], "}";
 
-hash_pair = (identifier | string), (":", expression | autoprop_body);
+hash_pair = (identifier | string), ("->", expression | autoprop_body);
 hash_body = "{", { hash_pair, "," }, [ hash_pair, [","] ] "}";
 
 im_hash = "#", hash_body;
