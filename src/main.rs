@@ -43,10 +43,10 @@ fn main() {
 
     let tokens = err_guard!(lex::lex(source.as_str()));
     let mut tree = err_guard!(ast::ast(tokens.into_iter(), &path));
+    println!("{:?}", tree.strings);
+    err_guard!(ast::ref_check(&mut tree));
 
     //println!("{}", serde_json::to_string_pretty(&tree).unwrap());
-
-    err_guard!(ast::ref_check(&mut tree));
 
     runtime::execute(
         &tree,

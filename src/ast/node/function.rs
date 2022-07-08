@@ -1,6 +1,5 @@
 use super::{Block, Expression};
 use location::Located;
-use std::collections::HashSet;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Param {
@@ -8,7 +7,7 @@ pub struct Param {
     pub captured: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Default)]
 pub struct Parameters {
     pub params: Vec<Param>,
     pub vardic: Option<Param>,
@@ -55,6 +54,12 @@ pub enum LambdaBody {
     Block(Block),
 }
 
+impl Default for LambdaBody {
+    fn default() -> Self {
+        Self::Block(Block::new())
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Procedure {
     pub identifier: Located<usize>,
@@ -63,11 +68,11 @@ pub struct Procedure {
     pub public: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Default)]
 pub struct Lambda {
     pub param_list: Parameters,
     pub body: LambdaBody,
-    pub captured: HashSet<usize>,
+    pub captured: Vec<usize>,
 }
 
 impl Lambda {
@@ -75,17 +80,7 @@ impl Lambda {
         Self {
             body,
             param_list,
-            captured: HashSet::new(),
-        }
-    }
-}
-
-impl Default for Lambda {
-    fn default() -> Self {
-        Lambda {
-            param_list: Parameters::new(),
-            body: LambdaBody::Block(vec![]),
-            captured: HashSet::new(),
+            captured: Vec::new(),
         }
     }
 }

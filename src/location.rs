@@ -1,16 +1,10 @@
 use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct Location {
     row: usize,
     column: usize,
-}
-
-impl Default for Location {
-    fn default() -> Self {
-        Self { row: 0, column: 0 }
-    }
 }
 
 impl Location {

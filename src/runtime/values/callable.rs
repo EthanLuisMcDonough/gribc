@@ -2,10 +2,10 @@ use super::GribValue;
 use ast::node::{NativeFunction, Program};
 use runtime::{
     exec::{evaluate_lambda, run_block},
-    memory::{Runtime, Scope},
+    memory::Runtime,
 };
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Callable {
     Native(NativeFunction),
     Procedure {
@@ -35,12 +35,13 @@ impl Callable {
                     &program.functions[*index]
                 };
 
-                let mut scope = Scope::new();
-                scope.add_params(&fnc.param_list, runtime, args);
-
-                run_block(&fnc.body, scope, runtime, program)
+                let alloced = runtime.add_params(&fnc.param_list, args);
+                let ret = run_block(&fnc.body, &GribValue::Nil, runtime, program)
                     .map(GribValue::from)
-                    .unwrap_or_default()
+                    .unwrap_or_default();
+                println!("PREPARE PROC POP");
+                runtime.stack.pop_stack(alloced);
+                ret
             }
             Callable::Lambda {
                 binding,
@@ -48,14 +49,22 @@ impl Callable {
                 index,
             } => {
                 let lambda = &program.lambdas[*index];
-                let mut scope = Scope::new();
 
-                if let Some(stack_ptr) = stack {
-                    scope.add_captured_stack(runtime, *stack_ptr);
+                // unimplemented!()
+                let captured = runtime.add_stack(stack.clone());
+                let params = runtime.add_params(&lambda.param_list, args);
+                println!("ALLLOC: {}", captured + params);
+                let this = binding
+                    .clone()
+                    .map(GribValue::HeapValue)
+                    .unwrap_or_default();
+                let res = evaluate_lambda(&lambda.body, &this, runtime, program);
+
+                if res.is_implicit {
+                    println!("PREPARE LAMBDA POP: {}", captured + params);
+                    runtime.stack.pop_stack(captured + params);
                 }
-                scope.add_params(&lambda.param_list, runtime, args);
-
-                evaluate_lambda(&lambda.body, scope, binding.clone(), runtime, program)
+                res.value
             }
         }
     }

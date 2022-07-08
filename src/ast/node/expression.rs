@@ -1,10 +1,12 @@
-use super::{module::Module, Hash, NativeFunction};
-use location::Located;
+use super::{module::Module, Hash};
+use location::{Located, Location};
 use operators::{Assignment, Binary, Unary};
+use runtime::values::Callable;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Assignable {
     Identifier(Located<usize>),
+    Offset(usize),
     IndexAccess {
         item: Box<Expression>,
         index: Box<Expression>,
@@ -15,11 +17,18 @@ pub enum Assignable {
     },
 }
 
+/// Values known during static analysis
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub enum ImportValue {
-    Function { module: Option<usize>, index: usize },
+pub enum StaticValue {
+    Function(Callable),
     Module(Module),
-    NativeFunction(NativeFunction),
+}
+
+/// Accessible variable value during runtime
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub enum RuntimeValue {
+    Static(StaticValue),
+    StackOffset(usize),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -64,10 +73,14 @@ pub enum Expression {
     },
 
     Nil,
-    This,
-    /* TBA StackRef(usize), */
-    StaticImport(ImportValue),
+    This {
+        start: Location,
+        end: Location,
+    },
+
+    Value(RuntimeValue),
 }
+
 impl Expression {
     pub fn is_statement(&self) -> bool {
         match self {

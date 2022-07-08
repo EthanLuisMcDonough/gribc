@@ -14,11 +14,7 @@ use std::convert::TryInto;
 use util::next_if;
 
 // Assumes an even groupers
-fn expression_list(
-    tokens: Vec<Located<Token>>,
-    in_lam: bool,
-    store: &mut Store,
-) -> ParseResult<Vec<Expression>> {
+fn expression_list(tokens: Vec<Located<Token>>, store: &mut Store) -> ParseResult<Vec<Expression>> {
     let mut level = 0usize;
     let mut index = 0usize;
     let mut indices = vec![];
@@ -52,7 +48,6 @@ fn expression_list(
                     .take_while(|(index, _)| *index != i)
                     .map(|(_, val)| val)
                     .collect::<Vec<_>>(),
-                in_lam,
                 store,
             )
             .map_err(|e| e.neof_or(ParseError::UnexpectedToken(token)))?,
@@ -62,7 +57,7 @@ fn expression_list(
     let remaining = tokens.collect::<Vec<_>>();
 
     if !remaining.is_empty() {
-        expressions.push(parse_expr(remaining, in_lam, store)?);
+        expressions.push(parse_expr(remaining, store)?);
     }
 
     Ok(expressions)
@@ -72,7 +67,6 @@ type CallbackArg = (Vec<Located<Token>>, Located<Token>);
 
 pub fn parse_expr(
     tokens: impl IntoIterator<Item = Located<Token>>,
-    in_lam: bool,
     store: &mut Store,
 ) -> ParseResult<Expression> {
     let mut tokens = tokens.into_iter().peekable();
@@ -80,24 +74,21 @@ pub fn parse_expr(
 
     fn list_callback(
         res: ParseResult<CallbackArg>,
-        in_lam: bool,
         store: &mut Store,
     ) -> ParseResult<Vec<Expression>> {
         match res {
-            Ok((v, last)) => expression_list(v, in_lam, store)
-                .map_err(|e| e.neof_or(ParseError::UnexpectedToken(last))),
+            Ok((v, last)) => {
+                expression_list(v, store).map_err(|e| e.neof_or(ParseError::UnexpectedToken(last)))
+            }
             Err(e) => Err(e),
         }
     }
 
-    fn expr_callback(
-        res: ParseResult<CallbackArg>,
-        in_lam: bool,
-        store: &mut Store,
-    ) -> ParseResult<Expression> {
+    fn expr_callback(res: ParseResult<CallbackArg>, store: &mut Store) -> ParseResult<Expression> {
         match res {
-            Ok((v, last)) => parse_expr(v, in_lam, store)
-                .map_err(|e| e.neof_or(ParseError::UnexpectedToken(last))),
+            Ok((v, last)) => {
+                parse_expr(v, store).map_err(|e| e.neof_or(ParseError::UnexpectedToken(last)))
+            }
             Err(e) => Err(e),
         }
     }
@@ -120,14 +111,12 @@ pub fn parse_expr(
             Token::OpenGroup(Grouper::Bracket) => {
                 expr = Expression::ArrayCreation(list_callback(
                     take_until(&mut tokens, Grouper::Bracket),
-                    in_lam,
                     store,
                 )?)
                 .into();
             }
             Token::OpenGroup(Grouper::Parentheses) => {
-                expr = expr_callback(take_until(&mut tokens, Grouper::Parentheses), in_lam, store)?
-                    .into();
+                expr = expr_callback(take_until(&mut tokens, Grouper::Parentheses), store)?.into();
             }
             Token::Keyword(Keyword::Lam) => {
                 let params = parse_params(&mut tokens, store)?;
@@ -151,20 +140,23 @@ pub fn parse_expr(
                 .into();
             }
             Token::Keyword(Keyword::Nil) => expr = Expression::Nil.into(),
-            Token::Keyword(Keyword::This) if in_lam => expr = Expression::This.into(),
+            Token::Keyword(Keyword::This) => {
+                expr = Expression::This {
+                    start: start.clone(),
+                    end: token.end.clone(),
+                }
+                .into()
+            }
             Token::Bool(b) => expr = Expression::Bool(b).into(),
             Token::String(s) => expr = Expression::String(store.ins_str(s)).into(),
             Token::Number(n) => expr = Expression::Number(n).into(),
             Token::Identifier(data) => {
                 expr = Expression::Identifier(Located {
                     data: store.ins_str(data),
-                    start: token.start.clone(),
+                    start: start.clone(),
                     end: token.end.clone(),
                 })
                 .into()
-            }
-            Token::Keyword(Keyword::This) => {
-                return Err(ParseError::InvalidThisReference(token.start.clone()))
             }
             _ => return Err(ParseError::UnexpectedToken(token)),
         };
@@ -174,20 +166,12 @@ pub fn parse_expr(
                 expression = match token.data {
                     Token::OpenGroup(Grouper::Parentheses) => Expression::FunctionCall {
                         function: expression.into(),
-                        args: list_callback(
-                            take_until(&mut tokens, Grouper::Parentheses),
-                            in_lam,
-                            store,
-                        )?,
+                        args: list_callback(take_until(&mut tokens, Grouper::Parentheses), store)?,
                     },
                     Token::OpenGroup(Grouper::Bracket) => Expression::IndexAccess {
                         item: expression.into(),
-                        index: expr_callback(
-                            take_until(&mut tokens, Grouper::Bracket),
-                            in_lam,
-                            store,
-                        )?
-                        .into(),
+                        index: expr_callback(take_until(&mut tokens, Grouper::Bracket), store)?
+                            .into(),
                     },
                     Token::Period => next_guard!({ tokens.next() } {
                         Token::Keyword(k) => Expression::PropertyAccess {

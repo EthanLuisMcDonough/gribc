@@ -24,7 +24,7 @@ pub fn mark_heap(gc: &mut Gc, ind: usize) {
                 }
             }
             HeapValue::CapturedStack(stack) => {
-                for (_, val) in stack.iter() {
+                for val in stack {
                     match val {
                         StackSlot::Captured(index) => marked_heap.push(*index),
                         StackSlot::Value(val) => marked_stack.push(val.clone()),

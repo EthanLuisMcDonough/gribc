@@ -17,7 +17,7 @@ pub enum HeapValue {
     Array(Vec<GribValue>),
     Hash(HashValue),
     String(String),
-    CapturedStack(HashMap<usize, StackSlot>),
+    CapturedStack(Vec<StackSlot>),
 }
 
 macro_rules! type_ref {

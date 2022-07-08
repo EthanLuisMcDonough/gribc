@@ -2,7 +2,7 @@
 use super::evaluate_expression;
 use ast::node::{Assignable, Module, Program};
 use runtime::{
-    memory::{Gc, Runtime, Scope},
+    memory::{Gc, Runtime},
     values::{eval_setter, GribKey, GribString, GribValue, KnownIndex},
 };
 
@@ -141,7 +141,7 @@ impl LiveIndex {
 }
 
 pub enum LiveAssignable {
-    Identifier(usize),
+    Offset(usize),
     Index(LiveIndex),
     Property(LiveProperty),
 }
@@ -149,43 +149,42 @@ pub enum LiveAssignable {
 impl LiveAssignable {
     pub fn new(
         assignable: &Assignable,
-        scope: &mut Scope,
+        this: &GribValue,
         runtime: &mut Runtime,
         program: &Program,
     ) -> Option<Self> {
         match assignable {
-            Assignable::Identifier(ident) => Self::Identifier(ident.data).into(),
+            Assignable::Identifier(_) => {
+                panic!("Identifier should not be present at this point in exeuction")
+            }
+            Assignable::Offset(off) => Self::Offset(*off).into(),
             Assignable::IndexAccess { item, index } => {
-                let item_val = evaluate_expression(item, scope, runtime, program);
-                let index_val = evaluate_expression(index, scope, runtime, program);
+                let item_val = evaluate_expression(item, this, runtime, program);
+                let index_val = evaluate_expression(index, this, runtime, program);
                 LiveIndex::new(item_val, &index_val, runtime, program).map(LiveAssignable::Index)
             }
             Assignable::PropertyAccess { item, property } => {
-                let item_val = evaluate_expression(item, scope, runtime, program);
+                let item_val = evaluate_expression(item, this, runtime, program);
                 LiveProperty::new(item_val, *property, &runtime.gc, program)
                     .map(LiveAssignable::Property)
             }
         }
     }
 
-    pub fn get(&self, scope: &mut Scope, runtime: &mut Runtime, program: &Program) -> GribValue {
+    pub fn get(&self, runtime: &mut Runtime, program: &Program) -> GribValue {
         match self {
-            Self::Identifier(ident) => scope.get(runtime, *ident).cloned().unwrap_or_default(),
+            Self::Offset(offset) => runtime.get_offset(*offset).cloned().unwrap_or_default(),
             Self::Index(index) => index.get(runtime, program),
             Self::Property(property) => property.get(runtime, program),
         }
     }
 
-    pub fn set(
-        &self,
-        scope: &mut Scope,
-        runtime: &mut Runtime,
-        program: &Program,
-        val: GribValue,
-    ) -> GribValue {
+    pub fn set(&self, runtime: &mut Runtime, program: &Program, val: GribValue) -> GribValue {
         match self {
-            Self::Identifier(ident) => {
-                scope.set(runtime, *ident, val.clone());
+            Self::Offset(offset) => {
+                if let Some(r) = runtime.get_offset_mut(*offset) {
+                    *r = val.clone();
+                }
                 val
             }
             Self::Index(index) => index.set(runtime, program, val),

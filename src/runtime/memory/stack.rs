@@ -21,14 +21,16 @@ impl Stack {
         self.stack_size
     }
 
-    pub fn add(&mut self, value: StackSlot) -> Option<usize> {
+    pub fn add(&mut self, value: impl Into<StackSlot>) -> usize {
+        let value = value.into();
         if self.stack_size < STACK_SIZE {
             self.stack[self.stack_size] = value;
             let ptr = self.stack_size;
             self.stack_size += 1;
-            Some(ptr)
+            println!("PUSHED | Stack: {}", self.stack_size);
+            ptr
         } else {
-            None
+            panic!("Grib stack overflow");
         }
     }
 
@@ -36,6 +38,7 @@ impl Stack {
         if self.stack_size > 0 {
             self.stack_size -= 1;
             self.stack[self.stack_size] = StackSlot::Empty;
+            println!("POPPED | Stack: {}", self.stack_size);
         }
     }
 
@@ -45,12 +48,30 @@ impl Stack {
         }
     }
 
+    pub fn offset_slot(&'_ self, offset: usize) -> Option<&'_ StackSlot> {
+        offset_calc(self.len(), offset).and_then(|ind| self.stack.get(ind))
+        //self.stack.get(self.stack.len() - offset)
+    }
+
+    pub fn offset_slot_mut(&'_ mut self, offset: usize) -> Option<&'_ mut StackSlot> {
+        offset_calc(self.len(), offset).and_then(move |ind| self.stack.get_mut(ind))
+        //let ind = self.stack.len() - offset;
+        //self.stack.get_mut(ind)
+    }
+
     pub fn iter<'a>(&'a self) -> StackIter<'a> {
         StackIter {
             stack: self,
             index: 0,
         }
     }
+}
+
+fn offset_calc(len: usize, offset: usize) -> Option<usize> {
+    len.checked_sub(offset) /*.map(|offset| {
+                                print!("OFFSET: {}", offset);
+                                offset
+                            })*/
 }
 
 pub struct StackIter<'a> {
@@ -63,7 +84,7 @@ impl<'a> Iterator for StackIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.stack.stack_size {
-            let ind = self.stack.stack_size - self.index;
+            let ind = self.stack.stack_size - self.index - 1;
             self.index += 1;
             Some(&self.stack.stack[ind])
         } else {
