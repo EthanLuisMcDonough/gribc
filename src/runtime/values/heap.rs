@@ -1,6 +1,5 @@
 use super::{GribValue, HashValue};
 use runtime::memory::{Gc, StackSlot};
-use std::collections::HashMap;
 
 /*macro_rules! try_method {
     ($n:ident, $e:expr) => {
@@ -17,7 +16,7 @@ pub enum HeapValue {
     Array(Vec<GribValue>),
     Hash(HashValue),
     String(String),
-    CapturedStack(HashMap<usize, StackSlot>),
+    CapturedStack(Vec<StackSlot>),
 }
 
 macro_rules! type_ref {

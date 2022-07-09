@@ -4,6 +4,6 @@ import |newVec| from "./lib/vec.grib";
 
 im v = newVec(3, 4, 5);
 
-println("Before: " + v.len);
+println("Before: ", v.len);
 v.len = 14;
-println("After: |<" + v.x + ", " + v.y + ", " + v.z + ">| = " + v.len);
+println("After: |<", v.x, ", ", v.y, ", ", v.z, ">| = ", v.len);

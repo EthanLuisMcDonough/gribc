@@ -13,6 +13,12 @@ pub enum MemSlot<C, V> {
     Empty,
 }
 
+impl<C, V> From<V> for MemSlot<C, V> {
+    fn from(val: V) -> Self {
+        MemSlot::Value(val)
+    }
+}
+
 impl<C, V> Default for MemSlot<C, V> {
     fn default() -> Self {
         Self::Empty

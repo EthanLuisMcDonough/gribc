@@ -74,7 +74,7 @@ pub fn binary_expr(
     op: &Binary,
     left: &GribValue,
     right: &Expression,
-    scope: &mut Scope,
+    this: &GribValue,
     runtime: &mut Runtime,
     program: &Program,
 ) -> GribValue {
@@ -82,14 +82,14 @@ pub fn binary_expr(
     if op.is_lazy() {
         GribValue::Bool(if let &LogicalAnd = op {
             left.truthy(program, &runtime.gc)
-                && evaluate_expression(right, scope, runtime, program).truthy(program, &runtime.gc)
+                && evaluate_expression(right, this, runtime, program).truthy(program, &runtime.gc)
         } else {
             // LogicalOr
             left.truthy(program, &runtime.gc)
-                || evaluate_expression(right, scope, runtime, program).truthy(program, &runtime.gc)
+                || evaluate_expression(right, this, runtime, program).truthy(program, &runtime.gc)
         })
     } else {
-        let right_expr = evaluate_expression(right, scope, runtime, program);
+        let right_expr = evaluate_expression(right, this, runtime, program);
         match op {
             Plus => add_values(left, &right_expr, program, runtime),
             Minus => sub_values(left, &right_expr, program, &runtime.gc),
@@ -126,13 +126,13 @@ pub fn assignment_expr(
     op: &Assignment,
     left: &Assignable,
     right: GribValue,
-    scope: &mut Scope,
+    this: &GribValue,
     runtime: &mut Runtime,
     program: &Program,
 ) -> GribValue {
-    LiveAssignable::new(left, scope, runtime, program)
+    LiveAssignable::new(left, this, runtime, program)
         .map(|live| {
-            let mut val = || live.get(scope, runtime, program);
+            let mut val = || live.get(runtime, program);
             let res = match op {
                 Assignment::Assign => right.clone(),
                 Assignment::AssignDiv => div_values(&val(), &right, program, &runtime.gc),
@@ -182,7 +182,7 @@ pub fn assignment_expr(
                 }
             };
 
-            live.set(scope, runtime, program, res)
+            live.set(runtime, program, res)
         })
         .unwrap_or(right)
 }

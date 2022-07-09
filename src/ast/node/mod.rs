@@ -1,3 +1,4 @@
+pub mod controlflow;
 pub mod expression;
 pub mod function;
 pub mod module;
@@ -6,6 +7,7 @@ pub mod statement;
 
 use std::path::Path;
 
+pub use self::controlflow::*;
 pub use self::expression::*;
 pub use self::function::*;
 pub use self::module::*;
@@ -16,7 +18,29 @@ pub use runtime::native_fn::{NativeFunction, NativePackage};
 
 pub type ModuleStore = Vec<CustomModule>;
 
-pub type Block = Vec<Node>;
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Default)]
+pub struct Block {
+    pub stmts: Vec<Node>,
+    pub allocations: usize,
+}
+
+impl Block {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn iter(&'_ self) -> impl Iterator<Item = &'_ Node> {
+        self.stmts.iter()
+    }
+
+    pub fn iter_mut(&'_ mut self) -> impl Iterator<Item = &'_ mut Node> {
+        self.stmts.iter_mut()
+    }
+
+    pub fn push(&mut self, node: Node) {
+        self.stmts.push(node);
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Program {
@@ -78,7 +102,5 @@ pub enum Node {
         body: Block,
     },
     Declaration(Declaration),
-    Return(Expression),
-    Break,
-    Continue,
+    ControlFlow(FlowBreak),
 }

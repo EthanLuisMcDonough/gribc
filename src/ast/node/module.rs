@@ -35,23 +35,12 @@ impl Module {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Default)]
 pub struct CustomModule {
     pub imports: Vec<Import>,
     pub functions: Vec<Procedure>,
     pub path: PathBuf,
     pub lookup: HashMap<Cow<'static, str>, usize>,
-}
-
-impl Default for CustomModule {
-    fn default() -> Self {
-        Self {
-            imports: Vec::new(),
-            functions: Vec::new(),
-            path: PathBuf::default(),
-            lookup: HashMap::new(),
-        }
-    }
 }
 
 impl CustomModule {

@@ -1,7 +1,7 @@
 use super::parse_expr;
 use crate::next_guard;
 use ast::node::*;
-use ast::parsing::{ast_level, scope::Scope, util::*, Store};
+use ast::parsing::{ast_level, util::*, Store};
 use ast::{ModuleError, ModuleErrorBody, ParseError, ParseResult};
 use lex::{lex, tokens::*};
 use location::Located;
@@ -15,20 +15,18 @@ use util::remove_file;
 
 pub fn parse_if_block<T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
-    scope: Scope,
     store: &mut Store,
 ) -> ParseResult<ConditionBodyPair> {
     Ok(ConditionBodyPair {
         condition: zero_level(tokens, |t| *t == Token::OpenGroup(Grouper::Brace))
-            .and_then(|(v, _)| parse_expr(v, scope.in_lam, store))?,
-        block: take_until(tokens, Grouper::Brace).and_then(|(v, _)| ast_level(v, scope, store))?,
+            .and_then(|(v, _)| parse_expr(v, store))?,
+        block: take_until(tokens, Grouper::Brace).and_then(|(v, _)| ast_level(v, store))?,
     })
 }
 
 pub fn parse_decl<T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
     mutable: bool,
-    scope: Scope,
     store: &mut Store,
 ) -> ParseResult<Declaration> {
     let mut decls = vec![];
@@ -49,7 +47,7 @@ pub fn parse_decl<T: Iterator<Item = Located<Token>>>(
                 Token::AssignOp(Assignment::Assign) => {
                     let (v, Located { data: last, .. }) = zero_level(tokens, |d| *d == Token::Semicolon || *d == Token::Comma)?;
                     cont = last == Token::Comma;
-                    parse_expr(v, scope.in_lam, store)?
+                    parse_expr(v, store)?
                 },
                 Token::Semicolon => {
                     cont = false;
@@ -135,8 +133,7 @@ pub fn parse_proc<T: Iterator<Item = Located<Token>>>(
             end,
         },
         param_list,
-        body: take_until(tokens, Grouper::Brace)
-            .and_then(|(v, _)| ast_level(v, Scope::fn_proc(), store))?,
+        body: take_until(tokens, Grouper::Brace).and_then(|(v, _)| ast_level(v, store))?,
         public,
     })
 }

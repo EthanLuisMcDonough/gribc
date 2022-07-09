@@ -250,3 +250,12 @@ impl From<bool> for GribValue {
         GribValue::Bool(b)
     }
 }
+
+impl From<StaticValue> for GribValue {
+    fn from(s: StaticValue) -> Self {
+        match s {
+            StaticValue::Function(fnc) => GribValue::Callable(fnc),
+            StaticValue::Module(module) => GribValue::ModuleObject(module),
+        }
+    }
+}

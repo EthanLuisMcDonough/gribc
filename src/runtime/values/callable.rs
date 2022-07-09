@@ -2,10 +2,10 @@ use super::GribValue;
 use ast::node::{NativeFunction, Program};
 use runtime::{
     exec::{evaluate_lambda, run_block},
-    memory::{Runtime, Scope},
+    memory::Runtime,
 };
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Callable {
     Native(NativeFunction),
     Procedure {
@@ -35,12 +35,13 @@ impl Callable {
                     &program.functions[*index]
                 };
 
-                let mut scope = Scope::new();
-                scope.add_params(&fnc.param_list, runtime, args);
-
-                run_block(&fnc.body, scope, runtime, program)
+                let alloced = runtime.add_params(&fnc.param_list, args);
+                let ret = run_block(&fnc.body, &GribValue::Nil, runtime, program)
                     .map(GribValue::from)
-                    .unwrap_or_default()
+                    .unwrap_or_default();
+
+                runtime.stack.pop_stack(alloced);
+                ret
             }
             Callable::Lambda {
                 binding,
@@ -48,14 +49,17 @@ impl Callable {
                 index,
             } => {
                 let lambda = &program.lambdas[*index];
-                let mut scope = Scope::new();
+                let captured = runtime.add_stack(stack.clone());
+                let params = runtime.add_params(&lambda.param_list, args);
 
-                if let Some(stack_ptr) = stack {
-                    scope.add_captured_stack(runtime, *stack_ptr);
-                }
-                scope.add_params(&lambda.param_list, runtime, args);
+                let this = binding
+                    .clone()
+                    .map(GribValue::HeapValue)
+                    .unwrap_or_default();
+                let res = evaluate_lambda(&lambda.body, &this, runtime, program);
 
-                evaluate_lambda(&lambda.body, scope, binding.clone(), runtime, program)
+                runtime.stack.pop_stack(captured + params);
+                res
             }
         }
     }
