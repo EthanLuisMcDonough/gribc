@@ -82,8 +82,8 @@ pub fn ref_check(program: &mut Program) -> Result<(), WalkError> {
         walk_procedure(function, &mut scope, &mut lambdas, &mut stack)?;
     }
 
-    scope.sub_block(
-        |scope, body| walk_ast(body, scope, &mut lambdas, &mut stack),
-        body,
-    )
+    walk_ast(body, &mut scope, &mut lambdas, &mut stack)?;
+    scope.check_decls(body);
+
+    Ok(())
 }
