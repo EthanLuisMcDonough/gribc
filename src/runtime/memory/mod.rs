@@ -135,6 +135,7 @@ impl Runtime {
                 .clone();
             heap_stack.push(slot);
         }
+
         self.alloc_heap(HeapValue::CapturedStack(heap_stack)).into()
     }
 

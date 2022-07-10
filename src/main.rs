@@ -45,7 +45,7 @@ fn main() {
     let mut tree = err_guard!(ast::ast(tokens.into_iter(), &path));
 
     err_guard!(ast::ref_check(&mut tree));
-    println!("{}", serde_json::to_string_pretty(&tree).unwrap());
+    //println!("{}", serde_json::to_string_pretty(&tree).unwrap());
 
     runtime::execute(
         &tree,

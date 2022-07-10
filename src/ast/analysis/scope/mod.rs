@@ -1,7 +1,11 @@
+mod capture;
+
 use super::WalkResult;
 use ast::node::*;
 use runtime::values::Callable;
 use std::collections::HashMap;
+
+pub use self::capture::CaptureStack;
 
 /// A lambda analysis's state
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -19,90 +23,6 @@ pub enum SubState {
     /// Sets loop counter to None and function counter
     /// to an active zero
     InFunc,
-}
-
-#[derive(Debug)]
-struct Capture {
-    level: usize,
-    identifiers: Vec<usize>,
-}
-
-impl Capture {
-    fn new(level: usize) -> Self {
-        Self {
-            level,
-            identifiers: Vec::new(),
-        }
-    }
-
-    fn insert(&mut self, name: usize) {
-        if !self.identifiers.contains(&name) {
-            self.identifiers.push(name);
-        }
-    }
-}
-
-/// Captured stack associated with a particular lambda or getter/setter
-#[derive(Debug)]
-pub struct CaptureStack {
-    stack: Vec<Capture>,
-}
-
-impl CaptureStack {
-    pub fn new() -> Self {
-        Self { stack: vec![] }
-    }
-
-    pub fn add(&mut self, level: usize) {
-        self.stack.push(Capture::new(level));
-    }
-
-    /// Pops off the top captured stack and converts the array of identifiers
-    /// to an array of index offsets.  The scope passed in must be a copy of
-    /// self before the analysis took place.
-    pub fn pop(&mut self, top_scope: &mut Scope) -> Vec<usize> {
-        self.stack
-            .pop()
-            .map(|end| {
-                let (names, captured): (Vec<usize>, _) = end
-                    .identifiers
-                    .into_iter()
-                    // Filter out any variables that aren't valid captures
-                    .filter_map(|name| {
-                        let val = top_scope.runtime_value(name);
-                        if let Some(RuntimeValue::StackOffset(off)) = val {
-                            Some((name, off))
-                        } else {
-                            // This area shouldn't be reachable
-                            None
-                        }
-                    })
-                    .unzip();
-
-                // We can insert all the valid names as mutable because we've already checked
-                // for mutability errors in the first lambda pass
-                // This second pass serves only to calculate the stack offsets
-                for name in names {
-                    top_scope.insert_mut(name);
-                }
-
-                captured
-            })
-            .unwrap_or_default()
-    }
-
-    /// Returns true if any captured lambda scopes were edited during a variable check
-    /// If so, the checked variable should be marked as a captured variable
-    fn check_ref(&mut self, ident: usize, current: usize) -> bool {
-        let mut changed = false;
-        for capture in &mut self.stack {
-            if capture.level > current {
-                capture.insert(ident);
-                changed = true;
-            }
-        }
-        changed
-    }
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -247,19 +167,6 @@ impl Scope {
         })
     }
 
-    pub fn sub_params<F: FnOnce(&mut Self, &mut Parameters) -> WalkResult>(
-        &mut self,
-        fnc: F,
-        params: &mut Parameters,
-    ) -> WalkResult {
-        self.sub(|scope| {
-            scope.add_params(params);
-            fnc(scope, params)?;
-            scope.check_params(params);
-            Ok(())
-        })
-    }
-
     pub fn sub_fnc<F: FnOnce(&mut Self, &mut Parameters, &mut Block) -> WalkResult>(
         &mut self,
         fnc: F,
@@ -387,10 +294,14 @@ impl Scope {
             )
     }
 
+    /// Createa an imported module object in the scope
     pub fn import_module(&mut self, name: usize, module: Module) -> bool {
         self.insert(name, DefType::Import(StaticValue::Module(module)))
     }
 
+    /// Imports grib procedure
+    /// This differs from insert_fn in that the variable is defined
+    /// as imported (can be shadowed in top scope)
     pub fn import_function(&mut self, name: usize, module: usize, index: usize) -> bool {
         self.insert(
             name,
@@ -401,6 +312,7 @@ impl Scope {
         )
     }
 
+    /// Imports native function
     pub fn native_function(&mut self, name: usize, fnc: NativeFunction) {
         if self.level == 0 {
             self.insert(
@@ -410,6 +322,7 @@ impl Scope {
         }
     }
 
+    /// Inserts a variable defined with decl or im
     pub fn insert_var(&mut self, name: usize, is_mut: bool) -> bool {
         self.new_decl();
         if is_mut {
@@ -419,8 +332,17 @@ impl Scope {
         }
     }
 
-    pub fn is_captured(&self, name: usize) -> bool {
+    fn is_captured(&self, name: usize) -> bool {
         self.scope.get(&name).filter(|d| d.is_captured()).is_some()
+    }
+
+    /// Checks if a captured value exists and removes it if it does
+    pub fn take_captured(&mut self, name: usize) -> bool {
+        let captured = self.is_captured(name);
+        if captured {
+            self.scope.remove(&name);
+        }
+        captured
     }
 
     fn try_capture(&mut self, name: usize) {
@@ -429,6 +351,8 @@ impl Scope {
         }
     }
 
+    /// Checks if an auto property string exists
+    /// If so, try to capture it
     pub fn prop_check(&mut self, name: usize) -> bool {
         if let Some(data) = self.scope.get_mut(&name) {
             data.try_capture();
@@ -437,6 +361,8 @@ impl Scope {
         false
     }
 
+    /// Checks if a *mutable* auto property string exists (used for setters)
+    /// If so, capture it
     pub fn prop_check_mut(&mut self, name: usize) -> bool {
         if let Some(data) = self.scope.get_mut(&name).filter(|d| d.is_mut()) {
             data.try_capture();
