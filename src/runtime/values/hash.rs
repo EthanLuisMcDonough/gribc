@@ -1,6 +1,6 @@
 use super::{AccessFunc, Callable, GribString, GribValue};
 use ast::node::Program;
-use runtime::exec::evaluate_lambda;
+use runtime::exec::{evaluate_lambda, LocalState};
 use runtime::memory::{Gc, Runtime};
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash, Hasher};
@@ -36,13 +36,10 @@ impl HashPropertyValue {
                     AccessFunc::Static(val) => val.clone().into(),
                     AccessFunc::Captured(ptr) => runtime.gc.get_captured(*ptr).cloned(),
                     AccessFunc::Callable { index, stack } => {
-                        program.getters.get(*index).and_then(|getter| {
-                            let alloced = runtime.add_stack(stack.clone());
-                            let this = GribValue::HeapValue(self_ptr);
-
-                            let val = evaluate_lambda(&getter.block, &this, runtime, program);
-                            runtime.stack.pop_stack(alloced);
-                            Some(val)
+                        program.getters.get(*index).map(|getter| {
+                            let state =
+                                LocalState::new(GribValue::HeapValue(self_ptr), stack.clone());
+                            evaluate_lambda(&getter.block, &state, runtime, program)
                         })
                     }
                 })
@@ -217,18 +214,16 @@ pub fn eval_setter(
         }
         AccessFunc::Callable { index, stack } => {
             let setter = &program.setters[*index];
-
-            let stack_alloced = runtime.add_stack(stack.clone());
             if setter.param_captured {
                 runtime.add_stack_captured(val);
             } else {
                 runtime.stack.add(val);
             }
 
-            let this = GribValue::HeapValue(self_ptr);
-            let res = evaluate_lambda(&setter.block, &this, runtime, program);
+            let state = LocalState::new(GribValue::HeapValue(self_ptr), stack.clone());
+            let res = evaluate_lambda(&setter.block, &state, runtime, program);
 
-            runtime.stack.pop_stack(stack_alloced + 1);
+            runtime.stack.pop();
             res
         }
         AccessFunc::Static(_) => panic!("Setters cannot be static values"),

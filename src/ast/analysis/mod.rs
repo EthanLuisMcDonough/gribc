@@ -38,7 +38,7 @@ pub struct Lams<'a> {
     setters: &'a mut Vec<SetProp>,
 }
 
-pub fn ref_check(program: &mut Program) -> Result<(), WalkError> {
+pub fn ref_check(program: &mut Program) -> WalkResult {
     let body = &mut program.body;
     let modules = &mut program.modules;
 

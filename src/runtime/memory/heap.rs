@@ -112,6 +112,14 @@ impl Gc {
         }
     }
 
+    pub fn try_get_stack(&'_ self, ind: usize) -> Option<&'_ Vec<StackSlot>> {
+        if let Some(HeapValue::CapturedStack(stack)) = self.heap_val(ind) {
+            Some(stack)
+        } else {
+            None
+        }
+    }
+
     pub fn try_get_string<'a>(
         &'a self,
         val: &GribValue,

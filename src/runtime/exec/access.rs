@@ -1,5 +1,5 @@
 /// Structures related to getting and setting index and property values
-use super::evaluate_expression;
+use super::{evaluate_expression, local::LocalState};
 use ast::node::{Assignable, Module, Program};
 use runtime::{
     memory::{Gc, Runtime},
@@ -149,7 +149,7 @@ pub enum LiveAssignable {
 impl LiveAssignable {
     pub fn new(
         assignable: &Assignable,
-        this: &GribValue,
+        local: &LocalState,
         runtime: &mut Runtime,
         program: &Program,
     ) -> Option<Self> {
@@ -159,12 +159,12 @@ impl LiveAssignable {
             }
             Assignable::Offset(off) => Self::Offset(*off).into(),
             Assignable::IndexAccess { item, index } => {
-                let item_val = evaluate_expression(item, this, runtime, program);
-                let index_val = evaluate_expression(index, this, runtime, program);
+                let item_val = evaluate_expression(item, local, runtime, program);
+                let index_val = evaluate_expression(index, local, runtime, program);
                 LiveIndex::new(item_val, &index_val, runtime, program).map(LiveAssignable::Index)
             }
             Assignable::PropertyAccess { item, property } => {
-                let item_val = evaluate_expression(item, this, runtime, program);
+                let item_val = evaluate_expression(item, local, runtime, program);
                 LiveProperty::new(item_val, *property, &runtime.gc, program)
                     .map(LiveAssignable::Property)
             }

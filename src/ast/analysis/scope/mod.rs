@@ -27,6 +27,7 @@ pub enum SubState {
 
 #[derive(Clone, PartialEq, Debug)]
 enum DefType {
+    Capture { index: usize, mutable: bool },
     Mutable { captured: bool, stack_pos: usize },
     Constant { stack_pos: usize },
     Function(Callable),
@@ -374,6 +375,7 @@ impl Scope {
     /// Gets the runtime value of a variable (stack offset, raw funtion, or module object)
     pub fn runtime_value(&self, name: usize) -> Option<RuntimeValue> {
         self.scope.get(&name).map(|val| match &val.kind {
+            DefType::Capture { index, .. } => RuntimeValue::CaptureIndex(*index),
             DefType::Import(value) => RuntimeValue::Static(value.clone()),
             DefType::Function(fnc) => RuntimeValue::Static(StaticValue::Function(fnc.clone())),
             DefType::Constant { stack_pos } | DefType::Mutable { stack_pos, .. } => {

@@ -1,4 +1,7 @@
-use runtime::values::{GribValue, HeapValue};
+use runtime::{
+    memory::Gc,
+    values::{GribValue, HeapValue},
+};
 
 #[derive(Debug)]
 pub struct Markable<T> {
@@ -37,3 +40,21 @@ impl<C, V> MemSlot<C, V> {
 pub type HeapSlot = MemSlot<GribValue, HeapValue>;
 pub type MarkedSlot = Markable<HeapSlot>;
 pub type StackSlot = MemSlot<usize, GribValue>;
+
+impl StackSlot {
+    pub fn get<'a>(&'a self, gc: &'a Gc) -> Option<&'a GribValue> {
+        match self {
+            Self::Captured(index) => gc.get_captured(*index),
+            Self::Value(val) => Some(val),
+            Self::Empty => None,
+        }
+    }
+
+    pub fn get_mut<'a>(&'a mut self, gc: &'a mut Gc) -> Option<&'a mut GribValue> {
+        match self {
+            Self::Captured(index) => gc.get_captured_mut(*index),
+            Self::Value(val) => Some(val),
+            Self::Empty => None,
+        }
+    }
+}

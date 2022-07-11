@@ -29,6 +29,7 @@ pub enum StaticValue {
 pub enum RuntimeValue {
     Static(StaticValue),
     StackOffset(usize),
+    CaptureIndex(usize),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]

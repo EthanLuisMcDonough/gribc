@@ -56,19 +56,16 @@ impl Runtime {
     }
 
     pub fn get_offset(&'_ self, offset: usize) -> Option<&'_ GribValue> {
-        match self.stack.offset_slot(offset) {
-            Some(StackSlot::Value(value)) => Some(value),
-            Some(StackSlot::Captured(index)) => self.gc.get_captured(*index),
-            _ => None,
-        }
+        self.stack
+            .offset_slot(offset)
+            .and_then(|slot| slot.get(&self.gc))
     }
 
     pub fn get_offset_mut(&'_ mut self, offset: usize) -> Option<&'_ mut GribValue> {
-        match self.stack.offset_slot_mut(offset) {
-            Some(StackSlot::Value(value)) => Some(value),
-            Some(StackSlot::Captured(index)) => self.gc.get_captured_mut(*index),
-            _ => None,
-        }
+        let heap = &mut self.gc;
+        self.stack
+            .offset_slot_mut(offset)
+            .and_then(move |slot| slot.get_mut(heap))
     }
 
     fn alloc(&mut self, value: HeapSlot) -> usize {

@@ -14,7 +14,7 @@ pub fn walk_procedure(
     scope: &mut Scope,
     lams: &mut Lams,
     cap: &mut CaptureStack,
-) -> Result<(), WalkError> {
+) -> WalkResult {
     scope.sub_fnc(
         |scope, _, body| walk_ast(body, scope, lams, cap),
         &mut procedure.param_list,

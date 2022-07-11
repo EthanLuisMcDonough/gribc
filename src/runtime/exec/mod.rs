@@ -1,4 +1,5 @@
 mod access;
+mod local;
 mod operator;
 
 use self::access::*;
@@ -9,9 +10,12 @@ use location::Located;
 use runtime::memory::*;
 use runtime::values::*;
 
+pub use self::local::LocalState;
+
 pub fn execute(program: &Program, config: RuntimeConfig) {
     let mut runtime = Runtime::new(config);
-    run_block(&program.body, &GribValue::Nil, &mut runtime, program);
+    let state = LocalState::default();
+    run_block(&program.body, &state, &mut runtime, program);
 }
 
 #[derive(Debug)]
@@ -24,7 +28,7 @@ pub enum ControlFlow {
 impl ControlFlow {
     pub fn new(
         node: &FlowBreak,
-        this: &GribValue,
+        local: &LocalState,
         runtime: &mut Runtime,
         program: &Program,
     ) -> Self {
@@ -32,7 +36,7 @@ impl ControlFlow {
             BreakType::Break => ControlFlow::Break,
             BreakType::Continue => ControlFlow::Continue,
             BreakType::Return(e) => {
-                ControlFlow::Return(evaluate_expression(e, this, runtime, program))
+                ControlFlow::Return(evaluate_expression(e, local, runtime, program))
             }
         }
     }
@@ -82,9 +86,9 @@ macro_rules! check_flow {
     }};
 }
 
-fn declare(decl: &Declaration, this: &GribValue, runtime: &mut Runtime, program: &Program) {
+fn declare(decl: &Declaration, local: &LocalState, runtime: &mut Runtime, program: &Program) {
     for declaration in &decl.declarations {
-        let value = evaluate_expression(&declaration.value, this, runtime, program);
+        let value = evaluate_expression(&declaration.value, local, runtime, program);
         if declaration.captured {
             runtime.add_stack_captured(value);
         } else {
@@ -95,7 +99,7 @@ fn declare(decl: &Declaration, this: &GribValue, runtime: &mut Runtime, program:
 
 pub fn run_block(
     block: &Block,
-    this: &GribValue,
+    local: &LocalState,
     runtime: &mut Runtime,
     program: &Program,
 ) -> Option<ControlFlow> {
@@ -103,49 +107,49 @@ pub fn run_block(
     for node in block.iter() {
         match &node {
             Node::Block(block) => {
-                control_guard!(result, run_block(block, this, runtime, program));
+                control_guard!(result, run_block(block, local, runtime, program));
             }
             Node::ControlFlow(flow) => {
-                let ret = ControlFlow::new(flow, this, runtime, program);
+                let ret = ControlFlow::new(flow, local, runtime, program);
                 runtime.stack.pop_stack(flow.allocations);
                 return_break!(result, ret);
             }
-            Node::Declaration(decl) => declare(decl, this, runtime, program),
+            Node::Declaration(decl) => declare(decl, local, runtime, program),
             Node::Expression(expression) => {
-                evaluate_expression(expression, this, runtime, program);
+                evaluate_expression(expression, local, runtime, program);
             }
             Node::LogicChain {
                 if_block,
                 elseifs,
                 else_block,
             } => {
-                let first_cond = evaluate_expression(&if_block.condition, this, runtime, program);
+                let first_cond = evaluate_expression(&if_block.condition, local, runtime, program);
                 if first_cond.truthy(program, &runtime.gc) {
-                    let res = run_block(&if_block.block, this, runtime, program);
+                    let res = run_block(&if_block.block, local, runtime, program);
                     control_guard!(result, res);
                 } else {
                     let mut run_else = true;
                     for ConditionBodyPair { condition, block } in elseifs {
-                        let cond = evaluate_expression(&condition, this, runtime, program);
+                        let cond = evaluate_expression(&condition, local, runtime, program);
                         if cond.truthy(program, &runtime.gc) {
                             run_else = false;
-                            control_guard!(result, run_block(&block, this, runtime, program));
+                            control_guard!(result, run_block(&block, local, runtime, program));
                             break;
                         }
                     }
 
                     if let Some(block) = else_block.as_ref().filter(|_| run_else) {
-                        control_guard!(result, run_block(&block, this, runtime, program));
+                        control_guard!(result, run_block(&block, local, runtime, program));
                     }
                 }
             }
             Node::While(pair) => {
                 let mut local_result = None;
 
-                while evaluate_expression(&pair.condition, this, runtime, program)
+                while evaluate_expression(&pair.condition, local, runtime, program)
                     .truthy(program, &runtime.gc)
                 {
-                    let val = run_block(&pair.block, this, runtime, program);
+                    let val = run_block(&pair.block, local, runtime, program);
                     check_flow!(local_result, val);
                 }
 
@@ -159,22 +163,22 @@ pub fn run_block(
             } => {
                 let mut params = 0;
                 if let Some(d) = declaration {
-                    declare(d, this, runtime, program);
+                    declare(d, local, runtime, program);
                     params = d.declarations.len();
                 }
 
                 let mut local_result = None;
                 while condition
                     .as_ref()
-                    .map(|c| evaluate_expression(&c, this, runtime, program))
+                    .map(|c| evaluate_expression(&c, local, runtime, program))
                     .map(|g| g.truthy(program, &runtime.gc))
                     .unwrap_or(true)
                 {
-                    let flow = run_block(body, this, runtime, program);
+                    let flow = run_block(body, local, runtime, program);
                     check_flow!(local_result, flow);
 
                     if let Some(incr_expr) = increment {
-                        evaluate_expression(incr_expr, this, runtime, program);
+                        evaluate_expression(incr_expr, local, runtime, program);
                     }
                 }
 
@@ -193,10 +197,18 @@ pub fn run_block(
     result
 }
 
+fn convert_slot(slot: StackSlot) -> Option<AccessFunc> {
+    match slot {
+        StackSlot::Captured(ind) => AccessFunc::Captured(ind).into(),
+        StackSlot::Value(val) => AccessFunc::Static(val).into(),
+        StackSlot::Empty => None,
+    }
+}
+
 fn evaluate_hash(
     hash: &Hash,
     mutable: bool,
-    this: &GribValue,
+    local: &LocalState,
     runtime: &mut Runtime,
     program: &Program,
 ) -> GribValue {
@@ -208,7 +220,9 @@ fn evaluate_hash(
         values.init_value(
             key,
             match val {
-                ObjectValue::Expression(e) => evaluate_expression(e, this, runtime, program).into(),
+                ObjectValue::Expression(e) => {
+                    evaluate_expression(e, local, runtime, program).into()
+                }
                 ObjectValue::AutoProp(prop) => {
                     let get = prop.get.as_ref().map(|p| match p {
                         AutoPropValue::String(_s) => {
@@ -217,14 +231,16 @@ fn evaluate_hash(
                         AutoPropValue::Value(RuntimeValue::Static(static_val)) => {
                             AccessFunc::Static(static_val.clone().into())
                         }
+                        AutoPropValue::Value(RuntimeValue::CaptureIndex(ind)) => local
+                            .stack_item(*ind, &runtime.gc)
+                            .cloned()
+                            .and_then(convert_slot)
+                            .expect("FAILED TO READ CAPTURED VALUE"),
                         AutoPropValue::Value(RuntimeValue::StackOffset(offset)) => runtime
                             .stack
                             .offset_slot(*offset)
-                            .and_then(|p| match p {
-                                StackSlot::Captured(ind) => AccessFunc::Captured(*ind).into(),
-                                StackSlot::Value(val) => AccessFunc::Static(val.clone()).into(),
-                                StackSlot::Empty => None,
-                            })
+                            .cloned()
+                            .and_then(convert_slot)
                             .expect("FAILED TO READ OFFSET"),
                         AutoPropValue::Lambda(ind) => AccessFunc::Callable {
                             index: *ind,
@@ -241,10 +257,16 @@ fn evaluate_hash(
                             {
                                 AccessFunc::Captured(*ind)
                             } else {
-                                panic!(
-                                    "FAILED TO CAPTURE ACCESS SETTER OFFSET {} | Stack: {:?}",
-                                    offset, runtime.stack
-                                );
+                                panic!("FAILED TO CAPTURE ACCESS SETTER OFFSET {}", offset);
+                            }
+                        }
+                        AutoPropValue::Value(RuntimeValue::CaptureIndex(i)) => {
+                            if let Some(StackSlot::Captured(ind)) =
+                                local.stack_item(*i, &runtime.gc)
+                            {
+                                AccessFunc::Captured(*ind)
+                            } else {
+                                panic!("FAILED TO READ CAPTURED VAR INTO SETTER {}", i);
                             }
                         }
                         AutoPropValue::Lambda(ind) => AccessFunc::Callable {
@@ -266,16 +288,16 @@ fn evaluate_hash(
 
 pub fn evaluate_lambda(
     body: &LambdaBody,
-    this: &GribValue,
+    local: &LocalState,
     runtime: &mut Runtime,
     program: &Program,
 ) -> GribValue {
     let res = match body {
-        LambdaBody::Block(block) => match run_block(block, this, runtime, program) {
+        LambdaBody::Block(block) => match run_block(block, local, runtime, program) {
             Some(ControlFlow::Return(value)) => value,
             _ => GribValue::Nil,
         },
-        LambdaBody::ImplicitReturn(expr) => evaluate_expression(&expr, this, runtime, program),
+        LambdaBody::ImplicitReturn(expr) => evaluate_expression(&expr, local, runtime, program),
     };
 
     res
@@ -283,19 +305,19 @@ pub fn evaluate_lambda(
 
 fn eval_list(
     items: &Vec<Expression>,
-    this: &GribValue,
+    local: &LocalState,
     runtime: &mut Runtime,
     program: &Program,
 ) -> Vec<GribValue> {
     items
         .iter()
-        .map(|e| evaluate_expression(e, this, runtime, program))
+        .map(|e| evaluate_expression(e, local, runtime, program))
         .collect()
 }
 
 pub fn evaluate_expression(
     expression: &Expression,
-    this: &GribValue,
+    local: &LocalState,
     runtime: &mut Runtime,
     program: &Program,
 ) -> GribValue {
@@ -303,13 +325,13 @@ pub fn evaluate_expression(
     match expression {
         Bool(b) => GribValue::Bool(*b),
         Nil => GribValue::Nil,
-        This { .. } => this.clone(),
+        This { .. } => local.get_this(),
         Number(f) => GribValue::Number(*f),
         String(s) => runtime.alloc_str(program.strings[*s].clone()).into(),
-        Hash(h) => evaluate_hash(h, false, this, runtime, program),
-        MutableHash(h) => evaluate_hash(h, true, this, runtime, program),
+        Hash(h) => evaluate_hash(h, false, local, runtime, program),
+        MutableHash(h) => evaluate_hash(h, true, local, runtime, program),
         ArrayCreation(expressions) => {
-            let array = eval_list(expressions, this, runtime, program);
+            let array = eval_list(expressions, local, runtime, program);
             GribValue::HeapValue(runtime.alloc_heap(HeapValue::Array(array)))
         }
         Identifier(Located { data, .. }) => panic!(
@@ -317,33 +339,33 @@ pub fn evaluate_expression(
             program.strings[*data]
         ),
         PropertyAccess { item, property } => {
-            let value = evaluate_expression(item.as_ref(), this, runtime, program);
+            let value = evaluate_expression(item.as_ref(), local, runtime, program);
             LiveProperty::new(value, *property, &runtime.gc, program)
                 .map(|prop| prop.get(runtime, program))
                 .unwrap_or_default()
         }
         IndexAccess { item, index } => {
-            let item = evaluate_expression(item.as_ref(), this, runtime, program);
-            let index = evaluate_expression(index.as_ref(), this, runtime, program);
+            let item = evaluate_expression(item.as_ref(), local, runtime, program);
+            let index = evaluate_expression(index.as_ref(), local, runtime, program);
             LiveIndex::new(item, &index, runtime, program)
                 .map(|ind| ind.get(runtime, program))
                 .unwrap_or_default()
         }
         Unary { op, expr } => {
-            let val = evaluate_expression(expr, this, runtime, program);
+            let val = evaluate_expression(expr, local, runtime, program);
             unary_expr(op, &val, &runtime.gc, program)
         }
         Binary { op, left, right } => {
-            let left_val = evaluate_expression(left, this, runtime, program);
-            binary_expr(op, &left_val, right.as_ref(), this, runtime, program)
+            let left_val = evaluate_expression(left, local, runtime, program);
+            binary_expr(op, &left_val, right.as_ref(), local, runtime, program)
         }
         Assignment { op, left, right } => {
-            let val = evaluate_expression(right, this, runtime, program);
-            assignment_expr(op, left, val, this, runtime, program)
+            let val = evaluate_expression(right, local, runtime, program);
+            assignment_expr(op, left, val, local, runtime, program)
         }
         FunctionCall { function, args } => {
-            let values = eval_list(args, this, runtime, program);
-            let fn_val = evaluate_expression(function, this, runtime, program);
+            let values = eval_list(args, local, runtime, program);
+            let fn_val = evaluate_expression(function, local, runtime, program);
             if let GribValue::Callable(f) = fn_val {
                 f.call(program, runtime, values)
             } else {
@@ -356,6 +378,11 @@ pub fn evaluate_expression(
             index: *index,
         }),
         Value(val) => match val {
+            RuntimeValue::CaptureIndex(ind) => local
+                .stack_item(*ind, &runtime.gc)
+                .and_then(|slot| slot.get(&runtime.gc))
+                .cloned()
+                .expect("Failed to read captured value"),
             RuntimeValue::Static(static_val) => static_val.clone().into(),
             RuntimeValue::StackOffset(offset) => {
                 if let Some(val) = runtime.get_offset(*offset) {
