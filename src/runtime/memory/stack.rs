@@ -1,10 +1,27 @@
-use runtime::memory::slot::*;
+use runtime::{memory::StackSlot, values::GribValue};
 use std::fmt::{Debug, Error as DebugError, Formatter};
+
 const STACK_SIZE: usize = 5000;
+const CALL_EMPTY_THIS: &'static str = "ATTEMPT TO LOAD THIS WITH EMPTY STACK";
+const CALL_EMPTY_STACK: &'static str = "ATTEMPT TO LOAD STACK WITH EMPTY STACK";
+
+#[derive(Clone, Default)]
+struct LocalState {
+    this: GribValue,
+    lambda: Option<usize>,
+}
+
+impl LocalState {
+    fn new(this: GribValue, lambda: Option<usize>) -> Self {
+        let this = this.into();
+        Self { this, lambda }
+    }
+}
 
 pub struct Stack {
     stack_size: usize,
     pub(in runtime) stack: [StackSlot; STACK_SIZE],
+    call_stack: Vec<LocalState>,
 }
 
 const EMPTY_STACK_SLOT: StackSlot = StackSlot::Empty;
@@ -14,6 +31,7 @@ impl Stack {
         Self {
             stack_size: 0,
             stack: [EMPTY_STACK_SLOT; STACK_SIZE],
+            call_stack: Vec::new(),
         }
     }
 
@@ -48,13 +66,10 @@ impl Stack {
 
     pub fn offset_slot(&'_ self, offset: usize) -> Option<&'_ StackSlot> {
         offset_calc(self.len(), offset).and_then(|ind| self.stack.get(ind))
-        //self.stack.get(self.stack.len() - offset)
     }
 
     pub fn offset_slot_mut(&'_ mut self, offset: usize) -> Option<&'_ mut StackSlot> {
         offset_calc(self.len(), offset).and_then(move |ind| self.stack.get_mut(ind))
-        //let ind = self.stack.len() - offset;
-        //self.stack.get_mut(ind)
     }
 
     pub fn iter<'a>(&'a self) -> StackIter<'a> {
@@ -63,13 +78,30 @@ impl Stack {
             index: 0,
         }
     }
+
+    pub fn add_call(&mut self, this: GribValue, lambda: Option<usize>) {
+        self.call_stack.push(LocalState::new(this, lambda));
+    }
+
+    pub fn pop_call(&mut self) {
+        self.call_stack.pop();
+    }
+
+    pub fn get_this(&self) -> GribValue {
+        self.call_stack.last().expect(CALL_EMPTY_THIS).this.clone()
+    }
+
+    pub fn get_call_stack(&self) -> Option<usize> {
+        self.call_stack
+            .last()
+            .expect(CALL_EMPTY_STACK)
+            .lambda
+            .clone()
+    }
 }
 
 fn offset_calc(len: usize, offset: usize) -> Option<usize> {
-    len.checked_sub(offset) /*.map(|offset| {
-                                print!("OFFSET: {}", offset);
-                                offset
-                            })*/
+    len.checked_sub(offset)
 }
 
 pub struct StackIter<'a> {

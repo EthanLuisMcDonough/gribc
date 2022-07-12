@@ -13,11 +13,20 @@ impl Gc {
         Gc { heap: Vec::new() }
     }
 
-    pub fn get_captured(&'_ self, index: usize) -> Option<&'_ GribValue> {
-        self.heap_slot(index).and_then(|slot| match slot {
-            HeapSlot::Captured(val) => Some(val),
-            _ => None,
-        })
+    pub fn get_captured(&self, index: usize) -> &GribValue {
+        if let Some(HeapSlot::Captured(val)) = self.heap_slot(index) {
+            val
+        } else {
+            panic!("COULD NOT READ CAPTURED VARIABLE AT {}", index);
+        }
+    }
+
+    pub fn get_captured_mut(&mut self, index: usize) -> &mut GribValue {
+        if let Some(HeapSlot::Captured(val)) = self.heap_slot_mut(index) {
+            val
+        } else {
+            panic!("COULD NOT READ MUTABLE CAPTURED VARIABLE AT {}", index);
+        }
     }
 
     pub fn remove(&mut self, index: usize) {
@@ -66,13 +75,6 @@ impl Gc {
         }
     }
 
-    pub fn get_captured_mut(&'_ mut self, index: usize) -> Option<&'_ mut GribValue> {
-        self.heap_slot_mut(index).and_then(|slot| match slot {
-            HeapSlot::Captured(val) => Some(val),
-            _ => None,
-        })
-    }
-
     pub fn try_get_array(&'_ self, val: impl Into<GribValue>) -> Option<&'_ Vec<GribValue>> {
         let val = val.into();
         if let Some(HeapValue::Array(arr)) = val.ptr().and_then(|ptr| self.heap_val(ptr)) {
@@ -114,6 +116,14 @@ impl Gc {
 
     pub fn try_get_stack(&'_ self, ind: usize) -> Option<&'_ Vec<StackSlot>> {
         if let Some(HeapValue::CapturedStack(stack)) = self.heap_val(ind) {
+            Some(stack)
+        } else {
+            None
+        }
+    }
+
+    pub fn try_get_stack_mut(&mut self, ind: usize) -> Option<&mut Vec<StackSlot>> {
+        if let Some(HeapValue::CapturedStack(stack)) = self.heap_val_mut(ind) {
             Some(stack)
         } else {
             None

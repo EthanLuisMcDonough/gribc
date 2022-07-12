@@ -1,6 +1,6 @@
 /// Structures related to getting and setting index and property values
-use super::{evaluate_expression, local::LocalState};
-use ast::node::{Assignable, Module, Program};
+use super::evaluate_expression;
+use ast::node::{Assignable, Module, Program, StackPointer};
 use runtime::{
     memory::{Gc, Runtime},
     values::{eval_setter, GribKey, GribString, GribValue, KnownIndex},
@@ -141,30 +141,25 @@ impl LiveIndex {
 }
 
 pub enum LiveAssignable {
-    Offset(usize),
+    Stack(StackPointer),
     Index(LiveIndex),
     Property(LiveProperty),
 }
 
 impl LiveAssignable {
-    pub fn new(
-        assignable: &Assignable,
-        local: &LocalState,
-        runtime: &mut Runtime,
-        program: &Program,
-    ) -> Option<Self> {
+    pub fn new(assignable: &Assignable, runtime: &mut Runtime, program: &Program) -> Option<Self> {
         match assignable {
             Assignable::Identifier(_) => {
                 panic!("Identifier should not be present at this point in exeuction")
             }
-            Assignable::Offset(off) => Self::Offset(*off).into(),
+            Assignable::Stack(ptr) => Self::Stack(*ptr).into(),
             Assignable::IndexAccess { item, index } => {
-                let item_val = evaluate_expression(item, local, runtime, program);
-                let index_val = evaluate_expression(index, local, runtime, program);
+                let item_val = evaluate_expression(item, runtime, program);
+                let index_val = evaluate_expression(index, runtime, program);
                 LiveIndex::new(item_val, &index_val, runtime, program).map(LiveAssignable::Index)
             }
             Assignable::PropertyAccess { item, property } => {
-                let item_val = evaluate_expression(item, local, runtime, program);
+                let item_val = evaluate_expression(item, runtime, program);
                 LiveProperty::new(item_val, *property, &runtime.gc, program)
                     .map(LiveAssignable::Property)
             }
@@ -173,7 +168,7 @@ impl LiveAssignable {
 
     pub fn get(&self, runtime: &mut Runtime, program: &Program) -> GribValue {
         match self {
-            Self::Offset(offset) => runtime.get_offset(*offset).cloned().unwrap_or_default(),
+            Self::Stack(offset) => runtime.read_val(*offset).clone(),
             Self::Index(index) => index.get(runtime, program),
             Self::Property(property) => property.get(runtime, program),
         }
@@ -181,10 +176,8 @@ impl LiveAssignable {
 
     pub fn set(&self, runtime: &mut Runtime, program: &Program, val: GribValue) -> GribValue {
         match self {
-            Self::Offset(offset) => {
-                if let Some(r) = runtime.get_offset_mut(*offset) {
-                    *r = val.clone();
-                }
+            Self::Stack(offset) => {
+                *runtime.read_val_mut(*offset) = val.clone();
                 val
             }
             Self::Index(index) => index.set(runtime, program, val),

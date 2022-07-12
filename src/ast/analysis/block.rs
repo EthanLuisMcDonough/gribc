@@ -117,9 +117,7 @@ pub fn walk_ast(
         }
     }
 
-    if scope.in_first_pass() {
-        nodes.allocations = scope.local;
-    }
+    nodes.allocations = scope.local;
 
     Ok(())
 }

@@ -1,4 +1,4 @@
-use super::{Expression, LambdaBody, RuntimeValue};
+use super::{Expression, LambdaBody, RuntimeValue, StackPointer};
 use location::Located;
 use std::collections::HashMap;
 
@@ -17,7 +17,7 @@ pub struct SetProp {
     /// As with lambdas, identifier names are
     /// stored after first pass.  Stack offsets
     /// are stored after second pass
-    pub capture: Vec<usize>,
+    pub capture: Vec<StackPointer>,
 }
 
 impl SetProp {
@@ -40,7 +40,7 @@ pub struct GetProp {
     /// Captured variables
     /// Once again, identifier names in first pass
     /// Stack offsets after second pass
-    pub capture: Vec<usize>,
+    pub capture: Vec<StackPointer>,
 }
 
 impl GetProp {
@@ -77,10 +77,7 @@ pub struct AutoProp {
 
 impl AutoProp {
     pub fn new() -> Self {
-        AutoProp {
-            get: None,
-            set: None,
-        }
+        Self::default()
     }
 }
 

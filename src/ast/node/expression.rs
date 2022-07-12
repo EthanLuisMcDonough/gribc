@@ -6,7 +6,7 @@ use runtime::values::Callable;
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Assignable {
     Identifier(Located<usize>),
-    Offset(usize),
+    Stack(StackPointer),
     IndexAccess {
         item: Box<Expression>,
         index: Box<Expression>,
@@ -24,12 +24,23 @@ pub enum StaticValue {
     Module(Module),
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
+pub enum StackPointer {
+    StackOffset(usize),
+    CaptureIndex(usize),
+}
+
+impl Default for StackPointer {
+    fn default() -> Self {
+        Self::StackOffset(0)
+    }
+}
+
 /// Accessible variable value during runtime
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum RuntimeValue {
     Static(StaticValue),
-    StackOffset(usize),
-    CaptureIndex(usize),
+    Stack(StackPointer),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]

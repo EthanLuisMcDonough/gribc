@@ -1,6 +1,6 @@
 use super::{AccessFunc, Callable, GribString, GribValue};
 use ast::node::Program;
-use runtime::exec::{evaluate_lambda, LocalState};
+use runtime::exec::evaluate_lambda;
 use runtime::memory::{Gc, Runtime};
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash, Hasher};
@@ -32,15 +32,16 @@ impl HashPropertyValue {
             }
             HashPropertyValue::AutoProp { get, .. } => get
                 .as_ref()
-                .and_then(|f| match f {
-                    AccessFunc::Static(val) => val.clone().into(),
-                    AccessFunc::Captured(ptr) => runtime.gc.get_captured(*ptr).cloned(),
+                .map(|f| match f {
+                    AccessFunc::Static(val) => val.clone(),
+                    AccessFunc::Captured(ptr) => runtime.gc.get_captured(*ptr).clone(),
                     AccessFunc::Callable { index, stack } => {
-                        program.getters.get(*index).map(|getter| {
-                            let state =
-                                LocalState::new(GribValue::HeapValue(self_ptr), stack.clone());
-                            evaluate_lambda(&getter.block, &state, runtime, program)
-                        })
+                        runtime
+                            .stack
+                            .add_call(GribValue::HeapValue(self_ptr), stack.clone());
+                        let res = evaluate_lambda(&program.getters[*index].block, runtime, program);
+                        runtime.stack.pop_call();
+                        res
                     }
                 })
                 .unwrap_or_default(),
@@ -207,9 +208,7 @@ pub fn eval_setter(
 ) -> GribValue {
     match func {
         AccessFunc::Captured(ptr) => {
-            if let Some(r) = runtime.gc.get_captured_mut(*ptr) {
-                *r = val.clone();
-            }
+            *runtime.gc.get_captured_mut(*ptr) = val.clone();
             val
         }
         AccessFunc::Callable { index, stack } => {
@@ -220,10 +219,14 @@ pub fn eval_setter(
                 runtime.stack.add(val);
             }
 
-            let state = LocalState::new(GribValue::HeapValue(self_ptr), stack.clone());
-            let res = evaluate_lambda(&setter.block, &state, runtime, program);
+            runtime
+                .stack
+                .add_call(GribValue::HeapValue(self_ptr), stack.clone());
+            let res = evaluate_lambda(&setter.block, runtime, program);
 
+            runtime.stack.pop_call();
             runtime.stack.pop();
+
             res
         }
         AccessFunc::Static(_) => panic!("Setters cannot be static values"),

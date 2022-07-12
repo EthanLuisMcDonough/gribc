@@ -21,16 +21,50 @@ pub enum SubState {
     /// Sets the local loop counter to an active zero value
     WithLoop,
     /// Sets loop counter to None and function counter
-    /// to an active zero
+    /// to an active zero.  Also resets captured stack count
     InFunc,
+}
+
+/// Describes declaration mutablility and capture state
+#[derive(Clone, PartialEq, Debug)]
+enum DeclType {
+    /// Not all captured variables will have a captured stack index
+    /// in every given scope, so we need to record whether a declaration
+    /// is captured
+    Mutable(bool),
+    Constant,
+}
+
+impl DeclType {
+    fn is_mut(&self) -> bool {
+        if let Self::Mutable(m) = self {
+            *m
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Debug)]
 enum DefType {
-    Capture { index: usize, mutable: bool },
-    Mutable { captured: bool, stack_pos: usize },
-    Constant { stack_pos: usize },
+    /// A captured stack index
+    /// Present only while analysing lambda blocks
+    Capture {
+        index: usize,
+        mutable: bool,
+    },
+
+    /// A variable declaration
+    /// This can be a variable defined with decl, im, or a parameter
+    Decl {
+        mutable: DeclType,
+        stack_pos: usize,
+    },
+
+    // Locally defined function
     Function(Callable),
+
+    // Imported value
     Import(StaticValue),
 }
 
@@ -42,7 +76,12 @@ struct DefData {
 
 impl DefData {
     fn is_mut(&self) -> bool {
-        if let DefType::Mutable { .. } = self.kind {
+        if let DefType::Decl {
+            mutable: DeclType::Mutable(_),
+            ..
+        }
+        | DefType::Capture { mutable: true, .. } = self.kind
+        {
             true
         } else {
             false
@@ -50,17 +89,40 @@ impl DefData {
     }
 
     fn is_captured(&self) -> bool {
-        if let DefType::Mutable { captured, .. } = self.kind {
-            captured
+        if let DefType::Decl {
+            mutable: DeclType::Mutable(true),
+            ..
+        }
+        | DefType::Capture { .. } = self.kind
+        {
+            true
         } else {
             false
         }
     }
 
+    /// Sets a mutable variable as captured
+    /// Used during declaration analysis
     fn try_capture(&mut self) {
-        if let DefType::Mutable { captured, .. } = &mut self.kind {
+        if let DefType::Decl {
+            mutable: DeclType::Mutable(captured),
+            ..
+        } = &mut self.kind
+        {
             *captured = true;
         }
+    }
+
+    /// Transforms a variable value into a catpture stack index
+    /// Used when determining runtime values
+    fn capture_index(&mut self, index: usize) {
+        /*match self.kind {
+            DefType::Mutable { .. } => DefType::Capture {
+                index,
+                mutable: true,
+            },
+            DefType::Constant { .. } => DefType::Constant {},
+        }*/
     }
 
     fn is_import(&self) -> bool {
@@ -81,6 +143,7 @@ pub struct Scope {
     /// The number of items on the stack
     pub stack: usize,
     /// The number of declarations in the block
+    /// Parameters should not change this value
     pub local: usize,
     /// The number of declarations in the current loop or function
     /// Functions and loops are responsible for cleaning up their own
@@ -90,28 +153,13 @@ pub struct Scope {
     pub fnc_alloc: Option<usize>,
     /// Whether the scope is in a lambda and what analysis pass it is on
     pub lam_pass: Option<LamPass>,
+    /// How many items have been captured in the current capture stack
+    captured_stack_size: usize,
 }
 
 impl Scope {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Returns true if we're not in a lambda or if we're in the first pass
-    /// Basically tells us if the first half of the analysis can take place
-    pub fn in_first_pass(&self) -> bool {
-        self.lam_pass
-            .as_ref()
-            .filter(|p| **p != LamPass::First)
-            .is_none()
-    }
-
-    /// Same as previous but for second pass
-    pub fn in_second_pass(&self) -> bool {
-        self.lam_pass
-            .as_ref()
-            .filter(|p| **p != LamPass::Second)
-            .is_none()
     }
 
     pub fn sub_with<F: FnOnce(&mut Self) -> WalkResult>(
@@ -120,6 +168,7 @@ impl Scope {
         fnc: F,
     ) -> WalkResult {
         let mut new_scope = self.clone();
+
         new_scope.level += 1;
         new_scope.local = 0;
 
@@ -128,6 +177,7 @@ impl Scope {
             SubState::InFunc => {
                 new_scope.fnc_alloc = Some(0);
                 new_scope.loop_alloc = None;
+                new_scope.captured_stack_size = 0;
             }
             SubState::WithLoop => {
                 new_scope.loop_alloc = Some(0);
@@ -257,8 +307,8 @@ impl Scope {
         let stack_pos = self.new_alloc();
         self.insert(
             name,
-            DefType::Mutable {
-                captured: false,
+            DefType::Decl {
+                mutable: DeclType::Mutable(false),
                 stack_pos,
             },
         )
@@ -280,11 +330,6 @@ impl Scope {
         let pos = self.stack;
         self.stack += 1;
         pos
-    }
-
-    pub fn insert_const(&mut self, name: usize) -> bool {
-        let stack_pos = self.new_alloc();
-        self.insert(name, DefType::Constant { stack_pos })
     }
 
     pub fn insert_fn(&mut self, name: usize, index: usize, module: Option<usize>) -> bool {
@@ -326,11 +371,15 @@ impl Scope {
     /// Inserts a variable defined with decl or im
     pub fn insert_var(&mut self, name: usize, is_mut: bool) -> bool {
         self.new_decl();
-        if is_mut {
-            self.insert_mut(name)
+        let stack_pos = self.new_alloc();
+
+        let mutable = if is_mut {
+            DeclType::Mutable(false)
         } else {
-            self.insert_const(name)
-        }
+            DeclType::Constant
+        };
+
+        self.insert(name, DefType::Decl { mutable, stack_pos })
     }
 
     fn is_captured(&self, name: usize) -> bool {
@@ -375,11 +424,13 @@ impl Scope {
     /// Gets the runtime value of a variable (stack offset, raw funtion, or module object)
     pub fn runtime_value(&self, name: usize) -> Option<RuntimeValue> {
         self.scope.get(&name).map(|val| match &val.kind {
-            DefType::Capture { index, .. } => RuntimeValue::CaptureIndex(*index),
+            DefType::Capture { index, .. } => {
+                RuntimeValue::Stack(StackPointer::CaptureIndex(*index))
+            }
             DefType::Import(value) => RuntimeValue::Static(value.clone()),
             DefType::Function(fnc) => RuntimeValue::Static(StaticValue::Function(fnc.clone())),
-            DefType::Constant { stack_pos } | DefType::Mutable { stack_pos, .. } => {
-                RuntimeValue::StackOffset(self.stack - stack_pos)
+            DefType::Decl { stack_pos, .. } => {
+                RuntimeValue::Stack(StackPointer::StackOffset(self.stack - stack_pos))
             }
         })
     }

@@ -8,7 +8,7 @@ pub use self::slot::StackSlot;
 pub use self::stack::Stack;
 
 use self::mark::*;
-use ast::node::{Param, Parameters};
+use ast::node::{Param, Parameters, StackPointer};
 use runtime::memory::slot::*;
 use runtime::values::{GribString, GribValue, HeapValue};
 
@@ -55,17 +55,54 @@ impl Runtime {
         }
     }
 
-    pub fn get_offset(&'_ self, offset: usize) -> Option<&'_ GribValue> {
-        self.stack
-            .offset_slot(offset)
-            .and_then(|slot| slot.get(&self.gc))
+    pub fn read_slot(&self, ptr: StackPointer) -> &StackSlot {
+        match ptr {
+            StackPointer::StackOffset(offset) => self.stack.offset_slot(offset),
+            StackPointer::CaptureIndex(index) => self
+                .stack
+                .get_call_stack()
+                .and_then(|i| self.gc.try_get_stack(i))
+                .and_then(|stack| stack.get(index)),
+        }
+        .unwrap_or_else(|| panic!("FAILED TO READ POINTER: {:?}", ptr))
     }
 
-    pub fn get_offset_mut(&'_ mut self, offset: usize) -> Option<&'_ mut GribValue> {
-        let heap = &mut self.gc;
-        self.stack
-            .offset_slot_mut(offset)
-            .and_then(move |slot| slot.get_mut(heap))
+    pub fn read_slot_mut(&mut self, ptr: StackPointer) -> &mut StackSlot {
+        match ptr {
+            StackPointer::StackOffset(offset) => self.stack.offset_slot_mut(offset),
+            StackPointer::CaptureIndex(index) => self
+                .stack
+                .get_call_stack()
+                .and_then(move |i| self.gc.try_get_stack_mut(i))
+                .and_then(|stack| stack.get_mut(index)),
+        }
+        .unwrap_or_else(|| panic!("FAILED TO READ POINTER: {:?}", ptr))
+    }
+
+    pub fn read_val(&self, ptr: StackPointer) -> &GribValue {
+        self.read_slot(ptr).get(&self.gc)
+    }
+
+    pub fn read_val_mut(&mut self, ptr: StackPointer) -> &mut GribValue {
+        match ptr {
+            StackPointer::StackOffset(offset) => {
+                let gc = &mut self.gc;
+                self.stack
+                    .offset_slot_mut(offset)
+                    .map(move |slot| slot.get_mut(gc))
+            }
+            StackPointer::CaptureIndex(index) => self
+                .stack
+                .get_call_stack()
+                .and_then(|i| self.gc.try_get_stack(i))
+                .and_then(|stack| stack.get(index))
+                .cloned()
+                .and_then(move |slot| match slot {
+                    StackSlot::Captured(i) => Some(self.gc.get_captured_mut(i)),
+                    _ => None,
+                }),
+        }
+        .unwrap_or_else(|| panic!("FAILED TO READ POINTER: {:?}", ptr))
     }
 
     fn alloc(&mut self, value: HeapSlot) -> usize {
@@ -118,19 +155,14 @@ impl Runtime {
         }
     }
 
-    pub fn capture_stack(&mut self, to_capture: &Vec<usize>) -> Option<usize> {
+    pub fn capture_stack(&mut self, to_capture: &Vec<StackPointer>) -> Option<usize> {
         if to_capture.is_empty() {
             return None;
         }
 
         let mut heap_stack = Vec::with_capacity(to_capture.len());
-        for &offset in to_capture {
-            let slot = self
-                .stack
-                .offset_slot(offset)
-                .expect("INVALID OFFSET")
-                .clone();
-            heap_stack.push(slot);
+        for &ptr in to_capture {
+            heap_stack.push(self.read_slot(ptr).clone());
         }
 
         self.alloc_heap(HeapValue::CapturedStack(heap_stack)).into()

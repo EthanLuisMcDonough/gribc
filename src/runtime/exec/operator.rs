@@ -74,7 +74,6 @@ pub fn binary_expr(
     op: &Binary,
     left: &GribValue,
     right: &Expression,
-    local: &LocalState,
     runtime: &mut Runtime,
     program: &Program,
 ) -> GribValue {
@@ -82,14 +81,14 @@ pub fn binary_expr(
     if op.is_lazy() {
         GribValue::Bool(if let &LogicalAnd = op {
             left.truthy(program, &runtime.gc)
-                && evaluate_expression(right, local, runtime, program).truthy(program, &runtime.gc)
+                && evaluate_expression(right, runtime, program).truthy(program, &runtime.gc)
         } else {
             // LogicalOr
             left.truthy(program, &runtime.gc)
-                || evaluate_expression(right, local, runtime, program).truthy(program, &runtime.gc)
+                || evaluate_expression(right, runtime, program).truthy(program, &runtime.gc)
         })
     } else {
-        let right_expr = evaluate_expression(right, local, runtime, program);
+        let right_expr = evaluate_expression(right, runtime, program);
         match op {
             Plus => add_values(left, &right_expr, program, runtime),
             Minus => sub_values(left, &right_expr, program, &runtime.gc),
@@ -126,11 +125,10 @@ pub fn assignment_expr(
     op: &Assignment,
     left: &Assignable,
     right: GribValue,
-    local: &LocalState,
     runtime: &mut Runtime,
     program: &Program,
 ) -> GribValue {
-    LiveAssignable::new(left, local, runtime, program)
+    LiveAssignable::new(left, runtime, program)
         .map(|live| {
             let mut val = || live.get(runtime, program);
             let res = match op {

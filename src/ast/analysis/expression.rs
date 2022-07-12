@@ -33,36 +33,32 @@ pub fn walk_expression(
         Expression::PropertyAccess { item, .. } => walk_expression(item, scope, lams, cap)?,
         Expression::Assignment { left, right, .. } => {
             match left {
-                Assignable::Offset(_) => {}
+                Assignable::Stack(_) => {}
                 Assignable::Identifier(i) => {
                     let s = i.data;
 
-                    if scope.in_first_pass() {
-                        if !scope.has(s, cap) {
-                            return Err(WalkError {
-                                kind: WalkErrorType::IdentifierNotFound(s),
-                                start: i.start.clone(),
-                                end: i.end.clone(),
-                            });
-                        } else if !scope.has_editable(s, cap) {
-                            return Err(WalkError {
-                                kind: WalkErrorType::ImmutableModification(s),
-                                start: i.start.clone(),
-                                end: i.end.clone(),
-                            });
-                        }
+                    if !scope.has(s, cap) {
+                        return Err(WalkError {
+                            kind: WalkErrorType::IdentifierNotFound(s),
+                            start: i.start.clone(),
+                            end: i.end.clone(),
+                        });
+                    } else if !scope.has_editable(s, cap) {
+                        return Err(WalkError {
+                            kind: WalkErrorType::ImmutableModification(s),
+                            start: i.start.clone(),
+                            end: i.end.clone(),
+                        });
                     }
 
-                    if scope.in_second_pass() {
-                        let stat = scope.runtime_value(s);
-                        if let Some(RuntimeValue::StackOffset(offset)) = stat {
-                            *left = Assignable::Offset(offset);
-                        } else {
-                            panic!(
-                                "Static value is not valid.  This area should be unreachable: {:?}",
-                                stat
-                            );
-                        }
+                    let stat = scope.runtime_value(s);
+                    if let Some(RuntimeValue::Stack(ptr)) = stat {
+                        *left = Assignable::Stack(ptr);
+                    } else {
+                        panic!(
+                            "Static value is not valid.  This area should be unreachable: {:?}",
+                            stat
+                        );
                     }
                 }
                 Assignable::IndexAccess { item, index } => walk_expression(item, scope, lams, cap)
@@ -77,52 +73,48 @@ pub fn walk_expression(
                     ObjectValue::Expression(expr) => walk_expression(expr, scope, lams, cap)?,
                     ObjectValue::AutoProp(auto) => {
                         match auto.get.clone() {
-                            Some(AutoPropValue::Lambda(ind)) if scope.in_first_pass() => {
+                            Some(AutoPropValue::Lambda(ind)) => {
                                 let mut lambda = mem::take(&mut lams.getters[ind]);
                                 eval_lambda(&mut lambda, scope, cap, lams)?;
                                 lams.getters[ind] = lambda;
                             }
                             Some(AutoPropValue::String(ident)) => {
-                                if scope.in_first_pass() && !scope.prop_check(ident.data) {
+                                if !scope.prop_check(ident.data) {
                                     return Err(WalkError {
                                         start: ident.start,
                                         end: ident.end,
                                         kind: WalkErrorType::IdentifierNotFound(ident.data),
                                     });
                                 }
-                                if scope.in_second_pass() {
-                                    let op = scope.runtime_value(ident.data);
-                                    auto.get = op.map(AutoPropValue::Value);
-                                }
+
+                                let op = scope.runtime_value(ident.data);
+                                auto.get = op.map(AutoPropValue::Value);
                             }
                             _ => {}
                         }
                         match auto.set.clone() {
-                            Some(AutoPropValue::Lambda(ind)) if scope.in_first_pass() => {
+                            Some(AutoPropValue::Lambda(ind)) => {
                                 let mut lambda = mem::take(&mut lams.setters[ind]);
                                 eval_lambda(&mut lambda, scope, cap, lams)?;
                                 lams.setters[ind] = lambda;
                             }
                             Some(AutoPropValue::String(ident)) => {
-                                if scope.in_first_pass() {
-                                    if !scope.prop_check(ident.data) {
-                                        return Err(WalkError {
-                                            start: ident.start.clone(),
-                                            end: ident.end.clone(),
-                                            kind: WalkErrorType::IdentifierNotFound(ident.data),
-                                        });
-                                    } else if !scope.prop_check_mut(ident.data) {
-                                        return Err(WalkError {
-                                            start: ident.start.clone(),
-                                            end: ident.end.clone(),
-                                            kind: WalkErrorType::ImmutableModification(ident.data),
-                                        });
-                                    }
+                                if !scope.prop_check(ident.data) {
+                                    return Err(WalkError {
+                                        start: ident.start.clone(),
+                                        end: ident.end.clone(),
+                                        kind: WalkErrorType::IdentifierNotFound(ident.data),
+                                    });
+                                } else if !scope.prop_check_mut(ident.data) {
+                                    return Err(WalkError {
+                                        start: ident.start.clone(),
+                                        end: ident.end.clone(),
+                                        kind: WalkErrorType::ImmutableModification(ident.data),
+                                    });
                                 }
-                                if scope.in_second_pass() {
-                                    let op = scope.runtime_value(ident.data);
-                                    auto.set = op.map(AutoPropValue::Value);
-                                }
+
+                                let op = scope.runtime_value(ident.data);
+                                auto.set = op.map(AutoPropValue::Value);
                             }
                             _ => {}
                         }
@@ -130,24 +122,22 @@ pub fn walk_expression(
                 }
             }
         }
-        // Nested lambdas are only visited once
-        Expression::Lambda(ind) if scope.in_first_pass() => {
+        Expression::Lambda(ind) => {
             let mut lambda = mem::take(&mut lams.lambdas[*ind]);
             eval_lambda(&mut lambda, scope, cap, lams)?;
             lams.lambdas[*ind] = lambda;
         }
         Expression::Identifier(identifier) => {
-            if scope.in_first_pass() && !scope.has(identifier.data, cap) {
+            if !scope.has(identifier.data, cap) {
                 return Err(WalkError {
                     start: identifier.start.clone(),
                     end: identifier.end.clone(),
                     kind: WalkErrorType::IdentifierNotFound(identifier.data),
                 });
             }
-            if scope.in_second_pass() {
-                if let Some(val) = scope.runtime_value(identifier.data) {
-                    *expression = Expression::Value(val);
-                }
+
+            if let Some(val) = scope.runtime_value(identifier.data) {
+                *expression = Expression::Value(val);
             }
         }
         Expression::This { start, end } if scope.lam_pass.is_none() => {

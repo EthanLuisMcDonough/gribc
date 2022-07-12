@@ -1,5 +1,5 @@
 use super::Scope;
-use ast::node::RuntimeValue;
+use ast::node::{RuntimeValue, StackPointer};
 
 #[derive(Debug)]
 struct Capture {
@@ -43,33 +43,23 @@ impl CaptureStack {
     /// Pops off the top captured stack and converts the array of identifiers
     /// to an array of index offsets.  The scope passed in must be a copy of
     /// self before the analysis took place.
-    pub fn pop(&mut self, top_scope: &mut Scope) -> Vec<usize> {
+    pub fn pop(&mut self, top_scope: &Scope) -> Vec<StackPointer> {
         self.stack
             .pop()
             .map(|end| {
-                let (names, captured): (Vec<usize>, _) = end
-                    .identifiers
+                end.identifiers
                     .into_iter()
                     // Filter out any variables that aren't valid captures
                     .filter_map(|name| {
                         let val = top_scope.runtime_value(name);
-                        if let Some(RuntimeValue::StackOffset(off)) = val {
-                            Some((name, off))
+                        if let Some(RuntimeValue::Stack(ptr)) = val {
+                            Some(ptr)
                         } else {
                             // This area shouldn't be reachable
                             None
                         }
                     })
-                    .unzip();
-
-                // We can insert all the valid names as mutable because we've already checked
-                // for mutability errors in the first lambda pass
-                // This second pass serves only to calculate the stack offsets
-                for name in names {
-                    top_scope.insert_mut(name);
-                }
-
-                captured
+                    .collect()
             })
             .unwrap_or_default()
     }

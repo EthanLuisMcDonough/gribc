@@ -4,7 +4,7 @@ use ast::node::*;
 
 pub trait LambdaLike {
     fn add_params(&self, scope: &mut Scope);
-    fn check(&mut self, scope: &mut Scope, cap: &mut CaptureStack, top_stack: &mut Scope);
+    fn check(&mut self, scope: &mut Scope, cap: &mut CaptureStack, top_stack: &Scope);
     fn get_body(&mut self) -> &mut LambdaBody;
 }
 
@@ -13,9 +13,9 @@ impl LambdaLike for Lambda {
         scope.add_params(&self.param_list);
     }
 
-    fn check(&mut self, scope: &mut Scope, cap: &mut CaptureStack, top_stack: &mut Scope) {
+    fn check(&mut self, scope: &mut Scope, cap: &mut CaptureStack, top_stack: &Scope) {
         scope.check_params(&mut self.param_list);
-        self.captured = cap.pop(top_stack);
+        self.capture = cap.pop(top_stack);
     }
 
     fn get_body(&mut self) -> &mut LambdaBody {
@@ -26,7 +26,7 @@ impl LambdaLike for Lambda {
 impl LambdaLike for GetProp {
     fn add_params(&self, _: &mut Scope) {}
 
-    fn check(&mut self, _: &mut Scope, cap: &mut CaptureStack, top_stack: &mut Scope) {
+    fn check(&mut self, _: &mut Scope, cap: &mut CaptureStack, top_stack: &Scope) {
         self.capture = cap.pop(top_stack);
     }
 
@@ -40,7 +40,7 @@ impl LambdaLike for SetProp {
         scope.insert_mut(self.param);
     }
 
-    fn check(&mut self, scope: &mut Scope, cap: &mut CaptureStack, top_stack: &mut Scope) {
+    fn check(&mut self, scope: &mut Scope, cap: &mut CaptureStack, top_stack: &Scope) {
         self.param_captured = scope.take_captured(self.param);
         self.capture = cap.pop(top_stack);
     }
@@ -73,18 +73,13 @@ pub fn eval_lambda<T: LambdaLike>(
     lams: &mut Lams,
 ) -> WalkResult {
     scope.sub_with(SubState::InFunc, |scope| {
-        let mut second = scope.clone();
+        let second = scope.clone();
         cap.add(scope.level);
-
-        scope.lam_pass = Some(LamPass::First);
-        second.lam_pass = Some(LamPass::Second);
 
         lam.add_params(scope);
         walk_lambda_block(lam.get_body(), scope, lams, cap)?;
 
-        lam.check(scope, cap, &mut second);
-
-        lam.add_params(&mut second);
-        walk_lambda_block(lam.get_body(), &mut second, lams, cap)
+        lam.check(scope, cap, &second);
+        Ok(())
     })
 }

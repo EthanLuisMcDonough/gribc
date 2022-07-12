@@ -1,4 +1,5 @@
 use super::{Block, Expression};
+use ast::node::StackPointer;
 use location::Located;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -72,7 +73,7 @@ pub struct Procedure {
 pub struct Lambda {
     pub param_list: Parameters,
     pub body: LambdaBody,
-    pub captured: Vec<usize>,
+    pub capture: Vec<StackPointer>,
 }
 
 impl Lambda {
@@ -80,7 +81,7 @@ impl Lambda {
         Self {
             body,
             param_list,
-            captured: Vec::new(),
+            capture: Vec::new(),
         }
     }
 }

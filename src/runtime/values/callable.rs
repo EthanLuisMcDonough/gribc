@@ -1,7 +1,7 @@
 use super::GribValue;
 use ast::node::{NativeFunction, Program};
 use runtime::{
-    exec::{evaluate_lambda, run_block, LocalState},
+    exec::{evaluate_lambda, run_block},
     memory::Runtime,
 };
 
@@ -35,9 +35,8 @@ impl Callable {
                     &program.functions[*index]
                 };
 
-                let state = LocalState::default();
                 let alloced = runtime.add_params(&fnc.param_list, args);
-                let ret = run_block(&fnc.body, &state, runtime, program)
+                let ret = run_block(&fnc.body, runtime, program)
                     .map(GribValue::from)
                     .unwrap_or_default();
 
@@ -56,9 +55,11 @@ impl Callable {
                     .clone()
                     .map(GribValue::HeapValue)
                     .unwrap_or_default();
-                let state = LocalState::new(this, stack.clone());
 
-                let res = evaluate_lambda(&lambda.body, &state, runtime, program);
+                runtime.stack.add_call(this, stack.clone());
+                let res = evaluate_lambda(&lambda.body, runtime, program);
+
+                runtime.stack.pop_call();
                 runtime.stack.pop_stack(params);
 
                 res
