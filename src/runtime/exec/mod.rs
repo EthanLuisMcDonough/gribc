@@ -185,7 +185,6 @@ fn convert_slot(slot: StackSlot) -> AccessFunc {
     match slot {
         StackSlot::Captured(ind) => AccessFunc::Captured(ind).into(),
         StackSlot::Value(val) => AccessFunc::Static(val).into(),
-        StackSlot::Empty => panic!("ATTEMPT TO CONVERT EMPTY SLOT"),
     }
 }
 

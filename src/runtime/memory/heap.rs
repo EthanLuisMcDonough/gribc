@@ -4,7 +4,6 @@ use runtime::values::*;
 
 #[derive(Debug)]
 pub struct Gc {
-    //(in runtime::memory)
     pub heap: Vec<MarkedSlot>,
 }
 
@@ -30,18 +29,23 @@ impl Gc {
     }
 
     pub fn remove(&mut self, index: usize) {
-        self.heap[index].value = HeapSlot::Empty;
+        if let Some(Markable { marked, value }) = self.heap.get_mut(index) {
+            *marked = false;
+            *value = None;
+        }
     }
 
     pub(in runtime::memory) fn heap_slot<'a>(&'a self, ptr: usize) -> Option<&'a HeapSlot> {
-        self.heap.get(ptr).map(|marked| &marked.value)
+        self.heap.get(ptr).and_then(|marked| marked.value.as_ref())
     }
 
     pub(in runtime::memory) fn heap_slot_mut<'a>(
         &'a mut self,
         ptr: usize,
     ) -> Option<&'a mut HeapSlot> {
-        self.heap.get_mut(ptr).map(|marked| &mut marked.value)
+        self.heap
+            .get_mut(ptr)
+            .and_then(|marked| marked.value.as_mut())
     }
 
     pub fn normalize_val(&self, val: impl Into<GribValue>) -> GribValue {
@@ -70,8 +74,8 @@ impl Gc {
     }
 
     pub fn set_heap_val_at(&mut self, value: HeapValue, ptr: usize) {
-        if let Some(slot) = self.heap_slot_mut(ptr) {
-            *slot = MemSlot::Value(value);
+        if let Some(slot) = self.heap.get_mut(ptr) {
+            slot.value = Some(MemSlot::Value(value));
         }
     }
 

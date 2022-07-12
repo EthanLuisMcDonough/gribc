@@ -20,17 +20,17 @@ impl LocalState {
 
 pub struct Stack {
     stack_size: usize,
-    pub(in runtime) stack: [StackSlot; STACK_SIZE],
+    pub(in runtime) stack: [Option<StackSlot>; STACK_SIZE],
     call_stack: Vec<LocalState>,
 }
 
-const EMPTY_STACK_SLOT: StackSlot = StackSlot::Empty;
+const EMPTY_SLOT: Option<StackSlot> = None;
 
 impl Stack {
     pub fn new() -> Self {
         Self {
             stack_size: 0,
-            stack: [EMPTY_STACK_SLOT; STACK_SIZE],
+            stack: [EMPTY_SLOT; STACK_SIZE],
             call_stack: Vec::new(),
         }
     }
@@ -42,7 +42,7 @@ impl Stack {
     pub fn add(&mut self, value: impl Into<StackSlot>) -> usize {
         let value = value.into();
         if self.stack_size < STACK_SIZE {
-            self.stack[self.stack_size] = value;
+            self.stack[self.stack_size] = Some(value);
             let ptr = self.stack_size;
             self.stack_size += 1;
             ptr
@@ -54,7 +54,7 @@ impl Stack {
     pub fn pop(&mut self) {
         if self.stack_size > 0 {
             self.stack_size -= 1;
-            self.stack[self.stack_size] = StackSlot::Empty;
+            self.stack[self.stack_size] = None;
         }
     }
 
@@ -64,12 +64,26 @@ impl Stack {
         }
     }
 
+    fn get_ind(&self, ind: usize) -> Option<&StackSlot> {
+        match self.stack.get(ind) {
+            Some(Some(slot)) => Some(slot),
+            _ => None,
+        }
+    }
+
+    fn get_ind_mut(&mut self, ind: usize) -> Option<&mut StackSlot> {
+        match self.stack.get_mut(ind) {
+            Some(Some(slot)) => Some(slot),
+            _ => None,
+        }
+    }
+
     pub fn offset_slot(&'_ self, offset: usize) -> Option<&'_ StackSlot> {
-        offset_calc(self.len(), offset).and_then(|ind| self.stack.get(ind))
+        offset_calc(self.len(), offset).and_then(|ind| self.get_ind(ind))
     }
 
     pub fn offset_slot_mut(&'_ mut self, offset: usize) -> Option<&'_ mut StackSlot> {
-        offset_calc(self.len(), offset).and_then(move |ind| self.stack.get_mut(ind))
+        offset_calc(self.len(), offset).and_then(move |ind| self.get_ind_mut(ind))
     }
 
     pub fn iter<'a>(&'a self) -> StackIter<'a> {
@@ -116,7 +130,7 @@ impl<'a> Iterator for StackIter<'a> {
         if self.index < self.stack.stack_size {
             let ind = self.stack.stack_size - self.index - 1;
             self.index += 1;
-            Some(&self.stack.stack[ind])
+            self.stack.stack[ind].as_ref()
         } else {
             None
         }

@@ -15,8 +15,8 @@ pub fn mark_heap(gc: &mut Gc, ind: usize) {
     let mut marked_func = Vec::new();
 
     match value {
-        HeapSlot::Captured(val) => marked_stack.push(val.clone()), // shouldn't recurse deeper than one level
-        HeapSlot::Value(val) => match val {
+        Some(HeapSlot::Captured(val)) => marked_stack.push(val.clone()), // shouldn't recurse deeper than one level
+        Some(HeapSlot::Value(val)) => match val {
             HeapValue::String(_) => {}
             HeapValue::Array(arr) => {
                 for i in arr.iter() {
@@ -28,7 +28,6 @@ pub fn mark_heap(gc: &mut Gc, ind: usize) {
                     match val {
                         StackSlot::Captured(index) => marked_heap.push(*index),
                         StackSlot::Value(val) => marked_stack.push(val.clone()),
-                        StackSlot::Empty => {}
                     }
                 }
             }
@@ -49,7 +48,7 @@ pub fn mark_heap(gc: &mut Gc, ind: usize) {
                 }
             }
         },
-        _ => to_mark = false,
+        None => to_mark = false,
     }
 
     *marked = to_mark;
