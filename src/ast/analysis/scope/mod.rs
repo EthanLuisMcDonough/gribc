@@ -115,14 +115,20 @@ impl DefData {
 
     /// Transforms a variable value into a catpture stack index
     /// Used when determining runtime values
-    fn capture_index(&mut self, index: usize) {
-        /*match self.kind {
-            DefType::Mutable { .. } => DefType::Capture {
-                index,
-                mutable: true,
-            },
-            DefType::Constant { .. } => DefType::Constant {},
-        }*/
+    fn capture_index(&mut self, index: &mut usize, level: usize) {
+        let mutable = self.is_mut();
+        match self.kind {
+            DefType::Decl { .. } => {}
+            // Don't rewrite a capture if we already rewrote it in this scope
+            DefType::Capture { .. } if level < self.level => {}
+            _ => return,
+        }
+
+        self.kind = DefType::Capture {
+            index: *index,
+            mutable,
+        };
+        *index += 1;
     }
 
     fn is_import(&self) -> bool {
@@ -397,7 +403,7 @@ impl Scope {
 
     fn try_capture(&mut self, name: usize) {
         if let Some(data) = self.scope.get_mut(&name) {
-            data.try_capture();
+            data.capture_index(&mut self.captured_stack_size, self.level);
         }
     }
 
@@ -405,7 +411,7 @@ impl Scope {
     /// If so, try to capture it
     pub fn prop_check(&mut self, name: usize) -> bool {
         if let Some(data) = self.scope.get_mut(&name) {
-            data.try_capture();
+            data.capture_index(&mut self.captured_stack_size, self.level);
             return true;
         }
         false
@@ -415,7 +421,7 @@ impl Scope {
     /// If so, capture it
     pub fn prop_check_mut(&mut self, name: usize) -> bool {
         if let Some(data) = self.scope.get_mut(&name).filter(|d| d.is_mut()) {
-            data.try_capture();
+            data.capture_index(&mut self.captured_stack_size, self.level);
             return true;
         }
         false
@@ -440,7 +446,7 @@ impl Scope {
     pub fn has(&mut self, name: usize, s: &mut CaptureStack) -> bool {
         if let Some(data) = self.scope.get_mut(&name) {
             if s.check_ref(name, data.level) {
-                data.try_capture();
+                data.capture_index(&mut self.captured_stack_size, self.level);
             }
             return true;
         }
@@ -450,7 +456,7 @@ impl Scope {
     pub fn has_editable(&mut self, name: usize, s: &mut CaptureStack) -> bool {
         if let Some(data) = self.scope.get_mut(&name).filter(|d| d.is_mut()) {
             if s.check_ref(name, data.level) {
-                data.try_capture();
+                data.capture_index(&mut self.captured_stack_size, self.level);
             }
             return true;
         }

@@ -5,7 +5,7 @@ const STACK_SIZE: usize = 5000;
 const CALL_EMPTY_THIS: &'static str = "ATTEMPT TO LOAD THIS WITH EMPTY STACK";
 const CALL_EMPTY_STACK: &'static str = "ATTEMPT TO LOAD STACK WITH EMPTY STACK";
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 struct LocalState {
     this: GribValue,
     lambda: Option<usize>,
@@ -94,10 +94,13 @@ impl Stack {
     }
 
     pub fn add_call(&mut self, this: GribValue, lambda: Option<usize>) {
-        self.call_stack.push(LocalState::new(this, lambda));
+        let state = LocalState::new(this, lambda);
+        println!("state pushed: {:?}", state);
+        self.call_stack.push(state);
     }
 
     pub fn pop_call(&mut self) {
+        println!("pop called");
         self.call_stack.pop();
     }
 
@@ -106,6 +109,7 @@ impl Stack {
     }
 
     pub fn get_call_stack(&self) -> Option<usize> {
+        println!("stacklen: {}", self.call_stack.len());
         self.call_stack
             .last()
             .expect(CALL_EMPTY_STACK)
