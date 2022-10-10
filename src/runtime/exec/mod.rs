@@ -220,10 +220,9 @@ fn evaluate_hash(
                         AutoPropValue::Value(RuntimeValue::StackOffset(offset)) => runtime
                             .stack
                             .offset_slot(*offset)
-                            .and_then(|p| match p {
-                                StackSlot::Captured(ind) => AccessFunc::Captured(*ind).into(),
-                                StackSlot::Value(val) => AccessFunc::Static(val.clone()).into(),
-                                StackSlot::Empty => None,
+                            .map(|p| match p {
+                                StackSlot::Captured(ind) => AccessFunc::Captured(*ind),
+                                StackSlot::Value(val) => AccessFunc::Static(val.clone()),
                             })
                             .expect("FAILED TO READ OFFSET"),
                         AutoPropValue::Lambda(ind) => AccessFunc::Callable {

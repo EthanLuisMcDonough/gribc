@@ -21,18 +21,20 @@ impl Gc {
     }
 
     pub fn remove(&mut self, index: usize) {
-        self.heap[index].value = HeapSlot::Empty;
+        self.heap[index].value = None;
     }
 
     pub(in runtime::memory) fn heap_slot<'a>(&'a self, ptr: usize) -> Option<&'a HeapSlot> {
-        self.heap.get(ptr).map(|marked| &marked.value)
+        self.heap.get(ptr).and_then(|marked| marked.value.as_ref())
     }
 
     pub(in runtime::memory) fn heap_slot_mut<'a>(
         &'a mut self,
         ptr: usize,
     ) -> Option<&'a mut HeapSlot> {
-        self.heap.get_mut(ptr).map(|marked| &mut marked.value)
+        self.heap
+            .get_mut(ptr)
+            .and_then(|marked| marked.value.as_mut())
     }
 
     pub fn normalize_val(&self, val: impl Into<GribValue>) -> GribValue {
@@ -61,9 +63,7 @@ impl Gc {
     }
 
     pub fn set_heap_val_at(&mut self, value: HeapValue, ptr: usize) {
-        if let Some(slot) = self.heap_slot_mut(ptr) {
-            *slot = MemSlot::Value(value);
-        }
+        self.heap[ptr].value = MemSlot::Value(value).into();
     }
 
     pub fn get_captured_mut(&'_ mut self, index: usize) -> Option<&'_ mut GribValue> {
@@ -75,7 +75,7 @@ impl Gc {
 
     pub fn try_get_array(&'_ self, val: impl Into<GribValue>) -> Option<&'_ Vec<GribValue>> {
         let val = val.into();
-        if let Some(HeapValue::Array(arr)) = val.ptr().and_then(|ptr| self.heap_val(ptr)) {
+        if let Some(HeapValue::Array(ref arr)) = val.ptr().and_then(|ptr| self.heap_val(ptr)) {
             Some(arr)
         } else {
             None
@@ -87,7 +87,9 @@ impl Gc {
         val: impl Into<GribValue>,
     ) -> Option<&'_ mut Vec<GribValue>> {
         let val = val.into();
-        if let Some(HeapValue::Array(arr)) = val.ptr().and_then(move |ptr| self.heap_val_mut(ptr)) {
+        if let Some(HeapValue::Array(ref mut arr)) =
+            val.ptr().and_then(move |ptr| self.heap_val_mut(ptr))
+        {
             Some(arr)
         } else {
             None
@@ -95,7 +97,7 @@ impl Gc {
     }
 
     pub fn try_get_hash(&'_ self, val: impl Into<GribValue>) -> Option<&'_ HashValue> {
-        if let Some(HeapValue::Hash(h)) = val.into().ptr().and_then(|ptr| self.heap_val(ptr)) {
+        if let Some(HeapValue::Hash(ref h)) = val.into().ptr().and_then(|ptr| self.heap_val(ptr)) {
             Some(h)
         } else {
             None
@@ -103,7 +105,7 @@ impl Gc {
     }
 
     pub fn try_get_hash_mut(&'_ mut self, val: impl Into<GribValue>) -> Option<&'_ mut HashValue> {
-        if let Some(HeapValue::Hash(h)) =
+        if let Some(HeapValue::Hash(ref mut h)) =
             val.into().ptr().and_then(move |ptr| self.heap_val_mut(ptr))
         {
             Some(h)

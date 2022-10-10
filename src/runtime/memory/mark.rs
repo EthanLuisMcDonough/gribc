@@ -3,36 +3,32 @@ use super::*;
 use runtime::values::{AccessFunc, Callable, GribValue, HashPropertyValue, HeapValue};
 
 pub fn mark_heap(gc: &mut Gc, ind: usize) {
+    use self::{HeapValue::*, MemSlot::*};
+
     let Markable { marked, ref value } = &mut gc.heap[ind];
 
-    if *marked {
-        return;
-    }
+    // Don't bother with marked/empty slots
+    if let Some(value) = value.as_ref().filter(|_| !*marked) {
+        let mut marked_stack = Vec::new();
+        let mut marked_heap = Vec::new();
+        let mut marked_func = Vec::new();
 
-    let mut to_mark = true;
-    let mut marked_stack = Vec::new();
-    let mut marked_heap = Vec::new();
-    let mut marked_func = Vec::new();
-
-    match value {
-        HeapSlot::Captured(val) => marked_stack.push(val.clone()), // shouldn't recurse deeper than one level
-        HeapSlot::Value(val) => match val {
-            HeapValue::String(_) => {}
-            HeapValue::Array(arr) => {
+        match value {
+            Captured(val) => marked_stack.push(val.clone()),
+            Value(Array(arr)) => {
                 for i in arr.iter() {
                     marked_stack.push(i.clone());
                 }
             }
-            HeapValue::CapturedStack(stack) => {
+            Value(CapturedStack(stack)) => {
                 for val in stack {
                     match val {
                         StackSlot::Captured(index) => marked_heap.push(*index),
                         StackSlot::Value(val) => marked_stack.push(val.clone()),
-                        StackSlot::Empty => {}
                     }
                 }
             }
-            HeapValue::Hash(hash) => {
+            Value(Hash(hash)) => {
                 for (key, value) in hash.iter() {
                     marked_stack.push(key.clone().into());
                     match value {
@@ -48,29 +44,29 @@ pub fn mark_heap(gc: &mut Gc, ind: usize) {
                     }
                 }
             }
-        },
-        _ => to_mark = false,
-    }
+            Value(String(_)) => {}
+        }
 
-    *marked = to_mark;
+        *marked = true;
 
-    for value in marked_stack {
-        mark_stack(gc, &value);
-    }
+        for value in marked_stack {
+            mark_stack(gc, &value);
+        }
 
-    for value in marked_heap {
-        mark_heap(gc, value);
-    }
+        for value in marked_heap {
+            mark_heap(gc, value);
+        }
 
-    for value in marked_func {
-        match value {
-            AccessFunc::Captured(ind) => mark_heap(gc, ind),
-            AccessFunc::Callable { stack, .. } => {
-                if let Some(ind) = stack {
-                    mark_heap(gc, ind);
+        for value in marked_func {
+            match value {
+                AccessFunc::Captured(ind) => mark_heap(gc, ind),
+                AccessFunc::Callable { stack, .. } => {
+                    if let Some(ind) = stack {
+                        mark_heap(gc, ind);
+                    }
                 }
+                AccessFunc::Static(val) => mark_stack(gc, &val),
             }
-            AccessFunc::Static(val) => mark_stack(gc, &val),
         }
     }
 }

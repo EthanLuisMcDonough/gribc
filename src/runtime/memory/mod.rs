@@ -40,7 +40,6 @@ impl Runtime {
             match slot {
                 StackSlot::Captured(ind) => mark_heap(&mut self.gc, *ind),
                 StackSlot::Value(val) => mark_stack(&mut self.gc, val),
-                StackSlot::Empty => {}
             }
         }
 
@@ -71,13 +70,17 @@ impl Runtime {
         }
     }
 
-    fn alloc(&mut self, value: HeapSlot) -> usize {
+    fn allocation_overflow(&self) -> bool {
+        self.allocations > self.max_allocations
+    }
+
+    fn alloc(&mut self, value: impl Into<Option<HeapSlot>>) -> usize {
         let value = Markable {
-            value,
+            value: value.into(),
             marked: false,
         };
 
-        if self.allocations > self.max_allocations {
+        if self.allocation_overflow() {
             self.clean();
             self.allocations = 0;
         }
@@ -99,7 +102,7 @@ impl Runtime {
     }
 
     pub fn reserve_slot(&mut self) -> usize {
-        self.alloc(HeapSlot::Empty)
+        self.alloc(None)
     }
 
     pub fn alloc_captured(&mut self, value: GribValue) -> usize {

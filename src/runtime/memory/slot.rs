@@ -10,18 +10,11 @@ pub struct Markable<T> {
 pub enum MemSlot<C, V> {
     Captured(C),
     Value(V),
-    Empty,
 }
 
 impl<C, V> From<V> for MemSlot<C, V> {
     fn from(val: V) -> Self {
         MemSlot::Value(val)
-    }
-}
-
-impl<C, V> Default for MemSlot<C, V> {
-    fn default() -> Self {
-        Self::Empty
     }
 }
 
@@ -35,5 +28,5 @@ impl<C, V> MemSlot<C, V> {
 }
 
 pub type HeapSlot = MemSlot<GribValue, HeapValue>;
-pub type MarkedSlot = Markable<HeapSlot>;
+pub type MarkedSlot = Markable<Option<HeapSlot>>;
 pub type StackSlot = MemSlot<usize, GribValue>;

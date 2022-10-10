@@ -4,10 +4,10 @@ const STACK_SIZE: usize = 5000;
 
 pub struct Stack {
     stack_size: usize,
-    pub(in runtime) stack: [StackSlot; STACK_SIZE],
+    stack: [Option<StackSlot>; STACK_SIZE],
 }
 
-const EMPTY_STACK_SLOT: StackSlot = StackSlot::Empty;
+const EMPTY_STACK_SLOT: Option<StackSlot> = None;
 
 impl Stack {
     pub fn new() -> Self {
@@ -24,7 +24,7 @@ impl Stack {
     pub fn add(&mut self, value: impl Into<StackSlot>) -> usize {
         let value = value.into();
         if self.stack_size < STACK_SIZE {
-            self.stack[self.stack_size] = value;
+            self.stack[self.stack_size] = Some(value);
             let ptr = self.stack_size;
             self.stack_size += 1;
             ptr
@@ -36,7 +36,7 @@ impl Stack {
     pub fn pop(&mut self) {
         if self.stack_size > 0 {
             self.stack_size -= 1;
-            self.stack[self.stack_size] = StackSlot::Empty;
+            self.stack[self.stack_size] = None;
         }
     }
 
@@ -46,48 +46,27 @@ impl Stack {
         }
     }
 
+    fn offset_calc(&self, offset: usize) -> Option<usize> {
+        self.len().checked_sub(offset)
+    }
+
     pub fn offset_slot(&'_ self, offset: usize) -> Option<&'_ StackSlot> {
-        offset_calc(self.len(), offset).and_then(|ind| self.stack.get(ind))
-        //self.stack.get(self.stack.len() - offset)
+        self.offset_calc(offset)
+            .and_then(|ind| self.stack.get(ind))
+            .and_then(|o| o.as_ref())
     }
 
     pub fn offset_slot_mut(&'_ mut self, offset: usize) -> Option<&'_ mut StackSlot> {
-        offset_calc(self.len(), offset).and_then(move |ind| self.stack.get_mut(ind))
-        //let ind = self.stack.len() - offset;
-        //self.stack.get_mut(ind)
+        self.offset_calc(offset)
+            .and_then(move |ind| self.stack.get_mut(ind))
+            .and_then(|o| o.as_mut())
     }
 
-    pub fn iter<'a>(&'a self) -> StackIter<'a> {
-        StackIter {
-            stack: self,
-            index: 0,
-        }
-    }
-}
-
-fn offset_calc(len: usize, offset: usize) -> Option<usize> {
-    len.checked_sub(offset) /*.map(|offset| {
-                                print!("OFFSET: {}", offset);
-                                offset
-                            })*/
-}
-
-pub struct StackIter<'a> {
-    stack: &'a Stack,
-    index: usize,
-}
-
-impl<'a> Iterator for StackIter<'a> {
-    type Item = &'a StackSlot;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.stack.stack_size {
-            let ind = self.stack.stack_size - self.index - 1;
-            self.index += 1;
-            Some(&self.stack.stack[ind])
-        } else {
-            None
-        }
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = &'a StackSlot> {
+        self.stack
+            .iter()
+            .take(self.stack_size)
+            .filter_map(|s| s.as_ref())
     }
 }
 
