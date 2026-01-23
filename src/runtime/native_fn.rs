@@ -8,6 +8,7 @@ use std::{
     io::{self, Read, Write},
     path::Path,
 };
+use serde::{Serialize, Deserialize};
 
 macro_rules! native_obj {
     ($name:ident | $pkg:ident {
@@ -57,6 +58,7 @@ macro_rules! native_obj {
         }
 
         impl $pkg {
+            #[allow(dead_code)]
             const MEMBERS: &'static [&'static str] = &[$( $str ),*];
 
             pub fn raw_names(&self) -> &'static [&'static str] {

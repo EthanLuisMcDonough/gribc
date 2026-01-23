@@ -1,6 +1,7 @@
 use super::{Expression, LambdaBody, RuntimeValue};
 use location::Located;
 use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
 
 /// Setter function
 /// Stored in program struct

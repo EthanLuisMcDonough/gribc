@@ -1,5 +1,6 @@
 use super::{Block, Expression, Module};
 use location::Located;
+use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct ConditionBodyPair {

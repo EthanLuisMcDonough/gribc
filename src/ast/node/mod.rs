@@ -15,6 +15,7 @@ pub use self::object::*;
 pub use self::statement::*;
 
 pub use runtime::native_fn::{NativeFunction, NativePackage};
+use serde::{Serialize, Deserialize};
 
 pub type ModuleStore = Vec<CustomModule>;
 

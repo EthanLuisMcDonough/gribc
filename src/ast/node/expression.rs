@@ -2,6 +2,7 @@ use super::{module::Module, Hash};
 use location::{Located, Location};
 use operators::{Assignment, Binary, Unary};
 use runtime::values::Callable;
+use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Assignable {

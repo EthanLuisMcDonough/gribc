@@ -1,5 +1,6 @@
 use super::Expression;
 use location::Location;
+use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum BreakType {

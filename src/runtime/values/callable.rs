@@ -4,6 +4,7 @@ use runtime::{
     exec::{evaluate_lambda, run_block},
     memory::Runtime,
 };
+use serde::{Serialize, Deserialize};
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Callable {

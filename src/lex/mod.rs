@@ -4,6 +4,7 @@ use self::tokens::*;
 use location::{Located, Location};
 use operators::{Assignment, Binary, Unary};
 use util::next_if;
+use serde::{Serialize, Deserialize};
 
 #[macro_export]
 macro_rules! keyword_map {
@@ -14,6 +15,7 @@ macro_rules! keyword_map {
         }
 
         impl $name {
+            #[allow(dead_code)]
             const MEMBERS: &'static [&'static str] = &[$( $s ),*];
 
             pub fn str(&self) -> &'static str {

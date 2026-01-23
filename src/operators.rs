@@ -1,3 +1,5 @@
+use serde::{Serialize, Deserialize};
+
 macro_rules! list_enum {
     (count [ $item:ident ]) => {
         1

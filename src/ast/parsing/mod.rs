@@ -16,6 +16,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use util::{next_if, remove_file};
+use serde::{Serialize, Deserialize};
 
 pub type ParseResult<T> = Result<T, ParseError>;
 

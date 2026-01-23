@@ -10,6 +10,7 @@ use self::scope::*;
 
 use ast::node::*;
 use location::Location;
+use serde::{Serialize, Deserialize};
 
 pub type WalkResult = Result<(), WalkError>;
 type Lambdas = Vec<Lambda>;

@@ -3,6 +3,7 @@ use runtime::values::Callable;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Module {
