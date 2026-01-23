@@ -25,7 +25,7 @@ impl Capture {
 /// A vec of captures is associated with a particular lambda or getter/setter
 /// Whenever a lambda/getter/setter is being walked, a new captured stack
 /// is created.  Any variables ouside the lambda currently being walked
-/// are added to each unimplemented!()
+/// are added to each capture stack.
 #[derive(Debug)]
 pub struct CaptureStack {
     stack: Vec<Capture>,

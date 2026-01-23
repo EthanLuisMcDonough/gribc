@@ -4,3 +4,4 @@
 /samples/bin
 .idea
 /samples/test.grib
+.DS_Store

@@ -63,7 +63,7 @@ pub fn walk_ast(
                         let kind = match &flow.kind {
                             BreakType::Break => WalkErrorType::InvalidBreak,
                             BreakType::Continue => WalkErrorType::InvalidContinue,
-                            BreakType::Return(_) => panic!("Unreachable"),
+                            BreakType::Return(_) => unreachable!(),
                         };
 
                         let start = flow.start.clone();

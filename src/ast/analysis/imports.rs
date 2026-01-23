@@ -38,7 +38,8 @@ pub fn walk_import(
                     }
                 }
                 Module::Native(_pkg) => {
-                    panic!("Branch should be unreachable.  Native all imports are rewritten");
+                    // Branch should be unreachable.  Native all imports are rewritten
+                    unreachable!();
                 }
             };
         }
