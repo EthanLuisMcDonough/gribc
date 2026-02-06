@@ -10,16 +10,16 @@ use self::scope::*;
 
 use ast::node::*;
 use location::Location;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub type WalkResult = Result<(), WalkError>;
-type Lambdas = Vec<Lambda>;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Copy)]
 pub enum WalkErrorType {
-    ImmutableModification(usize),
-    IdentifierNotFound(usize),
-    InvalidRedefinition(usize),
+    ImmutableModification(Identifier),
+    IdentifierNotFound(Identifier),
+    InvalidRedefinition(Identifier),
+    SelfImport,
     InvalidBreak,
     InvalidReturn,
     InvalidContinue,
@@ -35,8 +35,8 @@ pub struct WalkError {
 
 pub struct Lams<'a> {
     lambdas: &'a mut Lambdas,
-    getters: &'a mut Vec<GetProp>,
-    setters: &'a mut Vec<SetProp>,
+    getters: &'a mut Getters,
+    setters: &'a mut Setters,
 }
 
 pub fn ref_check(program: &mut Program) -> Result<(), WalkError> {
@@ -52,7 +52,7 @@ pub fn ref_check(program: &mut Program) -> Result<(), WalkError> {
         setters: &mut program.setters,
     };
 
-    for mod_ind in 0..modules.len() {
+    for mod_ind in (0..modules.len()).map(ModuleInd::from) {
         let mut module = std::mem::take(&mut modules[mod_ind]);
         walk_module(
             &mut module,
@@ -69,7 +69,7 @@ pub fn ref_check(program: &mut Program) -> Result<(), WalkError> {
         walk_import(import, &program.modules, &program.strings, &mut scope)?;
     }
 
-    for (ind, Procedure { identifier, .. }) in program.functions.iter().enumerate() {
+    for (ind, Procedure { identifier, .. }) in program.procedures.iter_enumerated() {
         if !scope.insert_fn(identifier.data, ind, None) {
             return Err(WalkError {
                 start: identifier.start.clone(),
@@ -79,8 +79,8 @@ pub fn ref_check(program: &mut Program) -> Result<(), WalkError> {
         }
     }
 
-    for function in &mut program.functions {
-        walk_procedure(function, &mut scope, &mut lambdas, &mut stack)?;
+    for procedure in &mut program.procedures {
+        walk_procedure(procedure, &mut scope, &mut lambdas, &mut stack)?;
     }
 
     walk_ast(body, &mut scope, &mut lambdas, &mut stack)?;

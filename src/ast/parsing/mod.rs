@@ -113,11 +113,11 @@ fn next_construct<T: Iterator<Item = Located<Token>>>(
                 });
             }
 
-            Node::LogicChain {
+            Node::LogicChain(LogicChain {
                 if_block,
                 elseifs,
                 else_block,
-            }
+            })
         }
 
         Token::Keyword(Keyword::Break) => next_guard!({ tokens.next() }
@@ -167,12 +167,12 @@ fn next_construct<T: Iterator<Item = Located<Token>>>(
 
             let body = take_until(tokens, Grouper::Brace).and_then(|(v, _)| ast_level(v, store))?;
 
-            Node::For {
+            Node::For(ForLoop {
                 declaration,
                 condition,
                 increment,
                 body,
-            }
+            })
         }
 
         Token::Semicolon => {
@@ -221,12 +221,12 @@ fn top_level(
         match token.data {
             Token::Keyword(Keyword::Proc) => {
                 let proc = parse_proc(&mut tokens, false, &mut store)?;
-                store.add_fn(proc);
+                store.add_proc(proc);
             }
             Token::Keyword(Keyword::Public) => next_guard!({ tokens.next() } {
                 Token::Keyword(Keyword::Proc) => {
                     let proc = parse_proc(&mut tokens, true, &mut store)?;
-                    store.add_fn(proc);
+                    store.add_proc(proc);
                 }
             }),
             _ => {

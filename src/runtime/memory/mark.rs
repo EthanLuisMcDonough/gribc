@@ -2,6 +2,18 @@ use super::slot::*;
 use super::*;
 use runtime::values::{AccessFunc, Callable, GribValue, HashPropertyValue, HeapValue};
 
+fn mark_access_prop<IndexType>(gc: &mut Gc, prop: AccessFunc<IndexType>) {
+    match prop {
+        AccessFunc::Captured(ind) => mark_heap(gc, ind),
+        AccessFunc::Callable { stack, .. } => {
+            if let Some(ind) = stack {
+                mark_heap(gc, ind);
+            }
+        }
+        AccessFunc::Static(val) => mark_stack(gc, &val),
+    }
+}
+
 pub fn mark_heap(gc: &mut Gc, ind: usize) {
     use self::{HeapValue::*, MemSlot::*};
 
@@ -11,7 +23,8 @@ pub fn mark_heap(gc: &mut Gc, ind: usize) {
     if let Some(value) = value.as_ref().filter(|_| !*marked) {
         let mut marked_stack = Vec::new();
         let mut marked_heap = Vec::new();
-        let mut marked_func = Vec::new();
+        let mut marked_gets = Vec::new();
+        let mut marked_sets = Vec::new();
 
         match value {
             Captured(val) => marked_stack.push(val.clone()),
@@ -35,10 +48,10 @@ pub fn mark_heap(gc: &mut Gc, ind: usize) {
                         HashPropertyValue::Value(val) => marked_stack.push(val.clone()),
                         HashPropertyValue::AutoProp { get, set } => {
                             if let Some(f1) = get {
-                                marked_func.push(f1.clone());
+                                marked_gets.push(f1.clone());
                             }
                             if let Some(f2) = set {
-                                marked_func.push(f2.clone());
+                                marked_sets.push(f2.clone());
                             }
                         }
                     }
@@ -57,16 +70,12 @@ pub fn mark_heap(gc: &mut Gc, ind: usize) {
             mark_heap(gc, value);
         }
 
-        for value in marked_func {
-            match value {
-                AccessFunc::Captured(ind) => mark_heap(gc, ind),
-                AccessFunc::Callable { stack, .. } => {
-                    if let Some(ind) = stack {
-                        mark_heap(gc, ind);
-                    }
-                }
-                AccessFunc::Static(val) => mark_stack(gc, &val),
-            }
+        for value in marked_gets {
+            mark_access_prop(gc, value);
+        }
+
+        for value in marked_sets {
+            mark_access_prop(gc, value);
         }
     }
 }

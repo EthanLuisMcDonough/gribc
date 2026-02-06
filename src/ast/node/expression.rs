@@ -1,12 +1,18 @@
-use super::{module::Module, Hash};
+use super::{module::Module, Hash, Identifier, LambdaInd, StringVal};
 use location::{Located, Location};
 use operators::{Assignment, Binary, Unary};
 use runtime::values::Callable;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct IndexAccess {
+    pub item: Box<Expression>,
+    pub index: Box<Expression>,
+}
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Assignable {
-    Identifier(Located<usize>),
+    Identifier(Located<Identifier>),
     Offset(usize),
     IndexAccess {
         item: Box<Expression>,
@@ -14,7 +20,7 @@ pub enum Assignable {
     },
     PropertyAccess {
         item: Box<Expression>,
-        property: usize,
+        property: Identifier,
     },
 }
 
@@ -30,6 +36,14 @@ pub enum StaticValue {
 pub enum RuntimeValue {
     Static(StaticValue),
     StackOffset(usize),
+}
+
+pub type ExpressionList = Vec<Expression>;
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct PropertyAccess {
+    pub item: Box<Expression>,
+    pub property: Identifier,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -51,10 +65,10 @@ pub enum Expression {
 
     Bool(bool),
     Number(f64),
-    String(usize),
-    Identifier(Located<usize>),
+    String(StringVal),
+    Identifier(Located<Identifier>),
 
-    ArrayCreation(Vec<Expression>),
+    ArrayCreation(ExpressionList),
     Hash(Hash),
     MutableHash(Hash),
 
@@ -62,16 +76,10 @@ pub enum Expression {
         function: Box<Expression>,
         args: Vec<Expression>,
     },
-    Lambda(usize),
+    Lambda(LambdaInd),
 
-    IndexAccess {
-        item: Box<Expression>,
-        index: Box<Expression>,
-    },
-    PropertyAccess {
-        item: Box<Expression>,
-        property: usize,
-    },
+    IndexAccess(IndexAccess),
+    PropertyAccess(PropertyAccess),
 
     Nil,
     This {
@@ -86,6 +94,15 @@ impl Expression {
     pub fn is_statement(&self) -> bool {
         match self {
             Expression::FunctionCall { .. } | Expression::Assignment { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_operation(&self) -> bool {
+        match self {
+            Expression::Assignment { .. }
+            | Expression::Binary { .. }
+            | Expression::Unary { .. } => true,
             _ => false,
         }
     }

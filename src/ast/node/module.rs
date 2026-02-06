@@ -1,4 +1,4 @@
-use super::{Import, NativePackage, Procedure, Program};
+use super::{NativePackage, Procedures, Imports, Program, Identifier, ModuleInd, ProcInd};
 use runtime::values::Callable;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -7,7 +7,7 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Module {
-    Custom(usize),
+    Custom(ModuleInd),
     Native(NativePackage),
 }
 
@@ -38,23 +38,20 @@ impl Module {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Default)]
 pub struct CustomModule {
-    pub imports: Vec<Import>,
-    pub functions: Vec<Procedure>,
+    pub imports: Imports,
+    pub procedures: Procedures,
     pub path: PathBuf,
-    pub lookup: HashMap<Cow<'static, str>, usize>,
+    pub lookup: HashMap<Cow<'static, str>, ProcInd>,
 }
 
 impl CustomModule {
-    /// Iterator of module's public functions
-    pub fn pub_functions(&self) -> impl Iterator<Item = &Procedure> {
-        self.functions.iter().filter(|f| f.public)
-    }
-
     /// Returns the index of the public function with the given index-name
-    pub fn get_function(&self, name: usize) -> Option<usize> {
-        self.functions
-            .iter()
-            .filter(|f| f.public)
-            .position(|f| f.identifier.data == name)
+    pub fn get_procedure(&self, name: Identifier) -> Option<ProcInd> {
+        for (ind, proc) in self.procedures.iter_enumerated() {
+            if proc.identifier.data == name {
+                return Some(ind).filter(|_| proc.public);
+            }
+        }
+        None
     }
 }

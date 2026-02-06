@@ -1,14 +1,26 @@
-use super::{Expression, LambdaBody, RuntimeValue};
+use super::{Expression, LambdaBody, RuntimeValue, StringVal, GetPropInd, Identifier, SetPropInd};
 use location::Located;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub enum CapturedVars {
+    Names(Vec<Identifier>),
+    Offsets(Vec<usize>),
+}
+
+impl Default for CapturedVars {
+    fn default() -> Self {
+        Self::Names(Vec::new())
+    }
+}
+
 /// Setter function
 /// Stored in program struct
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct SetProp {
     /// Param name
-    pub param: usize,
+    pub param: Identifier,
 
     /// Whether the parameter is a captured variable
     pub param_captured: bool,
@@ -18,16 +30,27 @@ pub struct SetProp {
     /// As with lambdas, identifier names are
     /// stored after first pass.  Stack offsets
     /// are stored after second pass
-    pub capture: Vec<usize>,
+    pub capture: CapturedVars,
+}
+
+impl Default for SetProp {
+    fn default() -> Self {
+        Self {
+            param: 0.into(),
+            param_captured: false,
+            block: LambdaBody::default(),
+            capture: CapturedVars::default(),
+        }
+    }
 }
 
 impl SetProp {
-    pub fn new(param: usize, block: LambdaBody) -> Self {
+    pub fn new(param: Identifier, block: LambdaBody) -> Self {
         Self {
             param,
             param_captured: false,
             block,
-            capture: Vec::new(),
+            capture: CapturedVars::default(),
         }
     }
 }
@@ -41,27 +64,26 @@ pub struct GetProp {
     /// Captured variables
     /// Once again, identifier names in first pass
     /// Stack offsets after second pass
-    pub capture: Vec<usize>,
+    pub capture: CapturedVars,
 }
 
 impl GetProp {
     pub fn new(block: LambdaBody) -> Self {
         Self {
             block,
-            capture: Vec::new(),
+            capture: CapturedVars::default(),
         }
     }
 }
 
-/// Value representing a getter or setter value in hashes
+/// Value representing a getter value in hashes
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub enum AutoPropValue {
+pub enum GetAutoPropValue {
     /// Identifier in first pass
-    /// Stack offset after second pass
-    String(Located<usize>),
+    String(Located<Identifier>),
 
     /// Index to getter or setter in program struct
-    Lambda(usize),
+    Lambda(GetPropInd),
 
     /// Static value that are detected during second pass
     /// Function/import values only
@@ -69,11 +91,25 @@ pub enum AutoPropValue {
     Value(RuntimeValue),
 }
 
+
+/// Value representing a setter value in hashes
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub enum SetAutoPropValue {
+    /// Identifier in first pass
+    String(Located<Identifier>),
+
+    /// Stack offset after second pass
+    StackOffset(usize),
+
+    /// Index to getter or setter in program struct
+    Lambda(SetPropInd),
+}
+
 /// AST value for an "auto-property" (getter/setter pair)
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Default)]
 pub struct AutoProp {
-    pub get: Option<AutoPropValue>,
-    pub set: Option<AutoPropValue>,
+    pub get: Option<GetAutoPropValue>,
+    pub set: Option<SetAutoPropValue>,
 }
 
 impl AutoProp {
@@ -94,4 +130,4 @@ pub enum ObjectValue {
 
 /// Object/hash literal
 /// Keys point to strings stored in the program struct
-pub type Hash = HashMap<usize, ObjectValue>;
+pub type Hash = HashMap<StringVal, ObjectValue>;

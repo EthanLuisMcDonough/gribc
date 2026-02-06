@@ -46,7 +46,7 @@ fn canonicalize_ast(program: &mut Program, base: &Path) {
     }
 
     for import in program.imports.iter_mut() {
-        if let Module::Custom(index) = import.module {
+        if let Module::Custom(index) = import.module.data {
             let new_path = base
                 .join(&program.modules[index].path)
                 .as_path()

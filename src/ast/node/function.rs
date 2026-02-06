@@ -1,10 +1,10 @@
-use super::{Block, Expression};
+use super::{Block, Expression, Identifier};
 use location::Located;
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Param {
-    pub name: usize,
+    pub name: Located<Identifier>,
     pub captured: bool,
 }
 
@@ -22,8 +22,8 @@ impl Parameters {
         }
     }
 
-    pub fn contains(&self, name: usize) -> bool {
-        self.all_params().any(|p| p.name == name)
+    pub fn contains(&self, name: Identifier) -> bool {
+        self.all_params().any(|p| p.name.data == name)
     }
 
     pub fn all_params(&'_ self) -> impl Iterator<Item = &'_ Param> {
@@ -35,7 +35,7 @@ impl Parameters {
     }
 
     /// This method should only be called while parsing the initial AST
-    pub(in ast) fn try_add(&mut self, name: usize) -> bool {
+    pub(in ast) fn try_add(&mut self, name: Located<Identifier>) -> bool {
         let param = Param {
             name,
             captured: false,
@@ -63,7 +63,7 @@ impl Default for LambdaBody {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Procedure {
-    pub identifier: Located<usize>,
+    pub identifier: Located<Identifier>,
     pub param_list: Parameters,
     pub body: Block,
     pub public: bool,

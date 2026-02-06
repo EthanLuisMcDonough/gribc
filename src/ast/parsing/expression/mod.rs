@@ -152,7 +152,7 @@ pub fn parse_expr(
             Token::Number(n) => expr = Expression::Number(n).into(),
             Token::Identifier(data) => {
                 expr = Expression::Identifier(Located {
-                    data: store.ins_str(data),
+                    data: store.ins_ident(data),
                     start: start.clone(),
                     end: token.end.clone(),
                 })
@@ -168,20 +168,20 @@ pub fn parse_expr(
                         function: expression.into(),
                         args: list_callback(take_until(&mut tokens, Grouper::Parentheses), store)?,
                     },
-                    Token::OpenGroup(Grouper::Bracket) => Expression::IndexAccess {
+                    Token::OpenGroup(Grouper::Bracket) => Expression::IndexAccess(IndexAccess {
                         item: expression.into(),
                         index: expr_callback(take_until(&mut tokens, Grouper::Bracket), store)?
                             .into(),
-                    },
+                    }),
                     Token::Period => next_guard!({ tokens.next() } {
-                        Token::Keyword(k) => Expression::PropertyAccess {
+                        Token::Keyword(k) => Expression::PropertyAccess(PropertyAccess {
                             item: expression.into(),
-                            property: store.ins_str(k.str().to_string()),
-                        },
-                        Token::Identifier(property) => Expression::PropertyAccess {
+                            property: store.ins_ident(k.str().to_string()),
+                        }),
+                        Token::Identifier(property) => Expression::PropertyAccess(PropertyAccess {
                             item: expression.into(),
-                            property: store.ins_str(property),
-                        }
+                            property: store.ins_ident(property),
+                        })
                     }),
                     _ => return Err(ParseError::UnexpectedToken(token)),
                 }

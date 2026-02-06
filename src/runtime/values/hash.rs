@@ -1,4 +1,4 @@
-use super::{AccessFunc, Callable, GribString, GribValue};
+use super::{GetAccessFunc, SetAccessFunc, Callable, GribString, GribValue, ModuleInd};
 use ast::node::Program;
 use runtime::exec::evaluate_lambda;
 use runtime::memory::{Gc, Runtime};
@@ -8,8 +8,8 @@ use std::hash::{BuildHasher, Hash, Hasher};
 #[derive(Clone, Debug)]
 pub enum HashPropertyValue {
     AutoProp {
-        get: Option<AccessFunc>,
-        set: Option<AccessFunc>,
+        get: Option<GetAccessFunc>,
+        set: Option<SetAccessFunc>,
     },
     Value(GribValue),
 }
@@ -33,9 +33,9 @@ impl HashPropertyValue {
             HashPropertyValue::AutoProp { get, .. } => get
                 .as_ref()
                 .and_then(|f| match f {
-                    AccessFunc::Static(val) => val.clone().into(),
-                    AccessFunc::Captured(ptr) => runtime.gc.get_captured(*ptr).cloned(),
-                    AccessFunc::Callable { index, stack } => {
+                    GetAccessFunc::Static(val) => val.clone().into(),
+                    GetAccessFunc::Captured(ptr) => runtime.gc.get_captured(*ptr).cloned(),
+                    GetAccessFunc::Callable { index, stack } => {
                         program.getters.get(*index).and_then(|getter| {
                             let alloced = runtime.add_stack(stack.clone());
                             let this = GribValue::HeapValue(self_ptr);
@@ -111,12 +111,12 @@ impl HashValue {
         self.values.hasher().build_hasher()
     }
 
-    pub fn custom_module(module_index: usize, program: &Program, gc: &Gc) -> Self {
+    pub fn custom_module(module_index: ModuleInd, program: &Program, gc: &Gc) -> Self {
         let mut hash = Self::new(false);
         let module = &program.modules[module_index];
 
-        for (index, function) in module.functions.iter().enumerate() {
-            let key = hash.key(GribString::Stored(function.identifier.data), program, gc);
+        for (index, function) in module.procedures.iter_enumerated() {
+            let key = hash.key(GribString::Stored(function.identifier.data.into()), program, gc);
             hash.init_value(
                 key,
                 GribValue::Callable(Callable::Procedure {
@@ -141,7 +141,7 @@ impl HashValue {
         self.values.get(key)
     }
 
-    pub fn try_set(&mut self, key: &GribKey, val: GribValue) -> Option<AccessFunc> {
+    pub fn try_set(&mut self, key: &GribKey, val: GribValue) -> Option<SetAccessFunc> {
         use self::HashPropertyValue::*;
         let mutable = self.mutable;
 
@@ -202,20 +202,20 @@ impl HashValue {
 }
 
 pub fn eval_setter(
-    func: &AccessFunc,
+    func: &SetAccessFunc,
     runtime: &mut Runtime,
     program: &Program,
     self_ptr: usize,
     val: GribValue,
 ) -> GribValue {
     match func {
-        AccessFunc::Captured(ptr) => {
+        SetAccessFunc::Captured(ptr) => {
             if let Some(r) = runtime.gc.get_captured_mut(*ptr) {
                 *r = val.clone();
             }
             val
         }
-        AccessFunc::Callable { index, stack } => {
+        SetAccessFunc::Callable { index, stack } => {
             let setter = &program.setters[*index];
 
             let stack_alloced = runtime.add_stack(stack.clone());
@@ -231,6 +231,6 @@ pub fn eval_setter(
             runtime.stack.pop_stack(stack_alloced + 1);
             res
         }
-        AccessFunc::Static(_) => panic!("Setters cannot be static values"),
+        SetAccessFunc::Static(_) => panic!("Setters cannot be static values"),
     }
 }

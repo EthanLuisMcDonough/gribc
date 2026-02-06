@@ -6,5 +6,7 @@ editon = "2024"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
+typed-index-collections = { version = "3.5.0", features = ["serde"] }
+derive_more = { version = "2", features = ["from", "into"] }
 serde_json = "1.0"
 rand = "0.8.4"

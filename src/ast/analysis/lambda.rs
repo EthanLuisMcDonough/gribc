@@ -27,7 +27,7 @@ impl LambdaLike for GetProp {
     fn add_params(&self, _: &mut Scope) {}
 
     fn check(&mut self, _: &mut Scope, cap: &mut CaptureStack, top_stack: &mut Scope) {
-        self.capture = cap.pop(top_stack);
+        self.capture = CapturedVars::Offsets(cap.pop(top_stack));
     }
 
     fn get_body(&mut self) -> &mut LambdaBody {
@@ -42,7 +42,7 @@ impl LambdaLike for SetProp {
 
     fn check(&mut self, scope: &mut Scope, cap: &mut CaptureStack, top_stack: &mut Scope) {
         self.param_captured = scope.take_captured(self.param);
-        self.capture = cap.pop(top_stack);
+        self.capture = CapturedVars::Offsets(cap.pop(top_stack));
     }
 
     fn get_body(&mut self) -> &mut LambdaBody {

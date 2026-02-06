@@ -38,7 +38,7 @@ pub fn parse_decl<T: Iterator<Item = Located<Token>>>(
         });
         decls.push(Declarator {
             identifier: Located {
-                data: store.ins_str(ident.data),
+                data: store.ins_ident(ident.data),
                 start: ident.start,
                 end: ident.end,
             },
@@ -87,7 +87,7 @@ pub fn parse_params<T: Iterator<Item = Located<Token>>>(
                         return Err(ParseError::ParamAfterSpread(Located {
                             data: s, start, end
                         }));
-                    } else if !params.try_add(store.ins_str(s.clone())) {
+                    } else if !params.try_add(Located { data: store.ins_ident(s.clone()), start, end }) {
                         return Err(ParseError::DuplicateParam(Located {
                             data: s, start, end
                         }));
@@ -97,13 +97,13 @@ pub fn parse_params<T: Iterator<Item = Located<Token>>>(
                             return Err(ParseError::ParamAfterSpread(Located {
                                 data: s, start, end
                             }));
-                        } else if store.get_str(&s).filter(|&&i| params.contains(i)).is_some() {
+                        } else if store.get_ident(&s).filter(|&i| params.contains(i)).is_some() {
                             return Err(ParseError::DuplicateParam(Located {
                                 data: s, start, end
                             }));
                         } else {
                             params.vardic = Param {
-                                name: store.ins_str(s),
+                                name: Located { data: store.ins_ident(s), start, end },
                                 captured: false,
                             }.into();
                         }
@@ -123,7 +123,7 @@ pub fn parse_proc<T: Iterator<Item = Located<Token>>>(
     let (name, start, end) = next_guard!({ tokens.next() } (start, end) {
         Token::Identifier(i) => (i, start, end)
     });
-    let ind = store.ins_str(name);
+    let ind = store.ins_ident(name);
     let param_list = parse_params(tokens, store)?;
 
     Ok(Procedure {
@@ -155,15 +155,15 @@ pub fn parse_module(path: &Located<PathBuf>, store: &mut Store) -> ParseResult<C
 
     remove_file(&mut dir);
 
-    let mut functions = vec![];
-    let mut imports = vec![];
+    let mut procedures = Procedures::new();
+    let mut imports = Imports::new();
 
     while let Some(token) = tokens.next() {
         match token.data {
             Token::Keyword(Keyword::Public) => next_guard!({ tokens.next() } {
-                Token::Keyword(Keyword::Proc) => functions.push(parse_proc(&mut tokens, true, store)?)
+                Token::Keyword(Keyword::Proc) => procedures.push(parse_proc(&mut tokens, true, store)?)
             }),
-            Token::Keyword(Keyword::Proc) => functions.push(parse_proc(&mut tokens, true, store)?),
+            Token::Keyword(Keyword::Proc) => procedures.push(parse_proc(&mut tokens, true, store)?),
             Token::Keyword(Keyword::Import) => {
                 imports.push(parse_import(&mut tokens, dir.as_path(), store)?)
             }
@@ -171,12 +171,12 @@ pub fn parse_module(path: &Located<PathBuf>, store: &mut Store) -> ParseResult<C
         };
     }
 
-    let fnc_len = functions.len();
+    let proc_len = procedures.len();
     Ok(CustomModule {
-        functions,
+        procedures,
         imports,
         path: dir,
-        lookup: HashMap::with_capacity(fnc_len),
+        lookup: HashMap::with_capacity(proc_len),
     })
 }
 
@@ -188,7 +188,7 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
     let kind = next_guard!({ tokens.next() } (start, end) {
         Token::BinaryOp(Binary::Mult) => ImportKind::All,
         Token::Identifier(name) => ImportKind::ModuleObject(Located {
-            data: store.ins_str(name), start, end
+            data: store.ins_ident(name), start, end
         }),
         Token::Pipe => {
             let (inner, _) = zero_level(tokens, |t| *t == Token::Pipe)?;
@@ -196,7 +196,7 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
 
             for item in inner {
                 if let Located { start, end, data: Token::Identifier(s) } = item {
-                    let data = store.ins_str(s);
+                    let data = store.ins_ident(s);
                     imports.push(Located {
                         data, start, end
                     });
@@ -214,34 +214,37 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
     });
 
     let module = next_guard!({ tokens.next() } (start, end) {
-        Token::String(s) => match NativePackage::from_str(&s) {
-            Some(package) => {
-                Module::Native(package)
-            },
-            None => {
-                let new_buf = path.join(&s);
-                let new_path = new_buf.as_path()
-                    .canonicalize()
-                    .map_err(|_| module_err(
-                        ModuleErrorBody::CantResolveImport,
-                        Located {
-                            data: new_buf,
-                            end: end.clone(),
-                            start: start.clone(),
-                        }))?;
+        Token::String(s) => {
+            let mod_ind = match NativePackage::from_str(&s) {
+                Some(package) => {
+                    Module::Native(package)
+                },
+                None => {
+                    let new_buf = path.join(&s);
+                    let new_path = new_buf.as_path()
+                        .canonicalize()
+                        .map_err(|_| module_err(
+                            ModuleErrorBody::CantResolveImport,
+                            Located {
+                                data: new_buf,
+                                end: end.clone(),
+                                start: start.clone(),
+                            }))?;
 
-                Module::Custom(match store.get_mod(&new_path) {
-                    Some(ind) => *ind,
-                    None => {
-                        let module = parse_module(&Located {
-                            data: new_path.clone(),
-                            end: end.clone(),
-                            start: start.clone(),
-                        }, store)?;
-                        store.ins_mod(new_path, module)
-                    },
-                })
-            },
+                    Module::Custom(match store.get_mod(&new_path) {
+                        Some(ind) => ind,
+                        None => {
+                            let module = parse_module(&Located {
+                                data: new_path.clone(),
+                                end: end.clone(),
+                                start: start.clone(),
+                            }, store)?;
+                            store.ins_mod(new_path, module)
+                        },
+                    })
+                },
+            };
+            Located { data: mod_ind, start, end }
         }
     });
 

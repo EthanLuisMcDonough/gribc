@@ -1,6 +1,8 @@
+extern crate derive_more;
 extern crate rand;
 extern crate serde;
 extern crate serde_json;
+extern crate typed_index_collections;
 
 mod ast;
 mod lex;

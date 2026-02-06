@@ -114,11 +114,11 @@ pub fn run_block(
             Node::Expression(expression) => {
                 evaluate_expression(expression, this, runtime, program);
             }
-            Node::LogicChain {
+            Node::LogicChain(LogicChain {
                 if_block,
                 elseifs,
                 else_block,
-            } => {
+            }) => {
                 let first_cond = evaluate_expression(&if_block.condition, this, runtime, program);
                 if first_cond.truthy(program, &runtime.gc) {
                     let res = run_block(&if_block.block, this, runtime, program);
@@ -151,12 +151,12 @@ pub fn run_block(
 
                 control_guard!(result, local_result);
             }
-            Node::For {
+            Node::For(ForLoop {
                 declaration,
                 condition,
                 increment,
                 body,
-            } => {
+            }) => {
                 let mut params = 0;
                 if let Some(d) = declaration {
                     declare(d, this, runtime, program);
@@ -211,13 +211,13 @@ fn evaluate_hash(
                 ObjectValue::Expression(e) => evaluate_expression(e, this, runtime, program).into(),
                 ObjectValue::AutoProp(prop) => {
                     let get = prop.get.as_ref().map(|p| match p {
-                        AutoPropValue::String(_s) => {
+                        GetAutoPropValue::String(_s) => {
                             panic!("STRING AUTOPROP SHOULD NOT BE FOUND DURING RUNTIME")
                         }
-                        AutoPropValue::Value(RuntimeValue::Static(static_val)) => {
+                        GetAutoPropValue::Value(RuntimeValue::Static(static_val)) => {
                             AccessFunc::Static(static_val.clone().into())
                         }
-                        AutoPropValue::Value(RuntimeValue::StackOffset(offset)) => runtime
+                        GetAutoPropValue::Value(RuntimeValue::StackOffset(offset)) => runtime
                             .stack
                             .offset_slot(*offset)
                             .map(|p| match p {
@@ -225,16 +225,18 @@ fn evaluate_hash(
                                 StackSlot::Value(val) => AccessFunc::Static(val.clone()),
                             })
                             .expect("FAILED TO READ OFFSET"),
-                        AutoPropValue::Lambda(ind) => AccessFunc::Callable {
+                        GetAutoPropValue::Lambda(ind) => AccessFunc::Callable {
                             index: *ind,
-                            stack: runtime.capture_stack(&program.getters[*ind].capture),
+                            stack: runtime.capture_stack(match &program.getters[*ind].capture {
+                                &CapturedVars::Offsets(ref offsets) => offsets,
+                                _ => unreachable!("INVALID GETTER CAPTURE STACK STATE. FOUND NAMES DURING RUNTIME"),
+                            }),
                         },
                     });
 
                     let set = prop.set.as_ref().map(|p| match p {
-                        AutoPropValue::Value(RuntimeValue::Static(_))
-                        | AutoPropValue::String(_) => panic!("Invalid setter found during runtime"),
-                        AutoPropValue::Value(RuntimeValue::StackOffset(offset)) => {
+                        SetAutoPropValue::String(_) => panic!("Invalid setter found during runtime"),
+                        SetAutoPropValue::StackOffset(offset) => {
                             if let Some(StackSlot::Captured(ind)) =
                                 runtime.stack.offset_slot(*offset)
                             {
@@ -246,9 +248,12 @@ fn evaluate_hash(
                                 );
                             }
                         }
-                        AutoPropValue::Lambda(ind) => AccessFunc::Callable {
+                        SetAutoPropValue::Lambda(ind) => AccessFunc::Callable {
                             index: *ind,
-                            stack: runtime.capture_stack(&program.setters[*ind].capture),
+                            stack: runtime.capture_stack(match &program.setters[*ind].capture {
+                                &CapturedVars::Offsets(ref offsets) => offsets,
+                                _ => unreachable!("INVALID SETTER CAPTURE STACK STATE. FOUND NAMES DURING RUNTIME"),
+                            }),
                         },
                     });
 
@@ -298,49 +303,48 @@ pub fn evaluate_expression(
     runtime: &mut Runtime,
     program: &Program,
 ) -> GribValue {
-    use self::Expression::*;
     match expression {
-        Bool(b) => GribValue::Bool(*b),
-        Nil => GribValue::Nil,
-        This { .. } => this.clone(),
-        Number(f) => GribValue::Number(*f),
-        String(s) => runtime.alloc_str(program.strings[*s].clone()).into(),
-        Hash(h) => evaluate_hash(h, false, this, runtime, program),
-        MutableHash(h) => evaluate_hash(h, true, this, runtime, program),
-        ArrayCreation(expressions) => {
+        Expression::Bool(b) => GribValue::Bool(*b),
+        Expression::Nil => GribValue::Nil,
+        Expression::This { .. } => this.clone(),
+        Expression::Number(f) => GribValue::Number(*f),
+        Expression::String(s) => runtime.alloc_str(program.strings[*s].clone()).into(),
+        Expression::Hash(h) => evaluate_hash(h, false, this, runtime, program),
+        Expression::MutableHash(h) => evaluate_hash(h, true, this, runtime, program),
+        Expression::ArrayCreation(expressions) => {
             let array = eval_list(expressions, this, runtime, program);
             GribValue::HeapValue(runtime.alloc_heap(HeapValue::Array(array)))
         }
-        Identifier(Located { data, .. }) => panic!(
+        Expression::Identifier(Located { data, .. }) => panic!(
             "Invalid identifier found during runtime ({})",
-            program.strings[*data]
+            program.strings[StringVal::from(*data)]
         ),
-        PropertyAccess { item, property } => {
+        Expression::PropertyAccess(PropertyAccess { item, property }) => {
             let value = evaluate_expression(item.as_ref(), this, runtime, program);
             LiveProperty::new(value, *property, &runtime.gc, program)
                 .map(|prop| prop.get(runtime, program))
                 .unwrap_or_default()
         }
-        IndexAccess { item, index } => {
+        Expression::IndexAccess(IndexAccess { item, index }) => {
             let item = evaluate_expression(item.as_ref(), this, runtime, program);
             let index = evaluate_expression(index.as_ref(), this, runtime, program);
             LiveIndex::new(item, &index, runtime, program)
                 .map(|ind| ind.get(runtime, program))
                 .unwrap_or_default()
         }
-        Unary { op, expr } => {
+        Expression::Unary { op, expr } => {
             let val = evaluate_expression(expr, this, runtime, program);
             unary_expr(op, &val, &runtime.gc, program)
         }
-        Binary { op, left, right } => {
+        Expression::Binary { op, left, right } => {
             let left_val = evaluate_expression(left, this, runtime, program);
             binary_expr(op, &left_val, right.as_ref(), this, runtime, program)
         }
-        Assignment { op, left, right } => {
+        Expression::Assignment { op, left, right } => {
             let val = evaluate_expression(right, this, runtime, program);
             assignment_expr(op, left, val, this, runtime, program)
         }
-        FunctionCall { function, args } => {
+        Expression::FunctionCall { function, args } => {
             let values = eval_list(args, this, runtime, program);
             let fn_val = evaluate_expression(function, this, runtime, program);
             if let GribValue::Callable(f) = fn_val {
@@ -349,12 +353,12 @@ pub fn evaluate_expression(
                 GribValue::Nil
             }
         }
-        Lambda(index) => GribValue::Callable(Callable::Lambda {
+        Expression::Lambda(index) => GribValue::Callable(Callable::Lambda {
             binding: None,
             stack: runtime.capture_stack(&program.lambdas[*index].captured),
             index: *index,
         }),
-        Value(val) => match val {
+        Expression::Value(val) => match val {
             RuntimeValue::Static(static_val) => static_val.clone().into(),
             RuntimeValue::StackOffset(offset) => {
                 if let Some(val) = runtime.get_offset(*offset) {

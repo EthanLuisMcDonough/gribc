@@ -1,4 +1,4 @@
-use ast::node::{Assignable, Expression};
+use ast::node::{Assignable, Expression, IndexAccess, PropertyAccess};
 use location::Location;
 use operators::{Assignment, Binary, Unary};
 use std::convert::TryFrom;
@@ -133,8 +133,8 @@ impl TryFrom<Expression> for Assignable {
     fn try_from(e: Expression) -> Result<Self, Self::Error> {
         match e {
             Expression::Identifier(s) => Ok(Assignable::Identifier(s)),
-            Expression::IndexAccess { item, index } => Ok(Assignable::IndexAccess { item, index }),
-            Expression::PropertyAccess { item, property } => {
+            Expression::IndexAccess(IndexAccess { item, index }) => Ok(Assignable::IndexAccess { item, index }),
+            Expression::PropertyAccess(PropertyAccess { item, property }) => {
                 Ok(Assignable::PropertyAccess { item, property })
             }
             _ => Err(e),

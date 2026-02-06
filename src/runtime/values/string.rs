@@ -1,5 +1,5 @@
 use super::HeapValue;
-use ast::node::Program;
+use ast::node::{Program, StringVal};
 use runtime::memory::Gc;
 use std::borrow::Cow;
 use std::cmp::Ordering;
@@ -7,7 +7,7 @@ use std::hash::{Hash, Hasher};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum GribString {
-    Stored(usize),
+    Stored(StringVal),
     Heap(usize),
     Char(char),
     Static(&'static str),
@@ -22,11 +22,7 @@ impl Default for GribString {
 impl GribString {
     pub fn as_ref<'a>(&self, program: &'a Program, gc: &'a Gc) -> Option<GribStringRef<'a>> {
         match self {
-            GribString::Stored(ind) => program
-                .strings
-                .get(*ind)
-                .map(|s| GribStringRef::Ref(s.as_str()))
-                .into(),
+            GribString::Stored(s) => GribStringRef::Ref(&program.strings[*s]).into(),
             GribString::Heap(ind) => gc
                 .heap_val(*ind)
                 .and_then(|c| match c {

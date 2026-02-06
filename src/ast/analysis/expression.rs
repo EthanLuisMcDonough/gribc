@@ -1,4 +1,7 @@
-use super::{lambda::eval_lambda, CaptureStack, Lams, Scope, WalkError, WalkErrorType, WalkResult};
+use super::{
+    lambda::eval_lambda, CaptureStack, IndexAccess, Lams, PropertyAccess, Scope, WalkError,
+    WalkErrorType, WalkResult,
+};
 use ast::node::*;
 use std::mem;
 
@@ -12,10 +15,10 @@ pub fn walk_expression(
     match expression {
         Expression::Unary { expr, .. } => walk_expression(expr, scope, lams, cap)?,
         Expression::Binary { left, right, .. }
-        | Expression::IndexAccess {
+        | Expression::IndexAccess(IndexAccess {
             item: left,
             index: right,
-        } => {
+        }) => {
             walk_expression(left, scope, lams, cap)
                 .and_then(|()| walk_expression(right, scope, lams, cap))?;
         }
@@ -30,7 +33,9 @@ pub fn walk_expression(
                 walk_expression(e, scope, lams, cap)?;
             }
         }
-        Expression::PropertyAccess { item, .. } => walk_expression(item, scope, lams, cap)?,
+        Expression::PropertyAccess(PropertyAccess { item, .. }) => {
+            walk_expression(item, scope, lams, cap)?
+        }
         Expression::Assignment { left, right, .. } => {
             match left {
                 Assignable::Offset(_) => {}
@@ -77,12 +82,12 @@ pub fn walk_expression(
                     ObjectValue::Expression(expr) => walk_expression(expr, scope, lams, cap)?,
                     ObjectValue::AutoProp(auto) => {
                         match auto.get.clone() {
-                            Some(AutoPropValue::Lambda(ind)) if scope.in_first_pass() => {
+                            Some(GetAutoPropValue::Lambda(ind)) if scope.in_first_pass() => {
                                 let mut lambda = mem::take(&mut lams.getters[ind]);
                                 eval_lambda(&mut lambda, scope, cap, lams)?;
                                 lams.getters[ind] = lambda;
                             }
-                            Some(AutoPropValue::String(ident)) => {
+                            Some(GetAutoPropValue::String(ident)) => {
                                 if scope.in_first_pass() && !scope.prop_check(ident.data) {
                                     return Err(WalkError {
                                         start: ident.start,
@@ -92,18 +97,18 @@ pub fn walk_expression(
                                 }
                                 if scope.in_second_pass() {
                                     let op = scope.runtime_value(ident.data);
-                                    auto.get = op.map(AutoPropValue::Value);
+                                    auto.get = op.map(GetAutoPropValue::Value);
                                 }
                             }
                             _ => {}
                         }
                         match auto.set.clone() {
-                            Some(AutoPropValue::Lambda(ind)) if scope.in_first_pass() => {
+                            Some(SetAutoPropValue::Lambda(ind)) if scope.in_first_pass() => {
                                 let mut lambda = mem::take(&mut lams.setters[ind]);
                                 eval_lambda(&mut lambda, scope, cap, lams)?;
                                 lams.setters[ind] = lambda;
                             }
-                            Some(AutoPropValue::String(ident)) => {
+                            Some(SetAutoPropValue::String(ident)) => {
                                 if scope.in_first_pass() {
                                     if !scope.prop_check(ident.data) {
                                         return Err(WalkError {
@@ -120,8 +125,15 @@ pub fn walk_expression(
                                     }
                                 }
                                 if scope.in_second_pass() {
-                                    let op = scope.runtime_value(ident.data);
-                                    auto.set = op.map(AutoPropValue::Value);
+                                    match scope.runtime_value(ident.data) {
+                                        Some(RuntimeValue::StackOffset(offset)) => {
+                                            auto.set = SetAutoPropValue::StackOffset(offset).into();
+                                        }
+                                        Some(RuntimeValue::Static(_)) => {
+                                            unreachable!("Static value found in setter");
+                                        }
+                                        None => {}
+                                    }
                                 }
                             }
                             _ => {}

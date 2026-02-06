@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use serde::{Serialize, Deserialize};
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct Location {
     row: usize,
     column: usize,
@@ -37,8 +37,16 @@ pub struct Located<T> {
     pub end: Location,
 }
 
+impl<T> Located<T> {
+    pub fn new(data: T, start: Location, end: Location) -> Self {
+        Self { data, start, end }
+    }
+}
+
 impl<'de, T: Clone + Debug + PartialEq + Deserialize<'de> + Serialize> Located<T> {
     pub fn with_loc(data: T, start: Location, end: Location) -> Located<T> {
         Located { start, end, data }
     }
 }
+
+impl<T: Copy> Copy for Located<T> {}

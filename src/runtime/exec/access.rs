@@ -1,6 +1,6 @@
 /// Structures related to getting and setting index and property values
 use super::evaluate_expression;
-use ast::node::{Assignable, Module, Program};
+use ast::node::{Assignable, Module, Program, StringVal, Identifier};
 use runtime::{
     memory::{Gc, Runtime},
     values::{eval_setter, GribKey, GribString, GribValue, KnownIndex},
@@ -8,17 +8,17 @@ use runtime::{
 
 pub enum LiveProperty {
     Hash { key: GribKey, ptr: usize },
-    Module { key: usize, module: Module },
+    Module { key: Identifier, module: Module },
 }
 
 impl LiveProperty {
-    pub fn new(value: GribValue, key: usize, gc: &Gc, program: &Program) -> Option<Self> {
+    pub fn new(value: GribValue, key: Identifier, gc: &Gc, program: &Program) -> Option<Self> {
         if let GribValue::ModuleObject(module) = value {
             Some(Self::Module { module, key })
         } else {
             value.ptr().and_then(|ptr| {
                 gc.try_get_hash(ptr).map(|hash| {
-                    let str_val = GribString::Stored(key);
+                    let str_val = GribString::Stored(key.into());
                     let key = hash.key(str_val, program, gc);
                     Self::Hash { ptr, key }
                 })
@@ -34,7 +34,7 @@ impl LiveProperty {
                 .and_then(|hash| hash.get_property(&key).cloned())
                 .map(|prop| prop.get(runtime, program, *ptr)),
             Self::Module { key, module } => module
-                .get_callable(&program.strings[*key], program)
+                .get_callable(&program.strings[StringVal::from(*key)], program)
                 .map(GribValue::Callable),
         }
         .unwrap_or_default()
@@ -165,7 +165,7 @@ impl LiveAssignable {
             }
             Assignable::PropertyAccess { item, property } => {
                 let item_val = evaluate_expression(item, this, runtime, program);
-                LiveProperty::new(item_val, *property, &runtime.gc, program)
+                LiveProperty::new(item_val, (*property).into(), &runtime.gc, program)
                     .map(LiveAssignable::Property)
             }
         }

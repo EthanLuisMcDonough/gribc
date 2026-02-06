@@ -74,7 +74,7 @@ impl DefData {
 #[derive(PartialEq, Debug, Default, Clone)]
 pub struct Scope {
     /// The variable hashmap
-    scope: HashMap<usize, DefData>,
+    scope: HashMap<Identifier, DefData>,
     /// The scope depth
     pub level: usize,
     /// The number of items on the stack
@@ -186,7 +186,7 @@ impl Scope {
         for param in params.all_params_mut() {
             if self
                 .scope
-                .remove(&param.name)
+                .remove(&param.name.data)
                 .filter(|d| d.is_captured())
                 .is_some()
             {
@@ -201,14 +201,14 @@ impl Scope {
                 mutable: true,
                 declarations,
             })
-            | Node::For {
+            | Node::For(ForLoop {
                 declaration:
                     Some(Declaration {
                         mutable: true,
                         declarations,
                     }),
                 ..
-            } = stmt
+            }) = stmt
             {
                 for decl in declarations.iter_mut() {
                     let name = decl.identifier.data;
@@ -227,7 +227,7 @@ impl Scope {
 
     pub fn add_params(&mut self, params: &Parameters) {
         for param in params.all_params() {
-            self.insert_mut(param.name);
+            self.insert_mut(param.name.data);
         }
     }
 
@@ -239,7 +239,7 @@ impl Scope {
         }
     }
 
-    fn insert(&mut self, name: usize, kind: DefType) -> bool {
+    fn insert(&mut self, name: Identifier, kind: DefType) -> bool {
         self.scope
             .insert(
                 name,
@@ -252,7 +252,7 @@ impl Scope {
             .is_none()
     }
 
-    pub fn insert_mut(&mut self, name: usize) -> bool {
+    pub fn insert_mut(&mut self, name: Identifier) -> bool {
         let stack_pos = self.new_alloc();
         self.insert(
             name,
@@ -281,12 +281,17 @@ impl Scope {
         pos
     }
 
-    pub fn insert_const(&mut self, name: usize) -> bool {
+    pub fn insert_const(&mut self, name: Identifier) -> bool {
         let stack_pos = self.new_alloc();
         self.insert(name, DefType::Constant { stack_pos })
     }
 
-    pub fn insert_fn(&mut self, name: usize, index: usize, module: Option<usize>) -> bool {
+    pub fn insert_fn(
+        &mut self,
+        name: Identifier,
+        index: ProcInd,
+        module: Option<ModuleInd>,
+    ) -> bool {
         self.level == 0
             && self.insert(
                 name,
@@ -294,15 +299,15 @@ impl Scope {
             )
     }
 
-    /// Createa an imported module object in the scope
-    pub fn import_module(&mut self, name: usize, module: Module) -> bool {
+    /// Create an imported module object in the scope
+    pub fn import_module(&mut self, name: Identifier, module: Module) -> bool {
         self.insert(name, DefType::Import(StaticValue::Module(module)))
     }
 
     /// Imports grib procedure
     /// This differs from insert_fn in that the variable is defined
     /// as imported (can be shadowed in top scope)
-    pub fn import_function(&mut self, name: usize, module: usize, index: usize) -> bool {
+    pub fn import_function(&mut self, name: Identifier, module: ModuleInd, index: ProcInd) -> bool {
         self.insert(
             name,
             DefType::Import(StaticValue::Function(Callable::Procedure {
@@ -313,7 +318,7 @@ impl Scope {
     }
 
     /// Imports native function
-    pub fn native_function(&mut self, name: usize, fnc: NativeFunction) {
+    pub fn native_function(&mut self, name: Identifier, fnc: NativeFunction) {
         if self.level == 0 {
             self.insert(
                 name,
@@ -323,7 +328,7 @@ impl Scope {
     }
 
     /// Inserts a variable defined with decl or im
-    pub fn insert_var(&mut self, name: usize, is_mut: bool) -> bool {
+    pub fn insert_var(&mut self, name: Identifier, is_mut: bool) -> bool {
         self.new_decl();
         if is_mut {
             self.insert_mut(name)
@@ -332,12 +337,12 @@ impl Scope {
         }
     }
 
-    fn is_captured(&self, name: usize) -> bool {
+    fn is_captured(&self, name: Identifier) -> bool {
         self.scope.get(&name).filter(|d| d.is_captured()).is_some()
     }
 
     /// Checks if a captured value exists and removes it if it does
-    pub fn take_captured(&mut self, name: usize) -> bool {
+    pub fn take_captured(&mut self, name: Identifier) -> bool {
         let captured = self.is_captured(name);
         if captured {
             self.scope.remove(&name);
@@ -345,7 +350,7 @@ impl Scope {
         captured
     }
 
-    fn try_capture(&mut self, name: usize) {
+    fn try_capture(&mut self, name: Identifier) {
         if let Some(data) = self.scope.get_mut(&name) {
             data.try_capture();
         }
@@ -353,7 +358,7 @@ impl Scope {
 
     /// Checks if an auto property string exists
     /// If so, try to capture it
-    pub fn prop_check(&mut self, name: usize) -> bool {
+    pub fn prop_check(&mut self, name: Identifier) -> bool {
         if let Some(data) = self.scope.get_mut(&name) {
             data.try_capture();
             return true;
@@ -363,7 +368,7 @@ impl Scope {
 
     /// Checks if a *mutable* auto property string exists (used for setters)
     /// If so, capture it
-    pub fn prop_check_mut(&mut self, name: usize) -> bool {
+    pub fn prop_check_mut(&mut self, name: Identifier) -> bool {
         if let Some(data) = self.scope.get_mut(&name).filter(|d| d.is_mut()) {
             data.try_capture();
             return true;
@@ -372,7 +377,7 @@ impl Scope {
     }
 
     /// Gets the runtime value of a variable (stack offset, raw funtion, or module object)
-    pub fn runtime_value(&self, name: usize) -> Option<RuntimeValue> {
+    pub fn runtime_value(&self, name: Identifier) -> Option<RuntimeValue> {
         self.scope.get(&name).map(|val| match &val.kind {
             DefType::Import(value) => RuntimeValue::Static(value.clone()),
             DefType::Function(fnc) => RuntimeValue::Static(StaticValue::Function(fnc.clone())),
@@ -384,7 +389,7 @@ impl Scope {
 
     /// Checks if an identifier in an expression exists
     /// If it does and is out of scope, it will try to add it to any active lambda captures
-    pub fn has(&mut self, name: usize, s: &mut CaptureStack) -> bool {
+    pub fn has(&mut self, name: Identifier, s: &mut CaptureStack) -> bool {
         if let Some(data) = self.scope.get_mut(&name) {
             if s.check_ref(name, data.level) {
                 data.try_capture();
@@ -394,7 +399,7 @@ impl Scope {
         false
     }
 
-    pub fn has_editable(&mut self, name: usize, s: &mut CaptureStack) -> bool {
+    pub fn has_editable(&mut self, name: Identifier, s: &mut CaptureStack) -> bool {
         if let Some(data) = self.scope.get_mut(&name).filter(|d| d.is_mut()) {
             if s.check_ref(name, data.level) {
                 data.try_capture();

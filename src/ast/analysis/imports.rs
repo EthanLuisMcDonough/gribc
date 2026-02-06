@@ -7,8 +7,6 @@ use ast::node::*;
 use location::Located;
 use std::collections::HashSet;
 
-type Strings<'a> = &'a Vec<String>;
-
 pub fn walk_procedure(
     procedure: &mut Procedure,
     scope: &mut Scope,
@@ -26,15 +24,17 @@ pub fn walk_procedure(
 pub fn walk_import(
     import: &Import,
     modules: &ModuleStore,
-    strings: Strings,
+    strings: &StringStore,
     scope: &mut Scope,
 ) -> WalkResult {
     match &import.kind {
         ImportKind::All => {
-            match &import.module {
+            match &import.module.data {
                 Module::Custom(mod_ind) => {
-                    for (fn_ind, proc) in modules[*mod_ind].pub_functions().enumerate() {
-                        scope.import_function(proc.identifier.data, *mod_ind, fn_ind);
+                    for (fn_ind, proc) in modules[*mod_ind].procedures.iter_enumerated() {
+                        if proc.public {
+                            scope.import_function(proc.identifier.data, *mod_ind, fn_ind);
+                        }
                     }
                 }
                 Module::Native(_pkg) => {
@@ -44,7 +44,7 @@ pub fn walk_import(
             };
         }
         ImportKind::ModuleObject(Located { data, .. }) => {
-            scope.import_module(*data, import.module.clone());
+            scope.import_module(*data, import.module.data.clone());
         }
         ImportKind::List(list) => {
             let mut inserted = HashSet::with_capacity(list.len());
@@ -61,9 +61,11 @@ pub fn walk_import(
                 }
                 inserted.insert(name);
 
-                let contains = match &import.module {
-                    Module::Custom(ind) => modules[*ind].get_function(name).is_some(),
-                    Module::Native(pkg) => pkg.fn_from_str(&*strings[name]).is_some(),
+                let contains = match &import.module.data {
+                    Module::Custom(ind) => modules[*ind].get_procedure(name).is_some(),
+                    Module::Native(pkg) => {
+                        pkg.fn_from_str(&*strings[StringVal::from(name)]).is_some()
+                    }
                 };
 
                 if !contains {
@@ -74,14 +76,14 @@ pub fn walk_import(
                     });
                 }
 
-                match &import.module {
+                match &import.module.data {
                     Module::Custom(mod_ind) => {
-                        if let Some(fnc_ind) = modules[*mod_ind].get_function(name) {
+                        if let Some(fnc_ind) = modules[*mod_ind].get_procedure(name) {
                             scope.import_function(name, *mod_ind, fnc_ind);
                         }
                     }
                     Module::Native(pkg) => {
-                        if let Some(fnc) = pkg.fn_from_str(&*strings[name]) {
+                        if let Some(fnc) = pkg.fn_from_str(&*strings[StringVal::from(name)]) {
                             scope.native_function(name, fnc.clone());
                         }
                     }
@@ -95,19 +97,26 @@ pub fn walk_import(
 
 pub fn walk_module(
     module: &mut CustomModule,
-    module_ind: usize,
+    module_ind: ModuleInd,
     modules: &ModuleStore,
     lams: &mut Lams,
     cap: &mut CaptureStack,
-    strings: Strings,
+    strings: &StringStore,
 ) -> WalkResult {
     let mut scope = Scope::new();
 
     for import in &module.imports {
+        if Module::Custom(module_ind) == import.module.data {
+            return Err(WalkError {
+                start: import.module.start.clone(),
+                end: import.module.end.clone(),
+                kind: WalkErrorType::SelfImport,
+            });
+        }
         walk_import(import, modules, strings, &mut scope)?;
     }
 
-    for (ind, Procedure { identifier, .. }) in module.functions.iter().enumerate() {
+    for (ind, Procedure { identifier, .. }) in module.procedures.iter_enumerated() {
         if !scope.insert_fn(identifier.data, ind, Some(module_ind)) {
             return Err(WalkError {
                 start: identifier.start.clone(),
@@ -117,7 +126,7 @@ pub fn walk_module(
         }
     }
 
-    for p in &mut module.functions {
+    for p in &mut module.procedures {
         walk_procedure(p, &mut scope, lams, cap)?;
     }
 

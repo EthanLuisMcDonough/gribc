@@ -1,5 +1,5 @@
 use super::GribValue;
-use ast::node::{NativeFunction, Program};
+use ast::node::{NativeFunction, Program, ProcInd, ModuleInd, LambdaInd, GetPropInd, SetPropInd};
 use runtime::{
     exec::{evaluate_lambda, run_block},
     memory::Runtime,
@@ -10,13 +10,13 @@ use serde::{Serialize, Deserialize};
 pub enum Callable {
     Native(NativeFunction),
     Procedure {
-        module: Option<usize>,
-        index: usize,
+        module: Option<ModuleInd>,
+        index: ProcInd,
     },
     Lambda {
         binding: Option<usize>,
         stack: Option<usize>,
-        index: usize,
+        index: LambdaInd,
     },
 }
 
@@ -31,9 +31,9 @@ impl Callable {
             Callable::Native(n) => n.call(program, runtime, args),
             Callable::Procedure { module, index } => {
                 let fnc = if let Some(i) = module {
-                    &program.modules[*i].functions[*index]
+                    &program.modules[*i].procedures[*index]
                 } else {
-                    &program.functions[*index]
+                    &program.procedures[*index]
                 };
 
                 let alloced = runtime.add_params(&fnc.param_list, args);
@@ -67,8 +67,11 @@ impl Callable {
 }
 
 #[derive(Clone, Debug)]
-pub enum AccessFunc {
-    Callable { index: usize, stack: Option<usize> },
+pub enum AccessFunc<IndexType> {
+    Callable { index: IndexType, stack: Option<usize> },
     Captured(usize),
     Static(GribValue),
 }
+
+pub type GetAccessFunc = AccessFunc<GetPropInd>;
+pub type SetAccessFunc = AccessFunc<SetPropInd>;

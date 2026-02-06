@@ -1,3 +1,5 @@
+use crate::ast::node::{ForLoop, LogicChain};
+
 ///
 /// Walk functions related to statements and blocks
 ///
@@ -82,11 +84,11 @@ pub fn walk_ast(
                 scope.sub_loop(|sub, block| walk_ast(block, sub, lams, cap), block)?;
             }
             Node::Declaration(declaration) => walk_decl(declaration, scope, lams, cap)?,
-            Node::LogicChain {
+            Node::LogicChain(LogicChain {
                 if_block,
                 elseifs,
                 else_block,
-            } => {
+            }) => {
                 for ConditionBodyPair { condition, block } in
                     std::iter::once(if_block).chain(elseifs)
                 {
@@ -98,12 +100,12 @@ pub fn walk_ast(
                     scope.sub_block(|scope, block| walk_ast(block, scope, lams, cap), block)?;
                 }
             }
-            Node::For {
+            Node::For(ForLoop {
                 declaration,
                 condition,
                 increment,
                 body,
-            } => scope.sub(|scope| {
+            }) => scope.sub(|scope| {
                 if let Some(decl) = declaration {
                     walk_decl(decl, scope, lams, cap)?;
                 }

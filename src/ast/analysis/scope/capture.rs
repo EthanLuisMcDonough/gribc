@@ -1,10 +1,10 @@
 use super::Scope;
-use ast::node::RuntimeValue;
+use ast::node::{RuntimeValue, Identifier};
 
 #[derive(Debug)]
 struct Capture {
     level: usize,
-    identifiers: Vec<usize>,
+    identifiers: Vec<Identifier>,
 }
 
 impl Capture {
@@ -15,7 +15,7 @@ impl Capture {
         }
     }
 
-    fn insert(&mut self, name: usize) {
+    fn insert(&mut self, name: Identifier) {
         if !self.identifiers.contains(&name) {
             self.identifiers.push(name);
         }
@@ -47,7 +47,7 @@ impl CaptureStack {
         self.stack
             .pop()
             .map(|end| {
-                let (names, captured): (Vec<usize>, _) = end
+                let (names, captured): (Vec<Identifier>, _) = end
                     .identifiers
                     .into_iter()
                     // Filter out any variables that aren't valid captures
@@ -56,7 +56,6 @@ impl CaptureStack {
                         if let Some(RuntimeValue::StackOffset(off)) = val {
                             Some((name, off))
                         } else {
-                            // This area shouldn't be reachable
                             None
                         }
                     })
@@ -76,7 +75,7 @@ impl CaptureStack {
 
     /// Returns true if any captured lambda scopes were edited during a variable check
     /// If so, the checked variable should be marked as a captured variable
-    pub(super) fn check_ref(&mut self, ident: usize, current: usize) -> bool {
+    pub(super) fn check_ref(&mut self, ident: Identifier, current: usize) -> bool {
         let mut changed = false;
         for capture in &mut self.stack {
             if capture.level > current {

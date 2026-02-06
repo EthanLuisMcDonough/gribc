@@ -24,7 +24,7 @@ pub fn parse_prop(
         next_guard!({ tokens.next() } (start, end) {
             Token::Keyword(Keyword::Get) => if prop.get.is_none() {
                 if let Some(Located { data: Token::Identifier(s), start, end }) = next_if(&mut tokens, |t| t.data.ident()) {
-                    prop.get = AutoPropValue::String(Located { data: store.ins_str(s), start, end }).into();
+                    prop.get = GetAutoPropValue::String(Located { data: store.ins_ident(s), start, end }).into();
                 } else {
                     if next_if(&mut tokens, |t| t.data == Token::BinaryOp(Binary::LogicalOr)).is_none() {
                         if next_if(&mut tokens, |t| t.data == Token::Pipe).is_some() {
@@ -40,7 +40,7 @@ pub fn parse_prop(
                     });
 
                     let ind = store.add_getter(GetProp::new(body));
-                    prop.get = AutoPropValue::Lambda(ind).into();
+                    prop.get =  GetAutoPropValue::Lambda(ind).into();
                 }
             } else {
                 return Err(ParseError::UnexpectedToken(Located {
@@ -50,7 +50,7 @@ pub fn parse_prop(
             },
             Token::Keyword(Keyword::Set) => if prop.set.is_none() {
                 if let Some(Located { data: Token::Identifier(s), start, end }) = next_if(&mut tokens, |t| t.data.ident()) {
-                    prop.set = AutoPropValue::String(Located { data: store.ins_str(s), start, end }).into();
+                    prop.set = SetAutoPropValue::String(Located { data: store.ins_ident(s), start, end }).into();
                 } else {
                     next_guard!({ tokens.next() } { Token::Pipe => {} });
                     let param = next_guard!({ tokens.next() } { Token::Identifier(s) => s });
@@ -62,9 +62,9 @@ pub fn parse_prop(
                             err.neof_or(ParseError::UnexpectedToken(e))
                         }))?;
 
-                    let param_ind = store.ins_str(param);
+                    let param_ind = store.ins_ident(param);
                     let ind = store.add_setter(SetProp::new(param_ind, body));
-                    prop.set = AutoPropValue::Lambda(ind).into();
+                    prop.set = SetAutoPropValue::Lambda(ind).into();
                 }
             } else {
                 return Err(ParseError::UnexpectedToken(Located {
