@@ -14,7 +14,7 @@ fn mark_access_prop<IndexType>(gc: &mut Gc, prop: AccessFunc<IndexType>) {
     }
 }
 
-pub fn mark_heap(gc: &mut Gc, ind: usize) {
+pub fn mark_heap(gc: &mut Gc, ind: HeapPtr) {
     use self::{HeapValue::*, MemSlot::*};
 
     let Markable { marked, ref value } = &mut gc.heap[ind];

@@ -3,7 +3,7 @@ mod mark;
 pub(in runtime::memory) mod slot;
 pub(in runtime::memory) mod stack;
 
-pub use self::heap::Gc;
+pub use self::heap::{Gc, HeapPtr};
 pub use self::slot::StackSlot;
 pub use self::stack::Stack;
 
@@ -19,7 +19,7 @@ pub struct RuntimeConfig {
 pub struct Runtime {
     pub gc: Gc,
     pub stack: Stack,
-    free_pointers: Vec<usize>,
+    free_pointers: Vec<HeapPtr>,
     allocations: usize,
     max_allocations: usize,
 }
@@ -45,6 +45,7 @@ impl Runtime {
 
         let len = self.gc.heap.len();
         for index in 0..len {
+            let index = HeapPtr(index);
             if !self.gc.heap[index].marked {
                 self.gc.remove(index);
                 self.free_pointers.push(index);
@@ -74,7 +75,7 @@ impl Runtime {
         self.allocations > self.max_allocations
     }
 
-    fn alloc(&mut self, value: impl Into<Option<HeapSlot>>) -> usize {
+    fn alloc(&mut self, value: impl Into<Option<HeapSlot>>) -> HeapPtr {
         let value = Markable {
             value: value.into(),
             marked: false,
@@ -93,19 +94,19 @@ impl Runtime {
         } else {
             let index = self.gc.heap.len();
             self.gc.heap.push(value);
-            index
+            index.into()
         }
     }
 
-    pub fn alloc_heap(&mut self, value: HeapValue) -> usize {
+    pub fn alloc_heap(&mut self, value: HeapValue) -> HeapPtr {
         self.alloc(HeapSlot::Value(value))
     }
 
-    pub fn reserve_slot(&mut self) -> usize {
+    pub fn reserve_slot(&mut self) -> HeapPtr {
         self.alloc(None)
     }
 
-    pub fn alloc_captured(&mut self, value: GribValue) -> usize {
+    pub fn alloc_captured(&mut self, value: GribValue) -> HeapPtr {
         self.alloc(HeapSlot::Captured(value))
     }
 
@@ -124,7 +125,7 @@ impl Runtime {
         }
     }
 
-    pub fn capture_stack(&mut self, to_capture: &Vec<usize>) -> Option<usize> {
+    pub fn capture_stack(&mut self, to_capture: &Vec<usize>) -> Option<HeapPtr> {
         if to_capture.is_empty() {
             return None;
         }
@@ -142,7 +143,7 @@ impl Runtime {
         self.alloc_heap(HeapValue::CapturedStack(heap_stack)).into()
     }
 
-    pub fn add_stack(&mut self, stack_ind: impl Into<Option<usize>>) -> usize {
+    pub fn add_stack(&mut self, stack_ind: impl Into<Option<HeapPtr>>) -> usize {
         let stack_ind = stack_ind.into();
         let mut allocated = 0usize;
         if let Some(HeapValue::CapturedStack(stack)) =

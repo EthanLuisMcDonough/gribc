@@ -1,5 +1,7 @@
 use runtime::values::{GribValue, HeapValue};
 
+use crate::runtime::HeapPtr;
+
 #[derive(Debug)]
 pub struct Markable<T> {
     pub value: T,
@@ -29,4 +31,4 @@ impl<C, V> MemSlot<C, V> {
 
 pub type HeapSlot = MemSlot<GribValue, HeapValue>;
 pub type MarkedSlot = Markable<Option<HeapSlot>>;
-pub type StackSlot = MemSlot<usize, GribValue>;
+pub type StackSlot = MemSlot<HeapPtr, GribValue>;

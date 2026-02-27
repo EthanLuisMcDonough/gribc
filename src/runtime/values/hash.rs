@@ -2,6 +2,7 @@ use super::{GetAccessFunc, SetAccessFunc, Callable, GribString, GribValue, Modul
 use ast::node::Program;
 use runtime::exec::evaluate_lambda;
 use runtime::memory::{Gc, Runtime};
+use runtime::HeapPtr;
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash, Hasher};
 
@@ -21,7 +22,7 @@ impl From<GribValue> for HashPropertyValue {
 }
 
 impl HashPropertyValue {
-    pub fn get(&self, runtime: &mut Runtime, program: &Program, self_ptr: usize) -> GribValue {
+    pub fn get(&self, runtime: &mut Runtime, program: &Program, self_ptr: HeapPtr) -> GribValue {
         match self {
             HashPropertyValue::Value(val) => {
                 let mut grib_val = val.clone();
@@ -186,7 +187,7 @@ impl HashValue {
         self,
         runtime: &mut Runtime,
         program: &Program,
-        self_ptr: usize,
+        self_ptr: HeapPtr,
     ) -> Vec<(String, GribValue)> {
         self.values
             .into_iter()
@@ -205,7 +206,7 @@ pub fn eval_setter(
     func: &SetAccessFunc,
     runtime: &mut Runtime,
     program: &Program,
-    self_ptr: usize,
+    self_ptr: HeapPtr,
     val: GribValue,
 ) -> GribValue {
     match func {

@@ -1,15 +1,5 @@
 use super::{GribValue, HashValue};
-use runtime::memory::{Gc, StackSlot};
-
-/*macro_rules! try_method {
-    ($n:ident, $e:expr) => {
-        if let Self::$n(v) = $e {
-            Some(v)
-        } else {
-            None
-        }
-    };
-}*/
+use runtime::memory::{Gc, StackSlot, HeapPtr};
 
 #[derive(Clone, Debug)]
 pub enum HeapValue {
@@ -21,7 +11,7 @@ pub enum HeapValue {
 
 macro_rules! type_ref {
     ($name:ident $heap_name:ident $inner_type:ty) => {
-        pub struct $name(pub usize);
+        pub struct $name(pub HeapPtr);
 
         impl $name {
             pub fn get<'a>(&self, gc: &'a Gc) -> Option<&'a $inner_type> {
@@ -32,7 +22,7 @@ macro_rules! type_ref {
                 }
             }
 
-            pub fn ptr(&self) -> usize {
+            pub fn ptr(&self) -> HeapPtr {
                 self.0
             }
         }

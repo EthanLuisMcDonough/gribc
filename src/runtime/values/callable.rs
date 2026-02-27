@@ -2,7 +2,7 @@ use super::GribValue;
 use ast::node::{NativeFunction, Program, ProcInd, ModuleInd, LambdaInd, GetPropInd, SetPropInd};
 use runtime::{
     exec::{evaluate_lambda, run_block},
-    memory::Runtime,
+    memory::{Runtime, HeapPtr},
 };
 use serde::{Serialize, Deserialize};
 
@@ -14,8 +14,8 @@ pub enum Callable {
         index: ProcInd,
     },
     Lambda {
-        binding: Option<usize>,
-        stack: Option<usize>,
+        binding: Option<HeapPtr>,
+        stack: Option<HeapPtr>,
         index: LambdaInd,
     },
 }
@@ -68,8 +68,8 @@ impl Callable {
 
 #[derive(Clone, Debug)]
 pub enum AccessFunc<IndexType> {
-    Callable { index: IndexType, stack: Option<usize> },
-    Captured(usize),
+    Callable { index: IndexType, stack: Option<HeapPtr> },
+    Captured(HeapPtr),
     Static(GribValue),
 }
 

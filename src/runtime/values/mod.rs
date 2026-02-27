@@ -4,7 +4,7 @@ mod heap;
 mod string;
 
 use ast::node::*;
-use runtime::memory::{Gc, Runtime};
+use runtime::memory::{Gc, Runtime, HeapPtr};
 use std::borrow::Cow;
 use std::cmp::Ordering;
 
@@ -13,55 +13,6 @@ pub use self::hash::*;
 pub use self::heap::*;
 pub use self::string::*;
 
-/*pub fn float_to_ind(f: f64) -> Option<usize> {
-    Some(f.trunc())
-        .filter(|&i| i.is_finite() && i >= 0. && i <= (usize::MAX as f64))
-        .map(|i| i as usize)
-}
-
-fn array_to_string(arr: &Vec<GribValue>, program: &Program, runtime: &mut Runtime) -> String {
-    let mut joined = String::from("[");
-    let empty = arr.is_empty();
-
-    for value in arr {
-        joined.push_str(value.as_str(program, runtime).as_ref());
-        joined.push(',');
-    }
-
-    if empty {
-        joined.pop();
-    }
-    joined.push(']');
-
-    joined
-}
-
-fn values_to_string(
-    v: Vec<(String, GribValue)>,
-    mutable: bool,
-    program: &Program,
-    runtime: &mut Runtime,
-) -> String {
-    let mut joined = if mutable { '$' } else { '#' }.to_string();
-
-    joined.push('{');
-    let empty = v.is_empty();
-
-    for (key, value) in v {
-        joined.push_str(key.as_ref());
-        joined.push_str("->");
-        joined.push_str(value.as_str(program, runtime).as_ref());
-    }
-
-    if !empty {
-        joined.pop();
-    }
-
-    joined.push('}');
-
-    joined
-}*/
-
 #[derive(Clone, PartialEq, Debug)]
 pub enum GribValue {
     Nil,
@@ -69,13 +20,13 @@ pub enum GribValue {
     String(GribString),
     Callable(Callable),
     ModuleObject(Module),
-    HeapValue(usize),
+    HeapValue(HeapPtr),
     Bool(bool),
     Error(Box<GribValue>),
 }
 
 impl GribValue {
-    pub fn ptr(&self) -> Option<usize> {
+    pub fn ptr(&self) -> Option<HeapPtr> {
         match self {
             Self::HeapValue(i) | Self::String(GribString::Heap(i)) => Some(*i),
             _ => None,
@@ -227,8 +178,8 @@ impl From<f64> for GribValue {
     }
 }
 
-impl From<usize> for GribValue {
-    fn from(f: usize) -> Self {
+impl From<HeapPtr> for GribValue {
+    fn from(f: HeapPtr) -> Self {
         GribValue::HeapValue(f)
     }
 }

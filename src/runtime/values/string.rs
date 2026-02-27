@@ -1,6 +1,6 @@
 use super::HeapValue;
 use ast::node::{Program, StringVal};
-use runtime::memory::Gc;
+use runtime::memory::{Gc, HeapPtr};
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
@@ -8,7 +8,7 @@ use std::hash::{Hash, Hasher};
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum GribString {
     Stored(StringVal),
-    Heap(usize),
+    Heap(HeapPtr),
     Char(char),
     Static(&'static str),
 }

@@ -2,12 +2,12 @@
 use super::evaluate_expression;
 use ast::node::{Assignable, Module, Program, StringVal, Identifier};
 use runtime::{
-    memory::{Gc, Runtime},
+    memory::{Gc, Runtime, HeapPtr},
     values::{eval_setter, GribKey, GribString, GribValue, KnownIndex},
 };
 
 pub enum LiveProperty {
-    Hash { key: GribKey, ptr: usize },
+    Hash { key: GribKey, ptr: HeapPtr },
     Module { key: Identifier, module: Module },
 }
 
@@ -54,8 +54,8 @@ impl LiveProperty {
 }
 
 pub enum LiveIndex {
-    Hash { ptr: usize, index: GribKey },
-    Array { ptr: usize, index: usize },
+    Hash { ptr: HeapPtr, index: GribKey },
+    Array { ptr: HeapPtr, index: usize },
     String { string: GribString, index: usize },
     Module { module: Module, index: GribString },
 }
