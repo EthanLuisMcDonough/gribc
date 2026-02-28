@@ -1,7 +1,7 @@
 use super::{module::Module, Hash, Identifier, LambdaInd, StringVal};
 use location::{Located, Location};
 use operators::{Assignment, Binary, Unary};
-use runtime::values::Callable;
+use runtime::{values::Callable, StackOffset};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -13,7 +13,7 @@ pub struct IndexAccess {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Assignable {
     Identifier(Located<Identifier>),
-    Offset(usize),
+    Offset(StackOffset),
     IndexAccess {
         item: Box<Expression>,
         index: Box<Expression>,
@@ -35,7 +35,7 @@ pub enum StaticValue {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum RuntimeValue {
     Static(StaticValue),
-    StackOffset(usize),
+    StackOffset(StackOffset),
 }
 
 pub type ExpressionList = Vec<Expression>;

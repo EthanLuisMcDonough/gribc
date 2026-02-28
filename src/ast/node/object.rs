@@ -1,12 +1,13 @@
 use super::{Expression, LambdaBody, RuntimeValue, StringVal, GetPropInd, Identifier, SetPropInd};
 use location::Located;
 use std::collections::HashMap;
+use runtime::StackOffset;
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum CapturedVars {
     Names(Vec<Identifier>),
-    Offsets(Vec<usize>),
+    Offsets(Vec<StackOffset>),
 }
 
 impl Default for CapturedVars {
@@ -99,7 +100,7 @@ pub enum SetAutoPropValue {
     String(Located<Identifier>),
 
     /// Stack offset after second pass
-    StackOffset(usize),
+    StackOffset(StackOffset),
 
     /// Index to getter or setter in program struct
     Lambda(SetPropInd),

@@ -2,7 +2,7 @@ mod capture;
 
 use super::WalkResult;
 use ast::node::*;
-use runtime::values::Callable;
+use runtime::{values::Callable, StackOffset};
 use std::collections::HashMap;
 
 pub use self::capture::CaptureStack;
@@ -382,7 +382,7 @@ impl Scope {
             DefType::Import(value) => RuntimeValue::Static(value.clone()),
             DefType::Function(fnc) => RuntimeValue::Static(StaticValue::Function(fnc.clone())),
             DefType::Constant { stack_pos } | DefType::Mutable { stack_pos, .. } => {
-                RuntimeValue::StackOffset(self.stack - stack_pos)
+                RuntimeValue::StackOffset(StackOffset::from(self.stack - stack_pos))
             }
         })
     }

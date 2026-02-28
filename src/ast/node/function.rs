@@ -1,5 +1,6 @@
 use super::{Block, Expression, Identifier};
 use location::Located;
+use runtime::StackOffset;
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -73,7 +74,7 @@ pub struct Procedure {
 pub struct Lambda {
     pub param_list: Parameters,
     pub body: LambdaBody,
-    pub captured: Vec<usize>,
+    pub captured: Vec<StackOffset>,
 }
 
 impl Lambda {

@@ -1,6 +1,18 @@
 use runtime::memory::slot::*;
-use std::fmt::{Debug, Error as DebugError, Formatter};
+use serde::{Serialize, Deserialize};
+use derive_more::{From, Into};
+use std::fmt::{Debug, Display, Error as DebugError, Formatter};
+
 const STACK_SIZE: usize = 5000;
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, From, Into)]
+pub struct StackOffset(usize);
+
+impl Display for StackOffset {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 pub struct Stack {
     stack_size: usize,
@@ -21,13 +33,13 @@ impl Stack {
         self.stack_size
     }
 
-    pub fn add(&mut self, value: impl Into<StackSlot>) -> usize {
+    pub fn add(&mut self, value: impl Into<StackSlot>) -> StackOffset {
         let value = value.into();
         if self.stack_size < STACK_SIZE {
             self.stack[self.stack_size] = Some(value);
             let ptr = self.stack_size;
             self.stack_size += 1;
-            ptr
+            StackOffset(ptr)
         } else {
             panic!("Grib stack overflow");
         }
@@ -46,17 +58,17 @@ impl Stack {
         }
     }
 
-    fn offset_calc(&self, offset: usize) -> Option<usize> {
-        self.len().checked_sub(offset)
+    fn offset_calc(&self, offset: StackOffset) -> Option<usize> {
+        self.len().checked_sub(offset.0)
     }
 
-    pub fn offset_slot(&'_ self, offset: usize) -> Option<&'_ StackSlot> {
+    pub fn offset_slot(&'_ self, offset: StackOffset) -> Option<&'_ StackSlot> {
         self.offset_calc(offset)
             .and_then(|ind| self.stack.get(ind))
             .and_then(|o| o.as_ref())
     }
 
-    pub fn offset_slot_mut(&'_ mut self, offset: usize) -> Option<&'_ mut StackSlot> {
+    pub fn offset_slot_mut(&'_ mut self, offset: StackOffset) -> Option<&'_ mut StackSlot> {
         self.offset_calc(offset)
             .and_then(move |ind| self.stack.get_mut(ind))
             .and_then(|o| o.as_mut())

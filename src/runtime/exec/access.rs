@@ -2,6 +2,7 @@
 use super::evaluate_expression;
 use ast::node::{Assignable, Module, Program, StringVal, Identifier};
 use runtime::{
+    StackOffset,
     memory::{Gc, Runtime, HeapPtr},
     values::{eval_setter, GribKey, GribString, GribValue, KnownIndex},
 };
@@ -141,7 +142,7 @@ impl LiveIndex {
 }
 
 pub enum LiveAssignable {
-    Offset(usize),
+    Offset(StackOffset),
     Index(LiveIndex),
     Property(LiveProperty),
 }

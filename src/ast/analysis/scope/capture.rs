@@ -1,4 +1,5 @@
 use super::Scope;
+use runtime::StackOffset;
 use ast::node::{RuntimeValue, Identifier};
 
 #[derive(Debug)]
@@ -43,7 +44,7 @@ impl CaptureStack {
     /// Pops off the top captured stack and converts the array of identifiers
     /// to an array of index offsets.  The scope passed in must be a copy of
     /// self before the analysis took place.
-    pub fn pop(&mut self, top_scope: &mut Scope) -> Vec<usize> {
+    pub fn pop(&mut self, top_scope: &mut Scope) -> Vec<StackOffset> {
         self.stack
             .pop()
             .map(|end| {

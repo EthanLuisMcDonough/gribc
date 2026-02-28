@@ -5,7 +5,7 @@ pub(in runtime::memory) mod stack;
 
 pub use self::heap::{Gc, HeapPtr};
 pub use self::slot::StackSlot;
-pub use self::stack::Stack;
+pub use self::stack::{StackOffset, Stack};
 
 use self::mark::*;
 use ast::node::{Param, Parameters};
@@ -55,7 +55,7 @@ impl Runtime {
         }
     }
 
-    pub fn get_offset(&'_ self, offset: usize) -> Option<&'_ GribValue> {
+    pub fn get_offset(&'_ self, offset: StackOffset) -> Option<&'_ GribValue> {
         match self.stack.offset_slot(offset) {
             Some(StackSlot::Value(value)) => Some(value),
             Some(StackSlot::Captured(index)) => self.gc.get_captured(*index),
@@ -63,7 +63,7 @@ impl Runtime {
         }
     }
 
-    pub fn get_offset_mut(&'_ mut self, offset: usize) -> Option<&'_ mut GribValue> {
+    pub fn get_offset_mut(&'_ mut self, offset: StackOffset) -> Option<&'_ mut GribValue> {
         match self.stack.offset_slot_mut(offset) {
             Some(StackSlot::Value(value)) => Some(value),
             Some(StackSlot::Captured(index)) => self.gc.get_captured_mut(*index),
@@ -125,7 +125,7 @@ impl Runtime {
         }
     }
 
-    pub fn capture_stack(&mut self, to_capture: &Vec<usize>) -> Option<HeapPtr> {
+    pub fn capture_stack(&mut self, to_capture: &Vec<StackOffset>) -> Option<HeapPtr> {
         if to_capture.is_empty() {
             return None;
         }
