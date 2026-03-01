@@ -1,10 +1,10 @@
 /// Structures related to getting and setting index and property values
 use super::evaluate_expression;
-use ast::node::{Assignable, Module, Program, StringVal, Identifier};
+use ast::node::{Assignable, Identifier, IndexAccess, Module, Program, PropertyAccess, StringVal};
 use runtime::{
-    StackOffset,
-    memory::{Gc, Runtime, HeapPtr},
+    memory::{Gc, HeapPtr, Runtime},
     values::{eval_setter, GribKey, GribString, GribValue, KnownIndex},
+    StackOffset,
 };
 
 pub enum LiveProperty {
@@ -159,12 +159,12 @@ impl LiveAssignable {
                 panic!("Identifier should not be present at this point in exeuction")
             }
             Assignable::Offset(off) => Self::Offset(*off).into(),
-            Assignable::IndexAccess { item, index } => {
+            Assignable::IndexAccess(IndexAccess { item, index }) => {
                 let item_val = evaluate_expression(item, this, runtime, program);
                 let index_val = evaluate_expression(index, this, runtime, program);
                 LiveIndex::new(item_val, &index_val, runtime, program).map(LiveAssignable::Index)
             }
-            Assignable::PropertyAccess { item, property } => {
+            Assignable::PropertyAccess(PropertyAccess { item, property }) => {
                 let item_val = evaluate_expression(item, this, runtime, program);
                 LiveProperty::new(item_val, (*property).into(), &runtime.gc, program)
                     .map(LiveAssignable::Property)

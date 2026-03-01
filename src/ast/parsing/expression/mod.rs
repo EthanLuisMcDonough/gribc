@@ -8,7 +8,7 @@ use ast::node::*;
 use ast::parsing::{constructs::parse_params, util::take_until, Store};
 use ast::{ParseError, ParseResult};
 use lex::tokens::*;
-use location::Located;
+use location::{Located, LocationSpan};
 use operators::{op_precedence, Precedence};
 use std::convert::TryInto;
 use util::next_if;
@@ -141,10 +141,10 @@ pub fn parse_expr(
             }
             Token::Keyword(Keyword::Nil) => expr = Expression::Nil.into(),
             Token::Keyword(Keyword::This) => {
-                expr = Expression::This {
+                expr = Expression::This(LocationSpan {
                     start: start.clone(),
                     end: token.end.clone(),
-                }
+                })
                 .into()
             }
             Token::Bool(b) => expr = Expression::Bool(b).into(),
@@ -164,10 +164,15 @@ pub fn parse_expr(
         if let Some(mut expression) = expr {
             while let Some(token) = next_if(tokens.by_ref(), |Located { data, .. }| !data.is_op()) {
                 expression = match token.data {
-                    Token::OpenGroup(Grouper::Parentheses) => Expression::FunctionCall {
-                        function: expression.into(),
-                        args: list_callback(take_until(&mut tokens, Grouper::Parentheses), store)?,
-                    },
+                    Token::OpenGroup(Grouper::Parentheses) => {
+                        Expression::FunctionCall(CallExpression {
+                            function: expression.into(),
+                            args: list_callback(
+                                take_until(&mut tokens, Grouper::Parentheses),
+                                store,
+                            )?,
+                        })
+                    }
                     Token::OpenGroup(Grouper::Bracket) => Expression::IndexAccess(IndexAccess {
                         item: expression.into(),
                         index: expr_callback(take_until(&mut tokens, Grouper::Bracket), store)?
@@ -204,10 +209,10 @@ pub fn parse_expr(
     {
         if let OpExpr::Unary(unary) = op_expr.remove(index) {
             if let Some(OpExpr::Expr(ref mut expr, _)) = op_expr.get_mut(index) {
-                *expr = Expression::Unary {
+                *expr = Expression::Unary(UnaryExpression {
                     op: unary,
                     expr: std::mem::replace(expr, Expression::Nil).into(),
-                };
+                });
             } else {
                 return Err(ParseError::UnexpectedEOF);
             }
@@ -230,11 +235,11 @@ pub fn parse_expr(
                 (op_expr.remove(i - 1), op_expr.remove(i - 1))
             {
                 if let Some(OpExpr::Expr(ref mut expr, _)) = op_expr.get_mut(i - 1) {
-                    *expr = Expression::Binary {
+                    *expr = Expression::Binary(BinaryExpression {
                         op,
                         left: one.into(),
                         right: std::mem::replace(expr, Expression::Nil).into(),
-                    }
+                    })
                 } else {
                     return Err(ParseError::UnexpectedEOF);
                 }
@@ -254,13 +259,13 @@ pub fn parse_expr(
             (op_expr.remove(i - 1), op_expr.remove(i - 1))
         {
             if let Some(OpExpr::Expr(ref mut expr, _)) = op_expr.get_mut(i - 1) {
-                *expr = Expression::Assignment {
+                *expr = Expression::Assignment(AssignmentExpression {
                     op,
                     left: one
                         .try_into()
                         .map_err(|_| ParseError::IllegalLeftExpression(start))?,
                     right: std::mem::replace(expr, Expression::Nil).into(),
-                }
+                });
             } else {
                 return Err(ParseError::UnexpectedEOF);
             }

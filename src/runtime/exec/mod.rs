@@ -332,19 +332,19 @@ pub fn evaluate_expression(
                 .map(|ind| ind.get(runtime, program))
                 .unwrap_or_default()
         }
-        Expression::Unary { op, expr } => {
+        Expression::Unary(UnaryExpression { op, expr }) => {
             let val = evaluate_expression(expr, this, runtime, program);
             unary_expr(op, &val, &runtime.gc, program)
         }
-        Expression::Binary { op, left, right } => {
+        Expression::Binary(BinaryExpression { op, left, right }) => {
             let left_val = evaluate_expression(left, this, runtime, program);
             binary_expr(op, &left_val, right.as_ref(), this, runtime, program)
         }
-        Expression::Assignment { op, left, right } => {
+        Expression::Assignment(AssignmentExpression { op, left, right }) => {
             let val = evaluate_expression(right, this, runtime, program);
             assignment_expr(op, left, val, this, runtime, program)
         }
-        Expression::FunctionCall { function, args } => {
+        Expression::FunctionCall(CallExpression { function, args }) => {
             let values = eval_list(args, this, runtime, program);
             let fn_val = evaluate_expression(function, this, runtime, program);
             if let GribValue::Callable(f) = fn_val {

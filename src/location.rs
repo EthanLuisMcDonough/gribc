@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use serde::{Serialize, Deserialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct Location {
@@ -30,6 +30,12 @@ impl Location {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Default)]
+pub struct LocationSpan {
+    pub start: Location,
+    pub end: Location,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Located<T> {
     pub data: T,
@@ -40,6 +46,13 @@ pub struct Located<T> {
 impl<T> Located<T> {
     pub fn new(data: T, start: Location, end: Location) -> Self {
         Self { data, start, end }
+    }
+
+    pub fn get_span(&self) -> LocationSpan {
+        LocationSpan {
+            start: self.start,
+            end: self.end,
+        }
     }
 }
 

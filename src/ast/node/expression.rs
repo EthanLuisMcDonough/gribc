@@ -1,5 +1,5 @@
 use super::{module::Module, Hash, Identifier, LambdaInd, StringVal};
-use location::{Located, Location};
+use location::{Located, LocationSpan};
 use operators::{Assignment, Binary, Unary};
 use runtime::{values::Callable, StackOffset};
 use serde::{Deserialize, Serialize};
@@ -11,17 +11,17 @@ pub struct IndexAccess {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct PropertyAccess {
+    pub item: Box<Expression>,
+    pub property: Identifier,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Assignable {
     Identifier(Located<Identifier>),
     Offset(StackOffset),
-    IndexAccess {
-        item: Box<Expression>,
-        index: Box<Expression>,
-    },
-    PropertyAccess {
-        item: Box<Expression>,
-        property: Identifier,
-    },
+    IndexAccess(IndexAccess),
+    PropertyAccess(PropertyAccess),
 }
 
 /// Values known during static analysis
@@ -41,27 +41,36 @@ pub enum RuntimeValue {
 pub type ExpressionList = Vec<Expression>;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct PropertyAccess {
-    pub item: Box<Expression>,
-    pub property: Identifier,
+pub struct BinaryExpression {
+    pub op: Binary,
+    pub left: Box<Expression>,
+    pub right: Box<Expression>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct UnaryExpression {
+    pub op: Unary,
+    pub expr: Box<Expression>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct AssignmentExpression {
+    pub op: Assignment,
+    pub left: Assignable,
+    pub right: Box<Expression>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct CallExpression {
+    pub function: Box<Expression>,
+    pub args: Vec<Expression>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Expression {
-    Binary {
-        op: Binary,
-        left: Box<Expression>,
-        right: Box<Expression>,
-    },
-    Assignment {
-        op: Assignment,
-        left: Assignable,
-        right: Box<Expression>,
-    },
-    Unary {
-        op: Unary,
-        expr: Box<Expression>,
-    },
+    Assignment(AssignmentExpression),
+    Binary(BinaryExpression),
+    Unary(UnaryExpression),
 
     Bool(bool),
     Number(f64),
@@ -72,20 +81,14 @@ pub enum Expression {
     Hash(Hash),
     MutableHash(Hash),
 
-    FunctionCall {
-        function: Box<Expression>,
-        args: Vec<Expression>,
-    },
+    FunctionCall(CallExpression),
     Lambda(LambdaInd),
 
     IndexAccess(IndexAccess),
     PropertyAccess(PropertyAccess),
 
     Nil,
-    This {
-        start: Location,
-        end: Location,
-    },
+    This(LocationSpan),
 
     Value(RuntimeValue),
 }

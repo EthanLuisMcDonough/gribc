@@ -13,8 +13,8 @@ pub fn walk_expression(
     cap: &mut CaptureStack,
 ) -> WalkResult {
     match expression {
-        Expression::Unary { expr, .. } => walk_expression(expr, scope, lams, cap)?,
-        Expression::Binary { left, right, .. }
+        Expression::Unary(UnaryExpression { expr, .. }) => walk_expression(expr, scope, lams, cap)?,
+        Expression::Binary(BinaryExpression { left, right, .. })
         | Expression::IndexAccess(IndexAccess {
             item: left,
             index: right,
@@ -27,7 +27,7 @@ pub fn walk_expression(
                 walk_expression(e, scope, lams, cap)?;
             }
         }
-        Expression::FunctionCall { function, args } => {
+        Expression::FunctionCall(CallExpression { function, args }) => {
             walk_expression(function, scope, lams, cap)?;
             for e in args {
                 walk_expression(e, scope, lams, cap)?;
@@ -36,7 +36,7 @@ pub fn walk_expression(
         Expression::PropertyAccess(PropertyAccess { item, .. }) => {
             walk_expression(item, scope, lams, cap)?
         }
-        Expression::Assignment { left, right, .. } => {
+        Expression::Assignment(AssignmentExpression { left, right, .. }) => {
             match left {
                 Assignable::Offset(_) => {}
                 Assignable::Identifier(i) => {
@@ -70,9 +70,13 @@ pub fn walk_expression(
                         }
                     }
                 }
-                Assignable::IndexAccess { item, index } => walk_expression(item, scope, lams, cap)
-                    .and_then(|()| walk_expression(index, scope, lams, cap))?,
-                Assignable::PropertyAccess { item, .. } => walk_expression(item, scope, lams, cap)?,
+                Assignable::IndexAccess(IndexAccess { item, index }) => {
+                    walk_expression(item, scope, lams, cap)
+                        .and_then(|()| walk_expression(index, scope, lams, cap))?
+                }
+                Assignable::PropertyAccess(PropertyAccess { item, .. }) => {
+                    walk_expression(item, scope, lams, cap)?
+                }
             }
             walk_expression(right, scope, lams, cap)?;
         }
@@ -162,11 +166,11 @@ pub fn walk_expression(
                 }
             }
         }
-        Expression::This { start, end } if scope.lam_pass.is_none() => {
+        Expression::This(span) if scope.lam_pass.is_none() => {
             return Err(WalkError {
                 kind: WalkErrorType::InvalidThis,
-                start: start.clone(),
-                end: end.clone(),
+                start: span.start.clone(),
+                end: span.end.clone(),
             });
         }
         _ => {}
