@@ -8,7 +8,7 @@ use ast::node::*;
 use ast::parsing::{constructs::parse_params, util::take_until, Store};
 use ast::{ParseError, ParseResult};
 use lex::tokens::*;
-use location::{Located, LocationSpan};
+use location::Located;
 use operators::{op_precedence, Precedence};
 use std::convert::TryInto;
 use util::next_if;
@@ -97,7 +97,7 @@ pub fn parse_expr(
         let mut expr = None;
 
         let data = token.data.clone();
-        let start = token.start.clone();
+        let start = token.get_start();
         match data {
             Token::BinaryOp(binary) => op_expr
                 .push(binary.clone())
@@ -139,22 +139,19 @@ pub fn parse_expr(
                 } })
                 .into();
             }
-            Token::Keyword(Keyword::Nil) => expr = Expression::Nil.into(),
+            Token::Keyword(Keyword::Nil) => {
+                expr = Expression::Nil(token.loc).into()
+            }
             Token::Keyword(Keyword::This) => {
-                expr = Expression::This(LocationSpan {
-                    start: start.clone(),
-                    end: token.end.clone(),
-                })
-                .into()
+                expr = Expression::This(token.loc).into()
             }
             Token::Bool(b) => expr = Expression::Bool(b).into(),
             Token::String(s) => expr = Expression::String(store.ins_str(s)).into(),
             Token::Number(n) => expr = Expression::Number(n).into(),
-            Token::Identifier(data) => {
+            Token::Identifier(s) => {
                 expr = Expression::Identifier(Located {
-                    data: store.ins_ident(data),
-                    start: start.clone(),
-                    end: token.end.clone(),
+                    data: store.ins_ident(s),
+                    loc: token.loc,
                 })
                 .into()
             }
@@ -208,11 +205,14 @@ pub fn parse_expr(
         .collect::<Vec<_>>()
     {
         if let OpExpr::Unary(unary) = op_expr.remove(index) {
-            if let Some(OpExpr::Expr(ref mut expr, _)) = op_expr.get_mut(index) {
-                *expr = Expression::Unary(UnaryExpression {
-                    op: unary,
-                    expr: std::mem::replace(expr, Expression::Nil).into(),
-                });
+            if let Some(OpExpr::Expr(ref mut e, _)) = op_expr.get_mut(index) {
+                if let Some(expr) = e.take() {
+                    *e = Expression::Unary(UnaryExpression {
+                        op: unary,
+                        expr: expr.into(),
+                    })
+                    .into();
+                }
             } else {
                 return Err(ParseError::UnexpectedEOF);
             }
@@ -231,15 +231,18 @@ pub fn parse_expr(
             .map(|(i, index)| index - i * 2)
             .collect::<Vec<_>>()
         {
-            if let (OpExpr::Expr(one, _), OpExpr::Binary(op)) =
+            if let (OpExpr::Expr(Some(one), _), OpExpr::Binary(op)) =
                 (op_expr.remove(i - 1), op_expr.remove(i - 1))
             {
-                if let Some(OpExpr::Expr(ref mut expr, _)) = op_expr.get_mut(i - 1) {
-                    *expr = Expression::Binary(BinaryExpression {
-                        op,
-                        left: one.into(),
-                        right: std::mem::replace(expr, Expression::Nil).into(),
-                    })
+                if let Some(OpExpr::Expr(ref mut e, _)) = op_expr.get_mut(i - 1) {
+                    if let Some(expr) = e.take() {
+                        *e = Expression::Binary(BinaryExpression {
+                            op,
+                            left: one.into(),
+                            right: expr.into(),
+                        })
+                        .into();
+                    }
                 } else {
                     return Err(ParseError::UnexpectedEOF);
                 }
@@ -255,17 +258,20 @@ pub fn parse_expr(
         .map(|(i, index)| index - i * 2)
         .collect::<Vec<_>>()
     {
-        if let (OpExpr::Expr(one, start), OpExpr::Assign(op)) =
+        if let (OpExpr::Expr(Some(one), start), OpExpr::Assign(op)) =
             (op_expr.remove(i - 1), op_expr.remove(i - 1))
         {
-            if let Some(OpExpr::Expr(ref mut expr, _)) = op_expr.get_mut(i - 1) {
-                *expr = Expression::Assignment(AssignmentExpression {
-                    op,
-                    left: one
-                        .try_into()
-                        .map_err(|_| ParseError::IllegalLeftExpression(start))?,
-                    right: std::mem::replace(expr, Expression::Nil).into(),
-                });
+            if let Some(OpExpr::Expr(ref mut e, _)) = op_expr.get_mut(i - 1) {
+                if let Some(expr) = e.take() {
+                    *e = Expression::Assignment(AssignmentExpression {
+                        op,
+                        left: one
+                            .try_into()
+                            .map_err(|_| ParseError::IllegalLeftExpression(start))?,
+                        right: expr.into(),
+                    })
+                    .into();
+                }
             } else {
                 return Err(ParseError::UnexpectedEOF);
             }
@@ -277,7 +283,7 @@ pub fn parse_expr(
         .filter(|_| op_expr.is_empty())
         .and_then(|expr| {
             if let OpExpr::Expr(e, _) = expr {
-                Some(e)
+                e
             } else {
                 None
             }

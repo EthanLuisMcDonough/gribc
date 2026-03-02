@@ -8,7 +8,7 @@ pub enum OpExpr {
     Binary(Binary),
     Unary(Unary),
     Assign(Assignment),
-    Expr(Expression, Location),
+    Expr(Option<Expression>, Location),
 }
 
 impl OpExpr {
@@ -75,7 +75,7 @@ impl From<Unary> for OpExpr {
 
 impl From<(Expression, Location)> for OpExpr {
     fn from(e: (Expression, Location)) -> Self {
-        OpExpr::Expr(e.0, e.1)
+        OpExpr::Expr(Some(e.0), e.1)
     }
 }
 

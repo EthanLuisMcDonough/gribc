@@ -26,7 +26,7 @@ pub struct ForLoop {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Declarator {
     pub identifier: Located<Identifier>,
-    pub value: Expression,
+    pub value: Option<Expression>,
     pub captured: bool,
 }
 

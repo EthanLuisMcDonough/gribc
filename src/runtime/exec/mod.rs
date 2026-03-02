@@ -31,9 +31,11 @@ impl ControlFlow {
         match &node.kind {
             BreakType::Break => ControlFlow::Break,
             BreakType::Continue => ControlFlow::Continue,
-            BreakType::Return(e) => {
-                ControlFlow::Return(evaluate_expression(e, this, runtime, program))
-            }
+            BreakType::Return(e) => ControlFlow::Return(
+                e.as_ref()
+                    .map(|expr| evaluate_expression(expr, this, runtime, program))
+                    .unwrap_or(GribValue::Nil),
+            ),
         }
     }
 }
@@ -84,7 +86,11 @@ macro_rules! check_flow {
 
 fn declare(decl: &Declaration, this: &GribValue, runtime: &mut Runtime, program: &Program) {
     for declaration in &decl.declarations {
-        let value = evaluate_expression(&declaration.value, this, runtime, program);
+        let value = declaration
+            .value
+            .as_ref()
+            .map(|expr| evaluate_expression(expr, this, runtime, program))
+            .unwrap_or(GribValue::Nil);
         if declaration.captured {
             runtime.add_stack_captured(value);
         } else {
@@ -305,7 +311,7 @@ pub fn evaluate_expression(
 ) -> GribValue {
     match expression {
         Expression::Bool(b) => GribValue::Bool(*b),
-        Expression::Nil => GribValue::Nil,
+        Expression::Nil { .. } => GribValue::Nil,
         Expression::This { .. } => this.clone(),
         Expression::Number(f) => GribValue::Number(*f),
         Expression::String(s) => runtime.alloc_str(program.strings[*s].clone()).into(),

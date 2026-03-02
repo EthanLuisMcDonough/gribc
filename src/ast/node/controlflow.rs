@@ -6,7 +6,7 @@ use serde::{Serialize, Deserialize};
 pub enum BreakType {
     Break,
     Continue,
-    Return(Expression),
+    Return(Option<Expression>),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -36,7 +36,7 @@ impl FlowBreak {
         }
     }
 
-    pub fn new_return(expr: Expression, start: Location, end: Location) -> Self {
+    pub fn new_return(expr: Option<Expression>, start: Location, end: Location) -> Self {
         Self {
             kind: BreakType::Return(expr),
             allocations: 0,

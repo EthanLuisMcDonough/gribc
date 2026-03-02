@@ -129,8 +129,7 @@ fn rewrite_imports(imports: &mut Imports, str_map: &StrMap) {
                 .map(|&data| Located {
                     // "cast" value from string to identifier
                     data: Identifier::from(usize::from(data)),
-                    start: Location::default(),
-                    end: Location::default(),
+                    loc: LocationSpan::default(),
                 })
                 .collect();
             import.kind = ImportKind::List(items);

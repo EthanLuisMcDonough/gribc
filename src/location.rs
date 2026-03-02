@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::Deref};
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct Location {
@@ -36,29 +36,51 @@ pub struct LocationSpan {
     pub end: Location,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+impl LocationSpan {
+    pub fn new(start: Location, end: Location) -> Self {
+        Self { start, end }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Located<T> {
     pub data: T,
-    pub start: Location,
-    pub end: Location,
+    pub loc: LocationSpan,
 }
 
 impl<T> Located<T> {
-    pub fn new(data: T, start: Location, end: Location) -> Self {
-        Self { data, start, end }
+    pub fn new(data: T, loc: LocationSpan) -> Self {
+        Self { data, loc }
     }
 
-    pub fn get_span(&self) -> LocationSpan {
-        LocationSpan {
-            start: self.start,
-            end: self.end,
-        }
+    pub fn get_start(&self) -> Location {
+        self.loc.start
+    }
+
+    pub fn get_end(&self) -> Location {
+        self.loc.end
     }
 }
 
-impl<'de, T: Clone + Debug + PartialEq + Deserialize<'de> + Serialize> Located<T> {
-    pub fn with_loc(data: T, start: Location, end: Location) -> Located<T> {
-        Located { start, end, data }
+impl<T> Deref for Located<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl<T: PartialEq> PartialEq for Located<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data == other.data && self.loc == other.loc
+    }
+}
+
+impl<T: Clone> Clone for Located<T> {
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+            loc: self.loc,
+        }
     }
 }
 

@@ -33,27 +33,26 @@ pub fn parse_decl<T: Iterator<Item = Located<Token>>>(
     let mut cont = true;
 
     while cont {
-        let ident = next_guard!({ tokens.next() } (start, end) {
-            Token::Identifier(name) => Located { data: name, start, end }
+        let ident = next_guard!({ tokens.next() } (loc) {
+            Token::Identifier(name) => Located { data: name, loc }
         });
         decls.push(Declarator {
             identifier: Located {
                 data: store.ins_ident(ident.data),
-                start: ident.start,
-                end: ident.end,
+                loc: ident.loc,
             },
             captured: false,
             value: next_guard!({ tokens.next() } {
                 Token::AssignOp(Assignment::Assign) => {
                     let (v, Located { data: last, .. }) = zero_level(tokens, |d| *d == Token::Semicolon || *d == Token::Comma)?;
                     cont = last == Token::Comma;
-                    parse_expr(v, store)?
+                    Some(parse_expr(v, store)?)
                 },
                 Token::Semicolon => {
                     cont = false;
-                    Expression::Nil
+                    None
                 },
-                Token::Comma => Expression::Nil
+                Token::Comma => None
             }),
         });
     }
@@ -82,28 +81,28 @@ pub fn parse_params<T: Iterator<Item = Located<Token>>>(
             next_guard!({ tokens.next() } { Token::OpenGroup(Grouper::Brace) => {} });
 
             while let Some(token) = list.next() {
-                next_guard!({ token } (start, end) {
+                next_guard!({ token } (loc) {
                     Token::Identifier(s) => if params.vardic.is_some() {
                         return Err(ParseError::ParamAfterSpread(Located {
-                            data: s, start, end
+                            data: s, loc
                         }));
-                    } else if !params.try_add(Located { data: store.ins_ident(s.clone()), start, end }) {
+                    } else if !params.try_add(Located { data: store.ins_ident(s.clone()), loc }) {
                         return Err(ParseError::DuplicateParam(Located {
-                            data: s, start, end
+                            data: s, loc
                         }));
                     },
-                    Token::Spread => next_guard!({ list.next() } (start, end) {
+                    Token::Spread => next_guard!({ list.next() } (loc) {
                         Token::Identifier(s) => if params.vardic.is_some() {
                             return Err(ParseError::ParamAfterSpread(Located {
-                                data: s, start, end
+                                data: s, loc
                             }));
                         } else if store.get_ident(&s).filter(|&i| params.contains(i)).is_some() {
                             return Err(ParseError::DuplicateParam(Located {
-                                data: s, start, end
+                                data: s, loc
                             }));
                         } else {
                             params.vardic = Param {
-                                name: Located { data: store.ins_ident(s), start, end },
+                                name: Located { data: store.ins_ident(s), loc },
                                 captured: false,
                             }.into();
                         }
@@ -120,18 +119,14 @@ pub fn parse_proc<T: Iterator<Item = Located<Token>>>(
     public: bool,
     store: &mut Store,
 ) -> ParseResult<Procedure> {
-    let (name, start, end) = next_guard!({ tokens.next() } (start, end) {
-        Token::Identifier(i) => (i, start, end)
+    let (name, loc) = next_guard!({ tokens.next() } (span) {
+        Token::Identifier(i) => (i, span)
     });
     let ind = store.ins_ident(name);
     let param_list = parse_params(tokens, store)?;
 
     Ok(Procedure {
-        identifier: Located {
-            data: ind,
-            start,
-            end,
-        },
+        identifier: Located { data: ind, loc },
         param_list,
         body: take_until(tokens, Grouper::Brace).and_then(|(v, _)| ast_level(v, store))?,
         public,
@@ -185,20 +180,20 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
     path: &Path,
     store: &mut Store,
 ) -> ParseResult<Import> {
-    let kind = next_guard!({ tokens.next() } (start, end) {
+    let kind = next_guard!({ tokens.next() } (loc) {
         Token::BinaryOp(Binary::Mult) => ImportKind::All,
         Token::Identifier(name) => ImportKind::ModuleObject(Located {
-            data: store.ins_ident(name), start, end
+            data: store.ins_ident(name), loc
         }),
         Token::Pipe => {
             let (inner, _) = zero_level(tokens, |t| *t == Token::Pipe)?;
             let mut imports = Vec::with_capacity(inner.len());
 
             for item in inner {
-                if let Located { start, end, data: Token::Identifier(s) } = item {
+                if let Located { loc, data: Token::Identifier(s) } = item {
                     let data = store.ins_ident(s);
                     imports.push(Located {
-                        data, start, end
+                        data, loc
                     });
                 } else {
                     return Err(ParseError::UnexpectedToken(item));
@@ -213,7 +208,7 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
         Token::Keyword(Keyword::From) => {}
     });
 
-    let module = next_guard!({ tokens.next() } (start, end) {
+    let module = next_guard!({ tokens.next() } (loc) {
         Token::String(s) => {
             let mod_ind = match NativePackage::from_str(&s) {
                 Some(package) => {
@@ -226,25 +221,21 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
                         .map_err(|_| module_err(
                             ModuleErrorBody::CantResolveImport,
                             Located {
-                                data: new_buf,
-                                end: end.clone(),
-                                start: start.clone(),
+                                data: new_buf, loc
                             }))?;
 
                     Module::Custom(match store.get_mod(&new_path) {
                         Some(ind) => ind,
                         None => {
                             let module = parse_module(&Located {
-                                data: new_path.clone(),
-                                end: end.clone(),
-                                start: start.clone(),
+                                data: new_path.clone(), loc,
                             }, store)?;
                             store.ins_mod(new_path, module)
                         },
                     })
                 },
             };
-            Located { data: mod_ind, start, end }
+            Located { data: mod_ind, loc }
         }
     });
 

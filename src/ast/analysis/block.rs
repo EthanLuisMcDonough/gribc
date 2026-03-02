@@ -6,6 +6,7 @@ use crate::ast::node::{ForLoop, LogicChain};
 use super::expression::walk_expression;
 use super::*;
 use ast::node::*;
+use location::LocationSpan;
 
 /// Add declarations to scope
 pub fn walk_decl(
@@ -15,17 +16,14 @@ pub fn walk_decl(
     cap: &mut CaptureStack,
 ) -> WalkResult {
     for d in decl.declarations.iter_mut() {
-        walk_expression(&mut d.value, scope, lams, cap)?;
+        if let Some(e) = &mut d.value {
+            walk_expression(e, scope, lams, cap)?;
+        }
 
-        if !scope.insert_var(d.identifier.data, decl.mutable) {
-            let start = d.identifier.start.clone();
-            let end = d.identifier.end.clone();
-            let name = d.identifier.data;
-
+        if !scope.insert_var(*d.identifier, decl.mutable) {
             return Err(WalkError {
-                start,
-                end,
-                kind: WalkErrorType::InvalidRedefinition(name),
+                data: WalkErrorType::InvalidRedefinition(*d.identifier),
+                loc: d.identifier.loc,
             });
         }
     }
@@ -46,15 +44,16 @@ pub fn walk_ast(
             // until a control break
             Node::ControlFlow(flow) => match &mut flow.kind {
                 BreakType::Return(expr) => {
-                    walk_expression(expr, scope, lams, cap)?;
+                    if let Some(e) = expr {
+                        walk_expression(e, scope, lams, cap)?;
+                    }
 
                     if let Some(allocs) = scope.fnc_alloc {
                         flow.allocations = allocs;
                     } else {
                         return Err(WalkError {
-                            kind: WalkErrorType::InvalidReturn,
-                            start: flow.start.clone(),
-                            end: flow.end.clone(),
+                            data: WalkErrorType::InvalidReturn,
+                            loc: LocationSpan::new(flow.start, flow.end),
                         });
                     }
                 }
@@ -62,7 +61,7 @@ pub fn walk_ast(
                     if let Some(allocs) = scope.loop_alloc {
                         flow.allocations = allocs;
                     } else {
-                        let kind = match &flow.kind {
+                        let data = match &flow.kind {
                             BreakType::Break => WalkErrorType::InvalidBreak,
                             BreakType::Continue => WalkErrorType::InvalidContinue,
                             BreakType::Return(_) => unreachable!(),
@@ -70,8 +69,9 @@ pub fn walk_ast(
 
                         let start = flow.start.clone();
                         let end = flow.end.clone();
+                        let loc = LocationSpan::new(start, end);
 
-                        return Err(WalkError { kind, start, end });
+                        return Err(WalkError { data, loc });
                     }
                 }
             },

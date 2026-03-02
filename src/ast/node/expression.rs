@@ -87,7 +87,7 @@ pub enum Expression {
     IndexAccess(IndexAccess),
     PropertyAccess(PropertyAccess),
 
-    Nil,
+    Nil(LocationSpan),
     This(LocationSpan),
 
     Value(RuntimeValue),

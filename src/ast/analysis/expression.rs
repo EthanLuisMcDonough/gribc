@@ -45,15 +45,13 @@ pub fn walk_expression(
                     if scope.in_first_pass() {
                         if !scope.has(s, cap) {
                             return Err(WalkError {
-                                kind: WalkErrorType::IdentifierNotFound(s),
-                                start: i.start.clone(),
-                                end: i.end.clone(),
+                                data: WalkErrorType::IdentifierNotFound(s),
+                                loc: i.loc,
                             });
                         } else if !scope.has_editable(s, cap) {
                             return Err(WalkError {
-                                kind: WalkErrorType::ImmutableModification(s),
-                                start: i.start.clone(),
-                                end: i.end.clone(),
+                                data: WalkErrorType::ImmutableModification(s),
+                                loc: i.loc,
                             });
                         }
                     }
@@ -94,9 +92,8 @@ pub fn walk_expression(
                             Some(GetAutoPropValue::String(ident)) => {
                                 if scope.in_first_pass() && !scope.prop_check(ident.data) {
                                     return Err(WalkError {
-                                        start: ident.start,
-                                        end: ident.end,
-                                        kind: WalkErrorType::IdentifierNotFound(ident.data),
+                                        data: WalkErrorType::IdentifierNotFound(ident.data),
+                                        loc: ident.loc,
                                     });
                                 }
                                 if scope.in_second_pass() {
@@ -116,15 +113,13 @@ pub fn walk_expression(
                                 if scope.in_first_pass() {
                                     if !scope.prop_check(ident.data) {
                                         return Err(WalkError {
-                                            start: ident.start.clone(),
-                                            end: ident.end.clone(),
-                                            kind: WalkErrorType::IdentifierNotFound(ident.data),
+                                            data: WalkErrorType::IdentifierNotFound(ident.data),
+                                            loc: ident.loc,
                                         });
                                     } else if !scope.prop_check_mut(ident.data) {
                                         return Err(WalkError {
-                                            start: ident.start.clone(),
-                                            end: ident.end.clone(),
-                                            kind: WalkErrorType::ImmutableModification(ident.data),
+                                            data: WalkErrorType::ImmutableModification(ident.data),
+                                            loc: ident.loc,
                                         });
                                     }
                                 }
@@ -155,9 +150,8 @@ pub fn walk_expression(
         Expression::Identifier(identifier) => {
             if scope.in_first_pass() && !scope.has(identifier.data, cap) {
                 return Err(WalkError {
-                    start: identifier.start.clone(),
-                    end: identifier.end.clone(),
-                    kind: WalkErrorType::IdentifierNotFound(identifier.data),
+                    data: WalkErrorType::IdentifierNotFound(identifier.data),
+                    loc: identifier.loc,
                 });
             }
             if scope.in_second_pass() {
@@ -168,9 +162,8 @@ pub fn walk_expression(
         }
         Expression::This(span) if scope.lam_pass.is_none() => {
             return Err(WalkError {
-                kind: WalkErrorType::InvalidThis,
-                start: span.start.clone(),
-                end: span.end.clone(),
+                data: WalkErrorType::InvalidThis,
+                loc: *span,
             });
         }
         _ => {}

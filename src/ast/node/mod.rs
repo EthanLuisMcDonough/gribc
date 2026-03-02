@@ -43,7 +43,6 @@ impl Block {
     }
 }
 
-
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Program {
     pub modules: ModuleStore,

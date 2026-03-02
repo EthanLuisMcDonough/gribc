@@ -21,10 +21,10 @@ pub fn parse_prop(
         }
         .into_iter()
         .peekable();
-        next_guard!({ tokens.next() } (start, end) {
+        next_guard!({ tokens.next() } (loc) {
             Token::Keyword(Keyword::Get) => if prop.get.is_none() {
-                if let Some(Located { data: Token::Identifier(s), start, end }) = next_if(&mut tokens, |t| t.data.ident()) {
-                    prop.get = GetAutoPropValue::String(Located { data: store.ins_ident(s), start, end }).into();
+                if let Some(Located { data: Token::Identifier(s), loc }) = next_if(&mut tokens, |t| t.data.ident()) {
+                    prop.get = GetAutoPropValue::String(Located { data: store.ins_ident(s), loc }).into();
                 } else {
                     if next_if(&mut tokens, |t| t.data == Token::BinaryOp(Binary::LogicalOr)).is_none() {
                         if next_if(&mut tokens, |t| t.data == Token::Pipe).is_some() {
@@ -44,13 +44,12 @@ pub fn parse_prop(
                 }
             } else {
                 return Err(ParseError::UnexpectedToken(Located {
-                    start, end,
-                    data: Token::Keyword(Keyword::Get)
+                    data: Token::Keyword(Keyword::Get), loc
                 }));
             },
             Token::Keyword(Keyword::Set) => if prop.set.is_none() {
-                if let Some(Located { data: Token::Identifier(s), start, end }) = next_if(&mut tokens, |t| t.data.ident()) {
-                    prop.set = SetAutoPropValue::String(Located { data: store.ins_ident(s), start, end }).into();
+                if let Some(Located { data: Token::Identifier(s), loc }) = next_if(&mut tokens, |t| t.data.ident()) {
+                    prop.set = SetAutoPropValue::String(Located { data: store.ins_ident(s), loc }).into();
                 } else {
                     next_guard!({ tokens.next() } { Token::Pipe => {} });
                     let param = next_guard!({ tokens.next() } { Token::Identifier(s) => s });
@@ -68,8 +67,7 @@ pub fn parse_prop(
                 }
             } else {
                 return Err(ParseError::UnexpectedToken(Located {
-                    start, end,
-                    data: Token::Keyword(Keyword::Set)
+                    data: Token::Keyword(Keyword::Set), loc
                 }));
             }
         });

@@ -1,7 +1,7 @@
 pub mod tokens;
 
 use self::tokens::*;
-use location::{Located, Location};
+use location::{Located, Location, LocationSpan};
 use operators::{Assignment, Binary, Unary};
 use util::next_if;
 use serde::{Serialize, Deserialize};
@@ -102,7 +102,7 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
     while let Some(c) = chars.next() {
         let start = loc.clone();
         loc.feed(c);
-        tokens.push(Located::with_loc(
+        tokens.push(Located::new(
             match c {
                 '[' => Token::OpenGroup(Grouper::Bracket),
                 ']' => Token::CloseGroup(Grouper::Bracket),
@@ -255,8 +255,10 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
                 _ if c.is_whitespace() => continue,
                 _ => return Err(LexErrorData::UnexpectedChar(c).with_loc(loc.clone())),
             },
-            start,
-            loc.clone(),
+            LocationSpan {
+                start,
+                end: loc,
+            },
         ));
     }
 

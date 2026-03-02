@@ -22,13 +22,12 @@ pub type ParseResult<T> = Result<T, ParseError>;
 
 #[macro_export]
 macro_rules! next_guard {
-    ({ $next:expr } ( $start_bind:ident, $end_bind:ident ) { $( $( $p:pat )|* => $b:expr ),* } ) => {
+    ({ $next:expr } ( $loc:ident ) { $( $( $p:pat )|* => $b:expr ),* } ) => {
         match $next.into() {
             $($(
                 Some(Located {
                     data: $p,
-                    start: $start_bind,
-                    end: $end_bind,
+                    loc: $loc,
                 }) => $b,
             )*)*
             Some(t) => return Err(ParseError::UnexpectedToken(t)),
@@ -36,7 +35,7 @@ macro_rules! next_guard {
         }
     };
     ({ $next:expr } { $( $token:tt )* }) => {
-        next_guard!({ $next } (_s, _e) { $( $token )* })
+        next_guard!({ $next } (_l) { $( $token )* })
     }
 }
 
@@ -121,27 +120,27 @@ fn next_construct<T: Iterator<Item = Located<Token>>>(
         }
 
         Token::Keyword(Keyword::Break) => next_guard!({ tokens.next() }
-            { Token::Semicolon => Node::ControlFlow(FlowBreak::new_break(token.start, token.end)) }),
+            { Token::Semicolon => Node::ControlFlow(FlowBreak::new_break(token.get_start(), token.get_end())) }),
         Token::Keyword(Keyword::Continue) => next_guard!({ tokens.next() }
-            { Token::Semicolon => Node::ControlFlow(FlowBreak::new_continue(token.start, token.end)) }),
+            { Token::Semicolon => Node::ControlFlow(FlowBreak::new_continue(token.get_start(), token.get_end())) }),
         Token::Keyword(Keyword::Return) => {
             let (tokens, _) = zero_level(tokens, |t| *t == Token::Semicolon)?;
             let expr = if tokens.is_empty() {
-                Expression::Nil
+                None
             } else {
-                parse_expr(tokens, store)?
+                Some(parse_expr(tokens, store)?)
             };
-            Node::ControlFlow(FlowBreak::new_return(expr, token.start, token.end))
+            Node::ControlFlow(FlowBreak::new_return(expr, token.get_start(), token.get_end()))
         }
 
         Token::Keyword(Keyword::Decl) => Node::Declaration(parse_decl(tokens, true, store)?),
         Token::Keyword(Keyword::Im) => Node::Declaration(parse_decl(tokens, false, store)?),
 
         Token::Keyword(Keyword::Proc) | Token::Keyword(Keyword::Public) => {
-            return Err(ParseError::FunctionNotAtTopLevel(token.start.clone()))
+            return Err(ParseError::FunctionNotAtTopLevel(token.get_start()))
         }
         Token::Keyword(Keyword::Import) => {
-            return Err(ParseError::MisplacedImport(token.start.clone()))
+            return Err(ParseError::MisplacedImport(token.get_start()))
         }
 
         Token::Keyword(Keyword::For) => {
@@ -178,13 +177,12 @@ fn next_construct<T: Iterator<Item = Located<Token>>>(
         Token::Semicolon => {
             return Err(ParseError::UnexpectedToken(Located {
                 data: Token::Semicolon,
-                start: token.start.clone(),
-                end: token.end.clone(),
+                loc: token.loc,
             }))
         }
 
         _ => {
-            let loc = token.start.clone();
+            let loc = token.get_start();
             let (mut tokens, semi) = zero_level(tokens, |t| *t == Token::Semicolon)?;
             tokens.insert(0, token);
 

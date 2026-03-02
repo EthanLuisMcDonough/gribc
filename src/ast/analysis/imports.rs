@@ -54,9 +54,8 @@ pub fn walk_import(
 
                 if inserted.contains(&name) {
                     return Err(WalkError {
-                        start: located.start.clone(),
-                        end: located.end.clone(),
-                        kind: WalkErrorType::InvalidRedefinition(name),
+                        data: WalkErrorType::InvalidRedefinition(name),
+                        loc: located.loc,
                     });
                 }
                 inserted.insert(name);
@@ -70,9 +69,8 @@ pub fn walk_import(
 
                 if !contains {
                     return Err(WalkError {
-                        start: located.start.clone(),
-                        end: located.end.clone(),
-                        kind: WalkErrorType::IdentifierNotFound(name),
+                        data: WalkErrorType::IdentifierNotFound(name),
+                        loc: located.loc,
                     });
                 }
 
@@ -108,9 +106,8 @@ pub fn walk_module(
     for import in &module.imports {
         if Module::Custom(module_ind) == import.module.data {
             return Err(WalkError {
-                start: import.module.start.clone(),
-                end: import.module.end.clone(),
-                kind: WalkErrorType::SelfImport,
+                loc: import.module.loc,
+                data: WalkErrorType::SelfImport,
             });
         }
         walk_import(import, modules, strings, &mut scope)?;
@@ -119,9 +116,8 @@ pub fn walk_module(
     for (ind, Procedure { identifier, .. }) in module.procedures.iter_enumerated() {
         if !scope.insert_fn(identifier.data, ind, Some(module_ind)) {
             return Err(WalkError {
-                start: identifier.start.clone(),
-                end: identifier.end.clone(),
-                kind: WalkErrorType::InvalidRedefinition(identifier.data),
+                data: WalkErrorType::InvalidRedefinition(identifier.data),
+                loc: identifier.loc,
             });
         }
     }

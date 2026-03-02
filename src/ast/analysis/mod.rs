@@ -9,7 +9,7 @@ use self::imports::*;
 use self::scope::*;
 
 use ast::node::*;
-use location::Location;
+use location::Located;
 use serde::{Deserialize, Serialize};
 
 pub type WalkResult = Result<(), WalkError>;
@@ -26,12 +26,13 @@ pub enum WalkErrorType {
     InvalidThis,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct WalkError {
-    start: Location,
-    end: Location,
-    kind: WalkErrorType,
-}
+// #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+// pub struct WalkError {
+//     kind: WalkErrorType,
+//     loc: LocationSpan,
+// }
+
+type WalkError = Located<WalkErrorType>;
 
 pub struct Lams<'a> {
     lambdas: &'a mut Lambdas,
@@ -72,9 +73,8 @@ pub fn ref_check(program: &mut Program) -> Result<(), WalkError> {
     for (ind, Procedure { identifier, .. }) in program.procedures.iter_enumerated() {
         if !scope.insert_fn(identifier.data, ind, None) {
             return Err(WalkError {
-                start: identifier.start.clone(),
-                end: identifier.end.clone(),
-                kind: WalkErrorType::InvalidRedefinition(identifier.data),
+                data: WalkErrorType::InvalidRedefinition(identifier.data),
+                loc: identifier.loc,
             });
         }
     }
