@@ -98,7 +98,7 @@ fn ast_test_fail() -> Result<(), Box<dyn std::error::Error>> {
     cmp_grib_json(
         "./tests/ast_fail_tests/grib",
         "./tests/ast_fail_tests/ast",
-        |s, path| ast(lex(s)?, path).map(|_| GenericErr.into()).invert(),
+        |s, path| ast(lex(s, None)?, path).map(|_| GenericErr.into()).invert(),
         |_, _| (),
     )
 }
@@ -108,7 +108,7 @@ fn ast_test() -> Result<(), Box<dyn std::error::Error>> {
     cmp_grib_json(
         "./tests/ast_tests/grib",
         "./tests/ast_tests/ast",
-        |s, path| ast(lex(s)?, path).map_err(Box::from),
+        |s, path| ast(lex(s, None)?, path).map_err(Box::from),
         canonicalize_ast,
     )
 }
