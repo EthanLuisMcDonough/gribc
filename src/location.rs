@@ -1,5 +1,9 @@
+use derive_more::{From, Into};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, ops::Deref};
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Hash, From, Into)]
+pub struct ModuleInd(usize);
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Default)]
 pub struct Location {
@@ -34,11 +38,16 @@ impl Location {
 pub struct LocationSpan {
     pub start: Location,
     pub end: Location,
+    pub module: Option<ModuleInd>,
 }
 
 impl LocationSpan {
-    pub fn new(start: Location, end: Location) -> Self {
-        Self { start, end }
+    pub fn new(start: Location, end: Location, m: impl Into<Option<ModuleInd>>) -> Self {
+        Self {
+            start,
+            end,
+            module: m.into(),
+        }
     }
 }
 

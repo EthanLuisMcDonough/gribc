@@ -5,13 +5,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use typed_index_collections::ti_vec;
 
-type ModMap = HashMap<PathBuf, ModuleData>;
+type ModMap = HashMap<PathBuf, ModuleInd>;
 type StrMap = HashMap<String, StringVal>;
-
-struct ModuleData {
-    module: CustomModule,
-    index: ModuleInd,
-}
 
 #[derive(Default)]
 pub struct Store {
@@ -22,6 +17,7 @@ pub struct Store {
     lambdas: Lambdas,
     getters: Getters,
     setters: Setters,
+    modules: ModuleStore,
 }
 
 impl Store {
@@ -62,19 +58,22 @@ impl Store {
     }
 
     pub fn ins_mod(&mut self, path: PathBuf, module: CustomModule) -> ModuleInd {
-        let ind = self.mod_map.len();
-        self.mod_map.insert(
-            path,
-            ModuleData {
-                index: ind.into(),
-                module,
-            },
-        );
+        let ind = self.modules.len();
+        self.modules.push(module);
+        self.mod_map.insert(path, ind.into());
         ind.into()
     }
 
-    pub fn get_mod(&self, path: &Path) -> Option<ModuleInd> {
-        self.mod_map.get(path).map(|d| d.index.into())
+    pub fn get_mod_ind(&self, path: &Path) -> Option<ModuleInd> {
+        self.mod_map.get(path).cloned()
+    }
+
+    pub fn get_mod_path(&self, ind: ModuleInd) -> Option<&PathBuf> {
+        self.modules.get(ind).map(|e| &e.path)
+    }
+
+    pub(in ast::parsing) fn get_mod_mut(&mut self, ind: ModuleInd) -> Option<&mut CustomModule> {
+        self.modules.get_mut(ind)
     }
 
     pub fn add_import(&mut self, import: Import) -> ImportInd {
@@ -146,14 +145,11 @@ impl From<Store> for Program {
         p.setters = s.setters;
         p.imports = s.imports;
         p.lambdas = s.lambdas;
-
-        p.modules = ti_vec![CustomModule::default(); s.mod_map.len()];
+        p.modules = s.modules;
 
         rewrite_imports(&mut p.imports, &s.str_map);
-
-        for (_, mut data) in s.mod_map {
-            rewrite_imports(&mut data.module.imports, &s.str_map);
-            p.modules[data.index] = data.module;
+        for module in &mut p.modules {
+            rewrite_imports(&mut module.imports, &s.str_map);
         }
 
         p.strings = ti_vec![String::new(); s.str_map.len()];

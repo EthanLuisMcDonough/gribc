@@ -1,4 +1,5 @@
 use super::parse_expr;
+use crate::location::LocationSpan;
 use crate::next_guard;
 use ast::node::*;
 use ast::parsing::{ast_level, util::*, Store};
@@ -137,21 +138,33 @@ fn module_err(data: ModuleErrorBody, path: Located<PathBuf>) -> ParseError {
     ParseError::ModuleError(ModuleError { path, data })
 }
 
-pub fn parse_module(path: &Located<PathBuf>, store: &mut Store) -> ParseResult<CustomModule> {
+pub fn parse_module(
+    path_loc: LocationSpan,
+    store: &mut Store,
+    module_ind: ModuleInd,
+) -> ParseResult<()> {
+    let path = Located::new(
+        store
+            .get_mod_path(module_ind)
+            .expect("Module in parse_module not found")
+            .clone(),
+        path_loc,
+    );
     let mut dir = path.data.clone();
 
     let text = fs::read_to_string(&dir)
         .map_err(|_| module_err(ModuleErrorBody::PathNotFound, path.clone()))?;
 
-    let mut tokens = lex(&text)
+    let mut tokens = lex(&text, Some(module_ind))
         .map_err(ModuleErrorBody::LexError)
-        .map_err(|e| module_err(e, path.clone()))?
+        .map_err(|e| module_err(e, path))?
         .into_iter();
 
     remove_file(&mut dir);
 
     let mut procedures = Procedures::new();
     let mut imports = Imports::new();
+    let mut modules: HashMap<_, _> = HashMap::default();
 
     while let Some(token) = tokens.next() {
         match token.data {
@@ -160,26 +173,36 @@ pub fn parse_module(path: &Located<PathBuf>, store: &mut Store) -> ParseResult<C
             }),
             Token::Keyword(Keyword::Proc) => procedures.push(parse_proc(&mut tokens, true, store)?),
             Token::Keyword(Keyword::Import) => {
-                imports.push(parse_import(&mut tokens, dir.as_path(), store)?)
+                let (import, new_mod) = parse_import(&mut tokens, dir.as_path(), store)?;
+                if let Some(new_ind) = new_mod {
+                    modules.insert(new_ind, import.module.loc);
+                }
+                imports.push(import);
             }
             _ => return Err(ParseError::UnexpectedToken(token)),
         };
     }
 
     let proc_len = procedures.len();
-    Ok(CustomModule {
-        procedures,
-        imports,
-        path: dir,
-        lookup: HashMap::with_capacity(proc_len),
-    })
+    let module = store
+        .get_mod_mut(module_ind)
+        .expect("Module in parse_module not found");
+    module.procedures = procedures;
+    module.imports = imports;
+    module.lookup.reserve(proc_len);
+
+    for (mod_ind, loc) in modules {
+        parse_module(loc, store, mod_ind)?;
+    }
+
+    Ok(())
 }
 
 pub fn parse_import<T: Iterator<Item = Located<Token>>>(
     tokens: &mut T,
     path: &Path,
     store: &mut Store,
-) -> ParseResult<Import> {
+) -> ParseResult<(Import, Option<ModuleInd>)> {
     let kind = next_guard!({ tokens.next() } (loc) {
         Token::BinaryOp(Binary::Mult) => ImportKind::All,
         Token::Identifier(name) => ImportKind::ModuleObject(Located {
@@ -208,11 +231,11 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
         Token::Keyword(Keyword::From) => {}
     });
 
-    let module = next_guard!({ tokens.next() } (loc) {
+    let (module, new_ind) = next_guard!({ tokens.next() } (loc) {
         Token::String(s) => {
-            let mod_ind = match NativePackage::from_str(&s) {
+            let (mod_ind, new_ind) = match NativePackage::from_str(&s) {
                 Some(package) => {
-                    Module::Native(package)
+                    (Module::Native(package), None)
                 },
                 None => {
                     let new_buf = path.join(&s);
@@ -224,18 +247,17 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
                                 data: new_buf, loc
                             }))?;
 
-                    Module::Custom(match store.get_mod(&new_path) {
-                        Some(ind) => ind,
+                    match store.get_mod_ind(&new_path) {
+                        Some(ind) => (Module::Custom(ind), None),
                         None => {
-                            let module = parse_module(&Located {
-                                data: new_path.clone(), loc,
-                            }, store)?;
-                            store.ins_mod(new_path, module)
+                            let module = CustomModule::new(new_path.clone());
+                            let new_ind = store.ins_mod(new_path, module);
+                            (Module::Custom(new_ind), Some(new_ind))
                         },
-                    })
+                    }
                 },
             };
-            Located { data: mod_ind, loc }
+            (Located { data: mod_ind, loc }, new_ind)
         }
     });
 
@@ -243,5 +265,5 @@ pub fn parse_import<T: Iterator<Item = Located<Token>>>(
         Token::Semicolon => {}
     });
 
-    Ok(Import { module, kind })
+    Ok((Import { module, kind }, new_ind))
 }

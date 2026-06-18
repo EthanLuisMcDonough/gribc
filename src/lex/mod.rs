@@ -1,5 +1,7 @@
 pub mod tokens;
 
+use crate::location::ModuleInd;
+
 use self::tokens::*;
 use location::{Located, Location, LocationSpan};
 use operators::{Assignment, Binary, Unary};
@@ -94,7 +96,7 @@ fn next_guard<T: Iterator<Item = char>>(
     }
 }
 
-pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
+pub fn lex(s: &str, module: Option<ModuleInd>) -> LexResult<Vec<Located<Token>>> {
     let mut chars = s.chars().peekable();
     let mut loc = Location::new();
     let mut tokens = vec![];
@@ -258,6 +260,7 @@ pub fn lex(s: &str) -> LexResult<Vec<Located<Token>>> {
             LocationSpan {
                 start,
                 end: loc,
+                module,
             },
         ));
     }

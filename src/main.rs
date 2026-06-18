@@ -41,7 +41,7 @@ fn main() {
     let source = err_guard!(fs::read_to_string(&path),
         _e => panic!("Error: could not load file {}", path));
 
-    let tokens = err_guard!(lex::lex(source.as_str()));
+    let tokens = err_guard!(lex::lex(source.as_str(), None));
     let mut tree = err_guard!(ast::ast(tokens.into_iter(), &path));
 
     err_guard!(ast::ref_check(&mut tree));

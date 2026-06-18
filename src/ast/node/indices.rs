@@ -3,6 +3,8 @@ use typed_index_collections::TiVec;
 use derive_more::{From, Into};
 use serde::{Serialize, Deserialize};
 
+pub use location::ModuleInd;
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Hash, From, Into)]
 pub struct ImportInd(usize);
 
@@ -27,9 +29,6 @@ pub struct GetPropInd(usize);
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Hash, From, Into)]
 pub struct SetPropInd(usize);
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Hash, From, Into)]
-pub struct ModuleInd(usize);
 
 impl From<Identifier> for StringVal {
     fn from(value: Identifier) -> Self {

@@ -6,7 +6,6 @@ use crate::ast::node::{ForLoop, LogicChain};
 use super::expression::walk_expression;
 use super::*;
 use ast::node::*;
-use location::LocationSpan;
 
 /// Add declarations to scope
 pub fn walk_decl(
@@ -42,7 +41,7 @@ pub fn walk_ast(
         match node {
             // Record the number of declarations in a loop or function up
             // until a control break
-            Node::ControlFlow(flow) => match &mut flow.kind {
+            Node::ControlFlow(Located { data: flow, loc }) => match &mut flow.kind {
                 BreakType::Return(expr) => {
                     if let Some(e) = expr {
                         walk_expression(e, scope, lams, cap)?;
@@ -53,7 +52,7 @@ pub fn walk_ast(
                     } else {
                         return Err(WalkError {
                             data: WalkErrorType::InvalidReturn,
-                            loc: LocationSpan::new(flow.start, flow.end),
+                            loc: *loc,
                         });
                     }
                 }
@@ -67,11 +66,7 @@ pub fn walk_ast(
                             BreakType::Return(_) => unreachable!(),
                         };
 
-                        let start = flow.start.clone();
-                        let end = flow.end.clone();
-                        let loc = LocationSpan::new(start, end);
-
-                        return Err(WalkError { data, loc });
+                        return Err(WalkError { data, loc: *loc });
                     }
                 }
             },

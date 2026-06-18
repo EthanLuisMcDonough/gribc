@@ -45,6 +45,10 @@ pub struct CustomModule {
 }
 
 impl CustomModule {
+    pub fn new(path: PathBuf) -> Self {
+        Self { path, ..Default::default() }
+    }
+
     /// Returns the index of the public function with the given index-name
     pub fn get_procedure(&self, name: Identifier) -> Option<ProcInd> {
         for (ind, proc) in self.procedures.iter_enumerated() {

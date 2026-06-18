@@ -6,7 +6,7 @@ pub mod module;
 pub mod object;
 pub mod statement;
 
-use std::path::Path;
+use crate::location::Located;
 
 pub use self::controlflow::*;
 pub use self::expression::*;
@@ -59,22 +59,6 @@ impl Program {
     pub fn new() -> Self {
         Self::default()
     }
-
-    pub fn has_module(&self, path: &Path) -> Option<ModuleInd> {
-        for (ind, module) in self.modules.iter_enumerated() {
-            if module.path == path {
-                return Some(ind);
-            }
-        }
-
-        None
-    }
-
-    pub fn set_module(&mut self, module: CustomModule) -> usize {
-        let ind = self.modules.len();
-        self.modules.push(module);
-        ind
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -85,5 +69,5 @@ pub enum Node {
     While(ConditionBodyPair),
     For(ForLoop),
     Declaration(Declaration),
-    ControlFlow(FlowBreak),
+    ControlFlow(Located<FlowBreak>),
 }

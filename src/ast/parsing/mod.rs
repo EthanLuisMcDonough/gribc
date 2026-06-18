@@ -11,9 +11,7 @@ use ast::node::*;
 use lex::{tokens::*, LexError};
 use location::{Located, Location};
 use std::{
-    convert::AsRef,
-    iter::Peekable,
-    path::{Path, PathBuf},
+    collections::HashMap, convert::AsRef, iter::Peekable, path::{Path, PathBuf}
 };
 use util::{next_if, remove_file};
 use serde::{Serialize, Deserialize};
@@ -120,9 +118,9 @@ fn next_construct<T: Iterator<Item = Located<Token>>>(
         }
 
         Token::Keyword(Keyword::Break) => next_guard!({ tokens.next() }
-            { Token::Semicolon => Node::ControlFlow(FlowBreak::new_break(token.get_start(), token.get_end())) }),
+            { Token::Semicolon => Node::ControlFlow(Located { data: FlowBreak::new_break(), loc: token.loc }) }),
         Token::Keyword(Keyword::Continue) => next_guard!({ tokens.next() }
-            { Token::Semicolon => Node::ControlFlow(FlowBreak::new_continue(token.get_start(), token.get_end())) }),
+            { Token::Semicolon => Node::ControlFlow(Located { data: FlowBreak::new_continue(), loc: token.loc }) }),
         Token::Keyword(Keyword::Return) => {
             let (tokens, _) = zero_level(tokens, |t| *t == Token::Semicolon)?;
             let expr = if tokens.is_empty() {
@@ -130,7 +128,7 @@ fn next_construct<T: Iterator<Item = Located<Token>>>(
             } else {
                 Some(parse_expr(tokens, store)?)
             };
-            Node::ControlFlow(FlowBreak::new_return(expr, token.get_start(), token.get_end()))
+            Node::ControlFlow(Located { data: FlowBreak::new_return(expr), loc: token.loc })
         }
 
         Token::Keyword(Keyword::Decl) => Node::Declaration(parse_decl(tokens, true, store)?),
@@ -209,9 +207,13 @@ fn top_level(
     let mut store = Store::new();
     let mut tokens = tokens.into_iter().peekable();
     let mut body = Block::default();
+    let mut modules: HashMap<_, _> = HashMap::default();
 
     while next_if(&mut tokens, is_import).is_some() {
-        let import = parse_import(&mut tokens, path, &mut store)?;
+        let (import, new_mod) = parse_import(&mut tokens, path, &mut store)?;
+        if let Some(ind) = new_mod {
+            modules.insert(ind, import.module.loc);
+        }
         store.add_import(import);
     }
 
@@ -232,6 +234,10 @@ fn top_level(
                 body.push(construct);
             }
         };
+    }
+
+    for (mod_ind, loc) in modules {
+        parse_module(loc, &mut store, mod_ind)?;
     }
 
     let mut program = Program::from(store);
