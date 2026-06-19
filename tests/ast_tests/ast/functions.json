@@ -1,483 +1,683 @@
 {
   "modules": [],
   "imports": [],
-  "functions": [
+  "procedures": [
     {
       "identifier": {
         "data": 0,
-        "start": {
-          "row": 1,
-          "column": 5
-        },
-        "end": {
-          "row": 1,
-          "column": 10
+        "loc": {
+          "start": {
+            "row": 1,
+            "column": 5
+          },
+          "end": {
+            "row": 1,
+            "column": 10
+          },
+          "module": null
         }
       },
       "param_list": {
         "params": [],
         "vardic": {
-          "name": 1,
+          "name": {
+            "data": 1,
+            "loc": {
+              "start": {
+                "row": 1,
+                "column": 15
+              },
+              "end": {
+                "row": 1,
+                "column": 16
+              },
+              "module": null
+            }
+          },
           "captured": false
         }
       },
-      "body": [
-        {
-          "Expression": {
-            "FunctionCall": {
-              "function": {
-                "Identifier": {
-                  "data": 2,
-                  "start": {
-                    "row": 2,
-                    "column": 4
-                  },
-                  "end": {
-                    "row": 2,
-                    "column": 5
-                  }
-                }
-              },
-              "args": [
-                {
-                  "IndexAccess": {
-                    "item": {
-                      "Identifier": {
-                        "data": 1,
-                        "start": {
-                          "row": 2,
-                          "column": 6
-                        },
-                        "end": {
-                          "row": 2,
-                          "column": 7
-                        }
-                      }
-                    },
-                    "index": {
-                      "Number": 0.0
+      "body": {
+        "stmts": [
+          {
+            "Expression": {
+              "FunctionCall": {
+                "function": {
+                  "Identifier": {
+                    "data": 2,
+                    "loc": {
+                      "start": {
+                        "row": 2,
+                        "column": 4
+                      },
+                      "end": {
+                        "row": 2,
+                        "column": 5
+                      },
+                      "module": null
                     }
                   }
                 },
-                {
-                  "IndexAccess": {
-                    "item": {
-                      "Identifier": {
-                        "data": 1,
-                        "start": {
-                          "row": 2,
-                          "column": 12
-                        },
-                        "end": {
-                          "row": 2,
-                          "column": 13
+                "args": [
+                  {
+                    "IndexAccess": {
+                      "item": {
+                        "Identifier": {
+                          "data": 1,
+                          "loc": {
+                            "start": {
+                              "row": 2,
+                              "column": 6
+                            },
+                            "end": {
+                              "row": 2,
+                              "column": 7
+                            },
+                            "module": null
+                          }
                         }
+                      },
+                      "index": {
+                        "Number": 0.0
                       }
-                    },
-                    "index": {
-                      "Number": 1.0
+                    }
+                  },
+                  {
+                    "IndexAccess": {
+                      "item": {
+                        "Identifier": {
+                          "data": 1,
+                          "loc": {
+                            "start": {
+                              "row": 2,
+                              "column": 12
+                            },
+                            "end": {
+                              "row": 2,
+                              "column": 13
+                            },
+                            "module": null
+                          }
+                        }
+                      },
+                      "index": {
+                        "Number": 1.0
+                      }
                     }
                   }
-                }
-              ]
+                ]
+              }
             }
           }
-        }
-      ],
+        ],
+        "allocations": 0
+      },
       "public": false
     },
     {
       "identifier": {
         "data": 3,
-        "start": {
-          "row": 5,
-          "column": 5
-        },
-        "end": {
-          "row": 5,
-          "column": 6
+        "loc": {
+          "start": {
+            "row": 5,
+            "column": 5
+          },
+          "end": {
+            "row": 5,
+            "column": 6
+          },
+          "module": null
         }
       },
       "param_list": {
         "params": [
           {
-            "name": 2,
+            "name": {
+              "data": 2,
+              "loc": {
+                "start": {
+                  "row": 5,
+                  "column": 8
+                },
+                "end": {
+                  "row": 5,
+                  "column": 9
+                },
+                "module": null
+              }
+            },
             "captured": false
           },
           {
-            "name": 4,
+            "name": {
+              "data": 4,
+              "loc": {
+                "start": {
+                  "row": 5,
+                  "column": 10
+                },
+                "end": {
+                  "row": 5,
+                  "column": 11
+                },
+                "module": null
+              }
+            },
             "captured": false
           },
           {
-            "name": 3,
+            "name": {
+              "data": 3,
+              "loc": {
+                "start": {
+                  "row": 5,
+                  "column": 12
+                },
+                "end": {
+                  "row": 5,
+                  "column": 13
+                },
+                "module": null
+              }
+            },
             "captured": false
           }
         ],
         "vardic": null
       },
-      "body": [
-        {
-          "Expression": {
-            "FunctionCall": {
-              "function": {
-                "Identifier": {
-                  "data": 5,
-                  "start": {
-                    "row": 6,
-                    "column": 4
+      "body": {
+        "stmts": [
+          {
+            "Expression": {
+              "FunctionCall": {
+                "function": {
+                  "Identifier": {
+                    "data": 5,
+                    "loc": {
+                      "start": {
+                        "row": 6,
+                        "column": 4
+                      },
+                      "end": {
+                        "row": 6,
+                        "column": 7
+                      },
+                      "module": null
+                    }
+                  }
+                },
+                "args": [
+                  {
+                    "Identifier": {
+                      "data": 2,
+                      "loc": {
+                        "start": {
+                          "row": 6,
+                          "column": 8
+                        },
+                        "end": {
+                          "row": 6,
+                          "column": 9
+                        },
+                        "module": null
+                      }
+                    }
                   },
-                  "end": {
-                    "row": 6,
-                    "column": 7
-                  }
-                }
-              },
-              "args": [
-                {
-                  "Identifier": {
-                    "data": 2,
-                    "start": {
-                      "row": 6,
-                      "column": 8
-                    },
-                    "end": {
-                      "row": 6,
-                      "column": 9
+                  {
+                    "Identifier": {
+                      "data": 4,
+                      "loc": {
+                        "start": {
+                          "row": 6,
+                          "column": 11
+                        },
+                        "end": {
+                          "row": 6,
+                          "column": 12
+                        },
+                        "module": null
+                      }
+                    }
+                  },
+                  {
+                    "Identifier": {
+                      "data": 3,
+                      "loc": {
+                        "start": {
+                          "row": 6,
+                          "column": 14
+                        },
+                        "end": {
+                          "row": 6,
+                          "column": 15
+                        },
+                        "module": null
+                      }
                     }
                   }
-                },
-                {
-                  "Identifier": {
-                    "data": 4,
-                    "start": {
-                      "row": 6,
-                      "column": 11
-                    },
-                    "end": {
-                      "row": 6,
-                      "column": 12
-                    }
-                  }
-                },
-                {
-                  "Identifier": {
-                    "data": 3,
-                    "start": {
-                      "row": 6,
-                      "column": 14
-                    },
-                    "end": {
-                      "row": 6,
-                      "column": 15
-                    }
-                  }
-                }
-              ]
+                ]
+              }
             }
           }
-        }
-      ],
+        ],
+        "allocations": 0
+      },
       "public": false
     },
     {
       "identifier": {
         "data": 1,
-        "start": {
-          "row": 9,
-          "column": 5
-        },
-        "end": {
-          "row": 9,
-          "column": 6
+        "loc": {
+          "start": {
+            "row": 9,
+            "column": 5
+          },
+          "end": {
+            "row": 9,
+            "column": 6
+          },
+          "module": null
         }
       },
       "param_list": {
         "params": [
           {
-            "name": 3,
+            "name": {
+              "data": 3,
+              "loc": {
+                "start": {
+                  "row": 9,
+                  "column": 8
+                },
+                "end": {
+                  "row": 9,
+                  "column": 9
+                },
+                "module": null
+              }
+            },
             "captured": false
           }
         ],
         "vardic": null
       },
-      "body": [],
+      "body": {
+        "stmts": [],
+        "allocations": 0
+      },
       "public": false
     },
     {
       "identifier": {
         "data": 2,
-        "start": {
-          "row": 13,
-          "column": 5
-        },
-        "end": {
-          "row": 13,
-          "column": 6
+        "loc": {
+          "start": {
+            "row": 13,
+            "column": 5
+          },
+          "end": {
+            "row": 13,
+            "column": 6
+          },
+          "module": null
         }
       },
       "param_list": {
         "params": [],
         "vardic": null
       },
-      "body": [],
+      "body": {
+        "stmts": [],
+        "allocations": 0
+      },
       "public": false
     },
     {
       "identifier": {
         "data": 6,
-        "start": {
-          "row": 14,
-          "column": 5
-        },
-        "end": {
-          "row": 14,
-          "column": 6
+        "loc": {
+          "start": {
+            "row": 14,
+            "column": 5
+          },
+          "end": {
+            "row": 14,
+            "column": 6
+          },
+          "module": null
         }
       },
       "param_list": {
         "params": [],
         "vardic": null
       },
-      "body": [],
+      "body": {
+        "stmts": [],
+        "allocations": 0
+      },
       "public": false
     },
     {
       "identifier": {
         "data": 7,
-        "start": {
-          "row": 15,
-          "column": 5
-        },
-        "end": {
-          "row": 15,
-          "column": 6
+        "loc": {
+          "start": {
+            "row": 15,
+            "column": 5
+          },
+          "end": {
+            "row": 15,
+            "column": 6
+          },
+          "module": null
         }
       },
       "param_list": {
         "params": [],
         "vardic": null
       },
-      "body": [],
+      "body": {
+        "stmts": [],
+        "allocations": 0
+      },
       "public": false
     },
     {
       "identifier": {
         "data": 5,
-        "start": {
-          "row": 17,
-          "column": 5
-        },
-        "end": {
-          "row": 17,
-          "column": 8
+        "loc": {
+          "start": {
+            "row": 17,
+            "column": 5
+          },
+          "end": {
+            "row": 17,
+            "column": 8
+          },
+          "module": null
         }
       },
       "param_list": {
         "params": [
           {
-            "name": 3,
+            "name": {
+              "data": 3,
+              "loc": {
+                "start": {
+                  "row": 17,
+                  "column": 10
+                },
+                "end": {
+                  "row": 17,
+                  "column": 11
+                },
+                "module": null
+              }
+            },
             "captured": false
           },
           {
-            "name": 2,
+            "name": {
+              "data": 2,
+              "loc": {
+                "start": {
+                  "row": 17,
+                  "column": 12
+                },
+                "end": {
+                  "row": 17,
+                  "column": 13
+                },
+                "module": null
+              }
+            },
             "captured": false
           }
         ],
         "vardic": {
-          "name": 8,
+          "name": {
+            "data": 8,
+            "loc": {
+              "start": {
+                "row": 17,
+                "column": 17
+              },
+              "end": {
+                "row": 17,
+                "column": 18
+              },
+              "module": null
+            }
+          },
           "captured": false
         }
       },
-      "body": [
-        {
-          "Expression": {
-            "FunctionCall": {
-              "function": {
-                "Identifier": {
-                  "data": 0,
-                  "start": {
-                    "row": 19,
-                    "column": 4
-                  },
-                  "end": {
-                    "row": 19,
-                    "column": 9
-                  }
-                }
-              },
-              "args": [
-                {
+      "body": {
+        "stmts": [
+          {
+            "Expression": {
+              "FunctionCall": {
+                "function": {
                   "Identifier": {
-                    "data": 3,
-                    "start": {
-                      "row": 19,
-                      "column": 10
-                    },
-                    "end": {
-                      "row": 19,
-                      "column": 11
+                    "data": 0,
+                    "loc": {
+                      "start": {
+                        "row": 19,
+                        "column": 4
+                      },
+                      "end": {
+                        "row": 19,
+                        "column": 9
+                      },
+                      "module": null
                     }
                   }
                 },
-                {
-                  "Identifier": {
-                    "data": 2,
-                    "start": {
-                      "row": 19,
-                      "column": 13
-                    },
-                    "end": {
-                      "row": 19,
-                      "column": 14
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        {
-          "For": {
-            "declaration": {
-              "declarations": [
-                {
-                  "identifier": {
-                    "data": 9,
-                    "start": {
-                      "row": 20,
-                      "column": 13
-                    },
-                    "end": {
-                      "row": 20,
-                      "column": 14
-                    }
-                  },
-                  "value": {
-                    "Number": 0.0
-                  },
-                  "captured": false
-                }
-              ],
-              "mutable": true
-            },
-            "condition": {
-              "Binary": {
-                "op": "LessThan",
-                "left": {
-                  "Identifier": {
-                    "data": 9,
-                    "start": {
-                      "row": 20,
-                      "column": 20
-                    },
-                    "end": {
-                      "row": 20,
-                      "column": 21
-                    }
-                  }
-                },
-                "right": {
-                  "FunctionCall": {
-                    "function": {
-                      "PropertyAccess": {
-                        "item": {
-                          "Identifier": {
-                            "data": 8,
-                            "start": {
-                              "row": 20,
-                              "column": 24
-                            },
-                            "end": {
-                              "row": 20,
-                              "column": 25
-                            }
-                          }
-                        },
-                        "property": 10
-                      }
-                    },
-                    "args": []
-                  }
-                }
-              }
-            },
-            "increment": {
-              "Assignment": {
-                "op": "AssignPlus",
-                "left": {
-                  "Identifier": {
-                    "data": 9,
-                    "start": {
-                      "row": 20,
-                      "column": 33
-                    },
-                    "end": {
-                      "row": 20,
-                      "column": 34
-                    }
-                  }
-                },
-                "right": {
-                  "Number": 1.0
-                }
-              }
-            },
-            "body": [
-              {
-                "Expression": {
-                  "FunctionCall": {
-                    "function": {
-                      "Identifier": {
-                        "data": 1,
+                "args": [
+                  {
+                    "Identifier": {
+                      "data": 3,
+                      "loc": {
                         "start": {
-                          "row": 21,
-                          "column": 8
+                          "row": 19,
+                          "column": 10
                         },
                         "end": {
-                          "row": 21,
-                          "column": 9
-                        }
+                          "row": 19,
+                          "column": 11
+                        },
+                        "module": null
+                      }
+                    }
+                  },
+                  {
+                    "Identifier": {
+                      "data": 2,
+                      "loc": {
+                        "start": {
+                          "row": 19,
+                          "column": 13
+                        },
+                        "end": {
+                          "row": 19,
+                          "column": 14
+                        },
+                        "module": null
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "For": {
+              "declaration": {
+                "declarations": [
+                  {
+                    "identifier": {
+                      "data": 9,
+                      "loc": {
+                        "start": {
+                          "row": 20,
+                          "column": 13
+                        },
+                        "end": {
+                          "row": 20,
+                          "column": 14
+                        },
+                        "module": null
                       }
                     },
-                    "args": [
-                      {
-                        "IndexAccess": {
+                    "value": {
+                      "Number": 0.0
+                    },
+                    "captured": false
+                  }
+                ],
+                "mutable": true
+              },
+              "condition": {
+                "Binary": {
+                  "op": "LessThan",
+                  "left": {
+                    "Identifier": {
+                      "data": 9,
+                      "loc": {
+                        "start": {
+                          "row": 20,
+                          "column": 20
+                        },
+                        "end": {
+                          "row": 20,
+                          "column": 21
+                        },
+                        "module": null
+                      }
+                    }
+                  },
+                  "right": {
+                    "FunctionCall": {
+                      "function": {
+                        "PropertyAccess": {
                           "item": {
                             "Identifier": {
                               "data": 8,
-                              "start": {
-                                "row": 21,
-                                "column": 10
-                              },
-                              "end": {
-                                "row": 21,
-                                "column": 11
+                              "loc": {
+                                "start": {
+                                  "row": 20,
+                                  "column": 24
+                                },
+                                "end": {
+                                  "row": 20,
+                                  "column": 25
+                                },
+                                "module": null
                               }
                             }
                           },
-                          "index": {
-                            "Identifier": {
-                              "data": 9,
+                          "property": 10
+                        }
+                      },
+                      "args": []
+                    }
+                  }
+                }
+              },
+              "increment": {
+                "Assignment": {
+                  "op": "AssignPlus",
+                  "left": {
+                    "Identifier": {
+                      "data": 9,
+                      "loc": {
+                        "start": {
+                          "row": 20,
+                          "column": 33
+                        },
+                        "end": {
+                          "row": 20,
+                          "column": 34
+                        },
+                        "module": null
+                      }
+                    }
+                  },
+                  "right": {
+                    "Number": 1.0
+                  }
+                }
+              },
+              "body": {
+                "stmts": [
+                  {
+                    "Expression": {
+                      "FunctionCall": {
+                        "function": {
+                          "Identifier": {
+                            "data": 1,
+                            "loc": {
                               "start": {
                                 "row": 21,
-                                "column": 12
+                                "column": 8
                               },
                               "end": {
                                 "row": 21,
-                                "column": 13
+                                "column": 9
+                              },
+                              "module": null
+                            }
+                          }
+                        },
+                        "args": [
+                          {
+                            "IndexAccess": {
+                              "item": {
+                                "Identifier": {
+                                  "data": 8,
+                                  "loc": {
+                                    "start": {
+                                      "row": 21,
+                                      "column": 10
+                                    },
+                                    "end": {
+                                      "row": 21,
+                                      "column": 11
+                                    },
+                                    "module": null
+                                  }
+                                }
+                              },
+                              "index": {
+                                "Identifier": {
+                                  "data": 9,
+                                  "loc": {
+                                    "start": {
+                                      "row": 21,
+                                      "column": 12
+                                    },
+                                    "end": {
+                                      "row": 21,
+                                      "column": 13
+                                    },
+                                    "module": null
+                                  }
+                                }
                               }
                             }
                           }
-                        }
+                        ]
                       }
-                    ]
+                    }
                   }
-                }
+                ],
+                "allocations": 0
               }
-            ]
+            }
           }
-        }
-      ],
+        ],
+        "allocations": 0
+      },
       "public": false
     }
   ],
@@ -497,5 +697,8 @@
     "i",
     "len"
   ],
-  "body": []
+  "body": {
+    "stmts": [],
+    "allocations": 0
+  }
 }

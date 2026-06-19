@@ -1,7 +1,7 @@
 {
   "modules": [],
   "imports": [],
-  "functions": [],
+  "procedures": [],
   "lambdas": [
     {
       "param_list": {
@@ -9,65 +9,95 @@
         "vardic": null
       },
       "body": {
-        "Block": [
-          {
-            "Declaration": {
-              "declarations": [
-                {
-                  "identifier": {
-                    "data": 2,
-                    "start": {
-                      "row": 4,
-                      "column": 13
+        "Block": {
+          "stmts": [
+            {
+              "Declaration": {
+                "declarations": [
+                  {
+                    "identifier": {
+                      "data": 2,
+                      "loc": {
+                        "start": {
+                          "row": 4,
+                          "column": 13
+                        },
+                        "end": {
+                          "row": 4,
+                          "column": 14
+                        },
+                        "module": null
+                      }
                     },
-                    "end": {
-                      "row": 4,
-                      "column": 14
-                    }
-                  },
-                  "value": {
-                    "Number": 3.0
-                  },
-                  "captured": false
-                }
-              ],
-              "mutable": true
-            }
-          },
-          {
-            "Return": {
-              "Binary": {
-                "op": "Mult",
-                "left": {
-                  "Identifier": {
-                    "data": 2,
-                    "start": {
-                      "row": 5,
-                      "column": 15
+                    "value": {
+                      "Number": 3.0
                     },
-                    "end": {
-                      "row": 5,
-                      "column": 16
+                    "captured": false
+                  }
+                ],
+                "mutable": true
+              }
+            },
+            {
+              "ControlFlow": {
+                "data": {
+                  "allocations": 0,
+                  "kind": {
+                    "Return": {
+                      "Binary": {
+                        "op": "Mult",
+                        "left": {
+                          "Identifier": {
+                            "data": 2,
+                            "loc": {
+                              "start": {
+                                "row": 5,
+                                "column": 15
+                              },
+                              "end": {
+                                "row": 5,
+                                "column": 16
+                              },
+                              "module": null
+                            }
+                          }
+                        },
+                        "right": {
+                          "Identifier": {
+                            "data": 2,
+                            "loc": {
+                              "start": {
+                                "row": 5,
+                                "column": 19
+                              },
+                              "end": {
+                                "row": 5,
+                                "column": 20
+                              },
+                              "module": null
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 },
-                "right": {
-                  "Identifier": {
-                    "data": 2,
-                    "start": {
-                      "row": 5,
-                      "column": 19
-                    },
-                    "end": {
-                      "row": 5,
-                      "column": 20
-                    }
-                  }
+                "loc": {
+                  "start": {
+                    "row": 5,
+                    "column": 8
+                  },
+                  "end": {
+                    "row": 5,
+                    "column": 14
+                  },
+                  "module": null
                 }
               }
             }
-          }
-        ]
+          ],
+          "allocations": 0
+        }
       },
       "captured": []
     }
@@ -81,144 +111,230 @@
     "d",
     "e",
     "f",
-    "aaaaaa"
+    "aaaaaa",
+    "test"
   ],
-  "body": [
-    {
-      "Declaration": {
-        "declarations": [
-          {
-            "identifier": {
-              "data": 0,
-              "start": {
-                "row": 1,
-                "column": 3
-              },
-              "end": {
-                "row": 1,
-                "column": 4
-              }
-            },
-            "value": {
-              "Number": 1.0
-            },
-            "captured": false
-          },
-          {
-            "identifier": {
-              "data": 1,
-              "start": {
-                "row": 2,
-                "column": 4
-              },
-              "end": {
-                "row": 2,
-                "column": 5
-              }
-            },
-            "value": {
-              "Binary": {
-                "op": "LogicalOr",
-                "left": {
-                  "Bool": true
-                },
-                "right": {
-                  "Bool": false
+  "body": {
+    "stmts": [
+      {
+        "Declaration": {
+          "declarations": [
+            {
+              "identifier": {
+                "data": 0,
+                "loc": {
+                  "start": {
+                    "row": 1,
+                    "column": 3
+                  },
+                  "end": {
+                    "row": 1,
+                    "column": 4
+                  },
+                  "module": null
                 }
-              }
-            },
-            "captured": false
-          },
-          {
-            "identifier": {
-              "data": 2,
-              "start": {
-                "row": 3,
-                "column": 4
               },
-              "end": {
-                "row": 3,
-                "column": 5
-              }
-            },
-            "value": {
-              "Lambda": 0
-            },
-            "captured": false
-          }
-        ],
-        "mutable": false
-      }
-    },
-    {
-      "Declaration": {
-        "declarations": [
-          {
-            "identifier": {
-              "data": 3,
-              "start": {
-                "row": 8,
-                "column": 5
+              "value": {
+                "Number": 1.0
               },
-              "end": {
-                "row": 8,
-                "column": 6
-              }
+              "captured": false
             },
-            "value": {
-              "Number": 20.0
-            },
-            "captured": false
-          }
-        ],
-        "mutable": true
-      }
-    },
-    {
-      "Declaration": {
-        "declarations": [
-          {
-            "identifier": {
-              "data": 4,
-              "start": {
-                "row": 9,
-                "column": 5
-              },
-              "end": {
-                "row": 9,
-                "column": 6
-              }
-            },
-            "value": {
-              "Unary": {
-                "op": "Negation",
-                "expr": {
-                  "Number": 50.2323
+            {
+              "identifier": {
+                "data": 1,
+                "loc": {
+                  "start": {
+                    "row": 2,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 2,
+                    "column": 5
+                  },
+                  "module": null
                 }
-              }
-            },
-            "captured": false
-          },
-          {
-            "identifier": {
-              "data": 5,
-              "start": {
-                "row": 10,
-                "column": 4
               },
-              "end": {
-                "row": 10,
-                "column": 5
-              }
+              "value": {
+                "Binary": {
+                  "op": "LogicalOr",
+                  "left": {
+                    "Bool": true
+                  },
+                  "right": {
+                    "Bool": false
+                  }
+                }
+              },
+              "captured": false
             },
-            "value": {
-              "String": 6
+            {
+              "identifier": {
+                "data": 2,
+                "loc": {
+                  "start": {
+                    "row": 3,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 3,
+                    "column": 5
+                  },
+                  "module": null
+                }
+              },
+              "value": {
+                "Lambda": 0
+              },
+              "captured": false
+            }
+          ],
+          "mutable": false
+        }
+      },
+      {
+        "Declaration": {
+          "declarations": [
+            {
+              "identifier": {
+                "data": 3,
+                "loc": {
+                  "start": {
+                    "row": 8,
+                    "column": 5
+                  },
+                  "end": {
+                    "row": 8,
+                    "column": 6
+                  },
+                  "module": null
+                }
+              },
+              "value": {
+                "Number": 20.0
+              },
+              "captured": false
+            }
+          ],
+          "mutable": true
+        }
+      },
+      {
+        "Declaration": {
+          "declarations": [
+            {
+              "identifier": {
+                "data": 4,
+                "loc": {
+                  "start": {
+                    "row": 9,
+                    "column": 5
+                  },
+                  "end": {
+                    "row": 9,
+                    "column": 6
+                  },
+                  "module": null
+                }
+              },
+              "value": {
+                "Unary": {
+                  "op": "Negation",
+                  "expr": {
+                    "Number": 50.2323
+                  }
+                }
+              },
+              "captured": false
             },
-            "captured": false
-          }
-        ],
-        "mutable": true
+            {
+              "identifier": {
+                "data": 5,
+                "loc": {
+                  "start": {
+                    "row": 10,
+                    "column": 4
+                  },
+                  "end": {
+                    "row": 10,
+                    "column": 5
+                  },
+                  "module": null
+                }
+              },
+              "value": {
+                "String": 6
+              },
+              "captured": false
+            }
+          ],
+          "mutable": true
+        }
+      },
+      {
+        "Declaration": {
+          "declarations": [
+            {
+              "identifier": {
+                "data": 7,
+                "loc": {
+                  "start": {
+                    "row": 11,
+                    "column": 3
+                  },
+                  "end": {
+                    "row": 11,
+                    "column": 7
+                  },
+                  "module": null
+                }
+              },
+              "value": {
+                "Binary": {
+                  "op": "LogicalOr",
+                  "left": {
+                    "Binary": {
+                      "op": "Plus",
+                      "left": {
+                        "Binary": {
+                          "op": "Mult",
+                          "left": {
+                            "Number": 1.0
+                          },
+                          "right": {
+                            "Number": 2.0
+                          }
+                        }
+                      },
+                      "right": {
+                        "Number": 3.0
+                      }
+                    }
+                  },
+                  "right": {
+                    "Binary": {
+                      "op": "Minus",
+                      "left": {
+                        "Number": 15.0
+                      },
+                      "right": {
+                        "Unary": {
+                          "op": "LogicalNegation",
+                          "expr": {
+                            "Number": 20.0
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "captured": false
+            }
+          ],
+          "mutable": false
+        }
       }
-    }
-  ]
+    ],
+    "allocations": 0
+  }
 }

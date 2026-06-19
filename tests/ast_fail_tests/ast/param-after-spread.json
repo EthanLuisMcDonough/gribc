@@ -1,13 +1,16 @@
 {
-    "ParamAfterSpread": {
-        "data": "e",
-        "start": {
-            "row": 1,
-            "column": 13
-        },
-        "end": {
-            "row": 1,
-            "column": 14
-        }
+  "ParamAfterSpread": {
+    "data": "e",
+    "loc": {
+      "start": {
+        "row": 1,
+        "column": 13
+      },
+      "end": {
+        "row": 1,
+        "column": 14
+      },
+      "module": null
     }
+  }
 }

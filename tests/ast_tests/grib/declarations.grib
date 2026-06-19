@@ -8,3 +8,4 @@ im a = 1,
 decl d = 20;
 decl e = -50.2323,
     f = "aaaaaa";
+im test = 1 * 2 + 3 || 15 - !20;
